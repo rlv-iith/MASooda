@@ -86,3 +86,4 @@ The repository is organized around the simulation, coordination algorithms, resi
 - Add tests for coordination, safety, resilience, and communication-loss behavior.
 - Make experiments reproducible by recording parameters, traffic density, random seeds, and observed metrics.
 - Keep core simulation logic separate from rendering and dashboard code.
+
