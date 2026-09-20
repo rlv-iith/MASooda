@@ -21,7 +21,8 @@ The core implementation uses a bounded 2.5D urban airspace with predefined corri
 
  The following sequence is the implementation plan for the project.
 ## Timeline
-- 15th September 2026 - Project proposal was submitted to the Instructor
+- Mid-September 2026 - Project proposal approved by the Instructor
+- Estimated Completion - Early November
 
 
 ## Individual Contributions
