@@ -1,0 +1,166 @@
+# P4 Unit Test Results & Validation Report
+
+**Module:** P4 — Global Overseer & Priority Arbitration  
+**Author:** Tanmay (P4)  
+**Milestone:** Section 10.4 (Week 2 Overseer Skeleton)  
+**Test Suite:** `tests/test_overseer.py`  
+**Execution Environment:** Python 3.12, Pytest 9.1.1  
+**Summary:** 10 Passed / 0 Failed in 0.03 seconds  
+
+---
+
+## 1. Quick Reproduction Command
+
+To run the complete test suite and display all detailed logs in the terminal:
+
+```bash
+cd /home/tanmay/Documents/Projects/MASooda
+PYTHONPATH=. .venv/bin/pytest -s -v tests/test_overseer.py
+```
+
+---
+
+## 2. Detailed Test Case Analysis
+
+Below is the breakdown of each test case, explaining the scenario tested, the inputs provided, the output generated, and the real-world engineering reason for validating it.
+
+---
+
+### Test 1: `test_mock_returns_the_required_directive`
+* **Plain English Intention:**  
+  Make sure our original Week 1 placeholder mock didn't break when we added the real overseer code. Other teammates (like P3) might still reference this mock while building their standalone boids logic.
+* **Input Given:**  
+  `GlobalStateSnapshot(timestamp=12.5, corridor_occupancy={1: 2, 2: 1})`
+* **Observed Output:**  
+  * `corridor_map = {0: 1, 1: 1, 2: 2}`
+  * `priority_table = {EMERGENCY: 0, EVTOL: 1, DELIVERY: 2}`
+  * `altitude_map = {0: 0, 1: 0, 2: 1}`
+  * `timestamp = 12.5`
+* **Why This Validates Safety:**  
+  Guarantees backward compatibility so no teammate's branch breaks.
+
+---
+
+### Test 2: `test_priority_order_is_emergency_then_evtol_then_delivery`
+* **Plain English Intention:**  
+  Ensure that drone priority rules are properly ranked. In multi-agent systems, lower numerical rank means higher precedence.
+* **Input Given:**  
+  `STANDARD_PRIORITY_TABLE`
+* **Observed Output:**  
+  * `EMERGENCY = 0`
+  * `EVTOL = 1`
+  * `DELIVERY = 2`
+  * Ordering confirmed: `EMERGENCY (0) < EVTOL (1) < DELIVERY (2)`.
+* **Why This Validates Safety:**  
+  An emergency ambulance drone must always have right-of-way over human passenger transport, which in turn must have right-of-way over delivery packages.
+
+---
+
+### Test 3: `test_snapshot_validation_rejects_invalid_timestamp`
+* **Plain English Intention:**  
+  Confirm the overseer refuses to make decisions if the simulation engine provides a corrupted snapshot with a negative time.
+* **Input Given:**  
+  `GlobalStateSnapshot(timestamp=-1.0)`
+* **Observed Output:**  
+  Raised `ValueError: snapshot timestamp must be non-negative`.
+* **Why This Validates Safety:**  
+  Prevents invalid temporal data from polluting global airspace logs.
+
+---
+
+### Test 4: `test_snapshot_validation_rejects_negative_occupancy`
+* **Plain English Intention:**  
+  Ensure the overseer rejects physically impossible reports like having a negative number of drones in a corridor.
+* **Input Given:**  
+  `GlobalStateSnapshot(timestamp=1.0, corridor_occupancy={0: -2})`
+* **Observed Output:**  
+  Raised `ValueError: corridor occupancy counts must be non-negative`.
+* **Why This Validates Safety:**  
+  Catches state-estimator bugs or data corruption before corrupting traffic routing.
+
+---
+
+### Test 5: `test_snapshot_validation_rejects_negative_agent_id`
+* **Plain English Intention:**  
+  Check that impossible negative drone ID numbers are intercepted immediately.
+* **Input Given:**  
+  `GlobalStateSnapshot(timestamp=1.0, agent_ids=[-5])`
+* **Observed Output:**  
+  Raised `ValueError: agent IDs must be non-negative`.
+* **Why This Validates Safety:**  
+  Ensures drone IDs conform to valid non-negative integer indexes across all modules.
+
+---
+
+### Test 6: `test_real_overseer_least_loaded_policy`
+* **Plain English Intention (Core Requirement):**  
+  This is the primary algorithm required by Section 10.4. It validates that the overseer actively steers new drones to the emptiest aerial highway.
+* **Input Given:**  
+  * Existing highway traffic: `Corridor 0: 5 drones`, `Corridor 1: 2 drones`, `Corridor 2: 7 drones`.
+  * New incoming drones waiting for a corridor: `[101, 102, 103, 104]`.
+* **Observed Output & Allocation Steps:**  
+  1. `Agent 101` $\rightarrow$ Corridor 1 is emptiest (2 drones). Assigned to Corridor 1 (traffic becomes 3).
+  2. `Agent 102` $\rightarrow$ Corridor 1 is still emptiest (3 drones). Assigned to Corridor 1 (traffic becomes 4).
+  3. `Agent 103` $\rightarrow$ Corridor 1 is still emptiest (4 drones). Assigned to Corridor 1 (traffic becomes 5).
+  4. `Agent 104` $\rightarrow$ Tie between Corridor 0 (5 drones) and Corridor 1 (5 drones). Deterministic tie-breaker selects the lower corridor ID $\rightarrow$ Corridor 0.
+  * **Final Output Corridor Map:** `{101: 1, 102: 1, 103: 1, 104: 0}`.
+* **Why This Validates Safety:**  
+  Proves that incoming traffic is smoothly balanced across available airspace rather than clustering into a congested lane.
+
+---
+
+### Test 7: `test_real_overseer_tie_breaking_distribution`
+* **Plain English Intention:**  
+  When all corridors are completely empty (0 drones each), ensure that the overseer distributes drones evenly and deterministically rather than dumping everyone into Corridor 0.
+* **Input Given:**  
+  * Corridors: `{0: 0, 1: 0, 2: 0}`
+  * Incoming drones: `[1, 2, 3, 4]`
+* **Observed Output:**  
+  * `Agent 1 -> Corridor 0`
+  * `Agent 2 -> Corridor 1`
+  * `Agent 3 -> Corridor 2`
+  * `Agent 4 -> Corridor 0` (cycled back evenly)
+  * **Final Output Corridor Map:** `{1: 0, 2: 1, 3: 2, 4: 0}`.
+* **Why This Validates Safety:**  
+  Verifies that initial simulation starts produce a fair, balanced, and fully deterministic traffic load.
+
+---
+
+### Test 8: `test_real_overseer_round_robin_policy`
+* **Plain English Intention:**  
+  Validates the secondary allocation policy mentioned in the project specification: strict cyclic round-robin assignment.
+* **Input Given:**  
+  * Corridors: `[0, 1, 2]`
+  * Incoming drones: `[10, 20, 30, 40, 50]`
+* **Observed Output:**  
+  * `corridor_map = {10: 0, 20: 1, 30: 2, 40: 0, 50: 1}`
+  * `altitude_map = {10: 0, 20: 0, 30: 0, 40: 0, 50: 0}`
+* **Why This Validates Safety:**  
+  Provides an alternate baseline policy for experimental comparison in future benchmarking.
+
+---
+
+### Test 9: `test_real_overseer_empty_agent_list`
+* **Plain English Intention:**  
+  What happens when the overseer runs, but there are no new drones waiting for a corridor assignment? It should not crash or return invalid null pointers.
+* **Input Given:**  
+  `agent_ids = []`, with existing traffic `{0: 3, 1: 4, 2: 1}`.
+* **Observed Output:**  
+  Returned valid `OverseerDirective` with empty mapping `corridor_map = {}` and `altitude_map = {}`.
+* **Why This Validates Safety:**  
+  Guarantees stability during simulation ticks where no new drones are entering the airspace.
+
+---
+
+### Test 10: `test_non_trivial_directive_definition_of_done`
+* **Plain English Intention (Week 2 Definition of Done):**  
+  The project milestone roadmap states: *"Overseer generates non-trivial directives."* This test formally proves that our overseer outputs dynamically adapt to real conditions instead of returning static canned values.
+* **Input Given:**  
+  * Scenario A: Corridor 0 is jammed (10 drones), Corridor 1 is empty (0 drones). Drone 99 needs routing.
+  * Scenario B: Corridor 0 is empty (0 drones), Corridor 1 is jammed (10 drones). Drone 99 needs routing.
+* **Observed Output:**  
+  * In Scenario A: Drone 99 is assigned to Corridor 1.
+  * In Scenario B: Drone 99 is assigned to Corridor 0.
+  * Assignments are dynamic, appropriate, and strictly non-identical (`d1.corridor_map != d2.corridor_map`).
+* **Why This Validates Safety:**  
+  Satisfies the Week 2 Definition of Done audit check.

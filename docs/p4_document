@@ -1,0 +1,100 @@
+# P4 Global Overseer — Technical & Architecture Overview
+
+**Author:** Tanmay (P4)  
+**Module:** Global Overseer & Priority Arbitration  
+**Project:** MASooda (Multi-Agent System for Hierarchical, Priority-Aware, and Resilient Urban Air Traffic Management)  
+**Current Milestone:** Week 2 — Standalone Implementations (Section 10.4: Overseer Skeleton)
+
+---
+
+## 1. What is the Global Overseer and Why Do We Need It?
+
+In our simulation, 50 to 80 autonomous drones (emergency medical drones, passenger eVTOLs, and delivery drones) fly across the city. Each drone runs local collision-avoidance algorithms (like boids flocking and ADMM) to keep safe distance from nearby drones.
+
+However, local drones only have limited vision and communication range. They cannot see that a highway 2 kilometers ahead is already congested. If left entirely to themselves, multiple drones would crowd into the same air corridor, causing massive bottlenecks or safety hazards.
+
+**The Global Overseer is the centralized air-traffic control brain for the airspace:**
+* It looks at a high-level summary of the entire city's traffic.
+* It decides which aerial highway ("corridor") each drone should take.
+* It distributes traffic evenly so no single corridor gets overloaded.
+* It establishes the global priority rules so that high-priority drones (like medical emergency responders) get preference over routine pizza deliveries.
+
+---
+
+## 2. What Has Been Implemented So Far
+
+### Week 1 — Foundation and Teammate Mocks
+* **Goal:** Enable teammates (P1, P3, etc.) to start coding without waiting for the real overseer logic to be finished.
+* **Implementation:** Built `mock_overseer_update()`, which returned a hardcoded test directive (`corridor_map = {0: 1, 1: 1, 2: 2}`).
+* **Interfaces Defined:** Established the shared data contracts in `simulation/schema.py` (`GlobalStateSnapshot` and `OverseerDirective`) and the common entry point in `simulation/interfaces.py` (`overseer_update()`).
+
+### Week 2 — Real Overseer Skeleton (Section 10.4)
+* **Goal:** Replace the hardcoded mock with real, dynamic traffic management logic that balances drones across corridors.
+* **Core Components Implemented:**
+  1. **`GlobalOverseer` Class (`simulation/overseer.py`):**
+     * Maintains the airspace corridor configuration (Corridors `0, 1, 2` based on `configs/base_config.yaml`).
+     * Supports configurable routing policies: **Least-Loaded** (primary) and **Round-Robin** (alternative).
+  2. **Dynamic Least-Loaded Allocation:**
+     * Inspects the current occupancy of every corridor from the incoming snapshot.
+     * Evaluates new incoming drones one by one, continuously routing each drone to the corridor with the least traffic.
+     * Updates running occupancy in real time during batch processing so a group of new drones is distributed evenly instead of all dumping into the same corridor.
+     * Incorporates deterministic tie-breaking (prefers lower corridor IDs on ties) so simulation runs remain 100% reproducible across experiments.
+  3. **Round-Robin Allocation:**
+     * Implemented as an alternative policy that distributes drones cyclically across available corridors.
+  4. **Contract Interface Wiring (`simulation/interfaces.py`):**
+     * Connected `overseer_update()` to `real_overseer_update()`, making dynamic traffic allocation active for the entire project.
+  5. **Safety & Input Validation:**
+     * Rigorously enforces `validate_snapshot()` preconditions before computation to prevent corrupted simulation states (e.g., negative time, negative drone counts, or negative drone IDs).
+
+---
+
+## 3. How It Works (Data Flow)
+
+```
+[Simulation Engine / P1]
+         │
+         │ Passes Coarse GlobalStateSnapshot:
+         │ - timestamp (e.g., 5.0s)
+         │ - corridor_occupancy (e.g., {0: 5, 1: 2, 2: 7})
+         │ - agent_ids (e.g., [101, 102, 103, 104])
+         ▼
+[P4: GlobalOverseer.update()]
+         │
+         │ 1. Validate snapshot safety
+         │ 2. Find least-loaded corridor:
+         │      Agent 101 -> Corridor 1 (occupancy 2 -> 3)
+         │      Agent 102 -> Corridor 1 (occupancy 3 -> 4)
+         │      Agent 103 -> Corridor 1 (occupancy 4 -> 5)
+         │      Agent 104 -> Tie between Corridor 0 & 1 -> Corridor 0
+         │ 3. Package OverseerDirective
+         ▼
+[OverseerDirective Emitted to P1 & P3]
+         - corridor_map: {101: 1, 102: 1, 103: 1, 104: 0}
+         - priority_table: {EMERGENCY: 0, EVTOL: 1, DELIVERY: 2}
+         - altitude_map: {101: 0, 102: 0, 103: 0, 104: 0}
+         - timestamp: 5.0
+```
+
+---
+
+## 4. Key Design Decisions and Why They Matter
+
+1. **Coarse Snapshots over Full State:**
+   * *Why:* The Overseer does not need to know the exact $x, y, z$ coordinates, pitch, yaw, or battery levels of 60+ drones. Sending only corridor counts and drone IDs prevents communication bottlenecks and keeps simulation ticks fast.
+2. **Decoupled Asynchronous Timescale:**
+   * *Why:* Local collision avoidance must run fast (every 0.1s / 10 Hz), but macro-level corridor assignments only need to update periodically (every 2.0s). Decoupling keeps the overseer independent from P1's per-tick loop until full integration in Week 3.
+3. **Deterministic Tie-Breaking:**
+   * *Why:* If Corridor 0 and Corridor 1 both have 3 drones, the algorithm consistently picks Corridor 0. This ensures scientific reproducibility across random seeds.
+4. **Preserved Week 1 Backward Compatibility:**
+   * *Why:* `mock_overseer_update()` remains available in the codebase so older tests or parallel branches are not broken.
+
+---
+
+## 5. What's Coming Next in Future Weeks
+
+* **Week 3 (Section 11.4 — Priority-Aware Overseer):**
+  * Introduce corridor capacity thresholds (e.g., max 15 drones per corridor).
+  * Implement active pre-emption: if a corridor is nearing capacity, high-priority emergency drones get guaranteed access while lower-priority delivery drones are rerouted or delayed.
+* **Week 4 (Section 12.5 — Overseer Failure Handling & Graceful Degradation):**
+  * Simulate overseer communication loss.
+  * If the overseer connection drops, local agents will seamlessly fall back to their last cached directive and use decentralized boids/ADMM to avoid crashing.

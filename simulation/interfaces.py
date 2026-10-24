@@ -8,7 +8,7 @@ while P1 and P3 continue calling the same function.
 from __future__ import annotations
 from typing import Protocol
 from .schema import GlobalStateSnapshot, OverseerDirective
-from .overseer import mock_overseer_update
+from .overseer import mock_overseer_update, real_overseer_update
 
 
 class OverseerUpdate(Protocol):
@@ -27,11 +27,10 @@ def overseer_update(global_state_snapshot: GlobalStateSnapshot) -> OverseerDirec
     """Provide the project's single entry point for an overseer update.
 
     - P1 or P3 can call this function without knowing where the implementation lives.  
-    - In Week 1 it returns the fixed mock directive.  
-    - In Week 2 P4 will replace the mock with occupancy-based corridor allocation.  
+    - In Week 1 it returned the fixed mock directive.  
+    - In Week 2 (Section 10.4) it performs occupancy-based corridor allocation (least-loaded).  
     - In Week 3 P4 will add priority-aware allocation and capacity handling.  
     - In Week 4 P4 will support cached directives when the overseer link fails.
     """
-    
 
-    return mock_overseer_update(global_state_snapshot)
+    return real_overseer_update(global_state_snapshot)
