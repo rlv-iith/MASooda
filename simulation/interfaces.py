@@ -135,25 +135,9 @@ def resolve_conflict(
     - Returns agent id -> resolved velocity (new_pos - pos) / dt; z velocity is left unchanged.
     - ``priorities`` is ignored in Week 1; Week 3 will use it to bias who yields.
     """
-    cfg = get_config()
-    dt = float(cfg["simulation"]["timestep_seconds"])
-    solver = ADMMSolver(
-        d_safe=float(cfg["safety"]["minimum_separation_meters"]),
-        v_max=float(cfg["safety"]["maximum_velocity_meters_per_second"]),
-        dt=dt,
-        eps_abs=float(cfg["admm"]["tolerance"]),
-        max_iters=int(cfg["admm"]["maximum_iterations"]),
-    )
-    positions = np.array([a.position[:2] for a in agent_states], dtype=float)
-    targets = positions + np.array([a.velocity[:2] for a in agent_states], dtype=float) * dt
-    result = solver.solve(positions, targets)
+    from conflict_resolution.adapter import resolve_conflict_event
 
-    resolved: dict[int, np.ndarray] = {}
-    for k, agent in enumerate(agent_states):
-        velocity = agent.velocity.copy()
-        velocity[:2] = (result.positions[k] - positions[k]) / dt
-        resolved[agent.id] = velocity
-    return resolved
+    return resolve_conflict_event(agent_states, priorities).resolution
 
 
 def mock_resolve_conflict(
