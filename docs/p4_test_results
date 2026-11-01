@@ -186,3 +186,29 @@ Below is the breakdown of each test case, explaining the scenario tested, the in
 The priority-aware policy processes agents in EMERGENCY, EVTOL, then DELIVERY order, with agent ID breaking ties within a priority. Existing assignments are retained while their corridor remains below capacity, limiting unnecessary movement. If no corridor has capacity, the least-loaded corridor receives the assignment and overflow is incremented. The sweep confirmed zero post-first-update corridor changes and complete EMERGENCY priority compliance.
 
 Artifacts: [CSV results](../outputs/p4_week3_contention.csv) and [bar plot](../outputs/p4_week3_contention.png).
+
+---
+
+## Week 4 Overseer Link-Failure Evaluation
+
+**Simulation script:** `scripts/p4_week4_link_failure.py`
+
+**Test module:** `tests/test_p4_week4_link_failure.py`
+
+### Scenario and method
+
+Week 4 exercised an overseer-link outage from 60 to 100 seconds in a 60-agent simulation using the normal 0.1-second timestep. A matching normal run used an always-available link. Every two simulated seconds, the script created a global snapshot and requested a new directive. Successful directives were cached; when the link was unavailable, agents continued using the latest cached directive.
+
+The simulation measured directive staleness, minimum pairwise distance, and corridor occupancy relative to capacity. Separate plots show staleness and minimum separation for normal and failure runs, with the outage interval shaded.
+
+### Observed results
+
+- Normal-case maximum directive staleness: **1.900 seconds**.
+- Failure-case maximum directive staleness: **41.900 seconds**.
+- Normal case ticks below the 8 m separation threshold: **1,229**.
+- Failure case ticks below the 8 m separation threshold: **1,229**.
+- Graceful-degradation ratio: **1.0**.
+
+The failure-case total was equal to the normal case, and the agents completed the simulation without crashes. The higher measured staleness reflects continued use of the cached directive across the outage until communication resumed. The link-specific unit tests cover outage boundaries, dropped requests, successful requests, exception handling, and recovery of staleness below 2.1 seconds after the short 4–8 second outage.
+
+Artifacts: [CSV results](../outputs/p4_week4_link_failure.csv) and [failure plot](../outputs/p4_week4_link_failure.png).

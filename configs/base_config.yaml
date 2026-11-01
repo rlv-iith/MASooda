@@ -71,6 +71,10 @@ admm:
 overseer:
   update_period_seconds: 2.0
   default_policy: priority_aware
+  link_failure:
+    enabled: false
+    down_start_seconds: 90.0
+    down_end_seconds: 120.0
 
 stl:
   monitoring_period_seconds: 0.1
