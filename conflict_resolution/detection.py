@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Sequence
-import math
 import numpy as np
 
 from config.load_config import get_config
@@ -45,32 +44,25 @@ def detect_conflicts(
     agent_list = list(agent_states)
     n = len(agent_list)
 
-    def in_merge_zone(x: float) -> bool:
-        return merge_x_min <= x <= merge_x_max
+    # Compute all pair distances in compiled NumPy operations, then retain only
+    # upper-triangle conflicts so each undirected edge is added once.
+    positions = np.asarray([a.position[:2] for a in agent_list], dtype=float)
+    deltas = positions[:, None, :] - positions[None, :, :]
+    distances = np.sqrt(np.sum(deltas * deltas, axis=2))
+    conflict_mask = distances < detection_radius
+    np.fill_diagonal(conflict_mask, False)
+    if merge_zone_only:
+        in_zone = (positions[:, 0] >= merge_x_min) & (positions[:, 0] <= merge_x_max)
+        conflict_mask &= in_zone[:, None] & in_zone[None, :]
 
-    # Build adjacency among conflicting agents
+    # Build adjacency among conflicting agents. Keep ids and set-based traversal
+    # below unchanged to preserve component and output ordering.
     adj: dict[int, set[int]] = {a.id: set() for a in agent_list}
-
-    for i in range(n):
-        ai = agent_list[i]
-        xi = float(ai.position[0])
-        yi = float(ai.position[1])
-
-        if merge_zone_only and not in_merge_zone(xi):
-            continue
-
-        for j in range(i + 1, n):
-            aj = agent_list[j]
-            xj = float(aj.position[0])
-            yj = float(aj.position[1])
-
-            if merge_zone_only and not in_merge_zone(xj):
-                continue
-
-            dist_xy = math.hypot(xi - xj, yi - yj)
-            if dist_xy < detection_radius:
-                adj[ai.id].add(aj.id)
-                adj[aj.id].add(ai.id)
+    rows, cols = np.nonzero(np.triu(conflict_mask, k=1))
+    for i, j in zip(rows.tolist(), cols.tolist()):
+        ai, aj = agent_list[i], agent_list[j]
+        adj[ai.id].add(aj.id)
+        adj[aj.id].add(ai.id)
 
     # Find connected components of agents with at least one conflict
     conflicted_ids = [aid for aid, nbrs in adj.items() if nbrs]
