@@ -123,7 +123,10 @@ def load_trajectory_csv(path) -> np.ndarray:
 def load_spec_from_config(config: dict | None = None) -> STLSpec:
     """Build an STLSpec from safety.minimum_separation_meters and simulation.timestep_seconds."""
     cfg = config if config is not None else get_config()
+    stl_cfg = cfg.get("stl", {})
+    min_steps = int(stl_cfg.get("min_window_steps", 2))
     return STLSpec(
         d_min=float(cfg["safety"]["minimum_separation_meters"]),
         dt=float(cfg["simulation"]["timestep_seconds"]),
+        min_window_steps=min_steps,
     )
