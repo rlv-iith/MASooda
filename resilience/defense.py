@@ -1,7 +1,14 @@
-"""Trusted-range and W-MSR filtering for neighbour position reports."""
+"""Trusted-range and W-MSR filtering for neighbour position reports.
+
+A report whose distance disagrees with the physically sensed range is flagged.
+The flagged neighbour is NOT removed: removing it makes the receiver blind to a
+real aircraft. Instead its position is moved along the reported bearing to the
+sensed (trusted) range, so separation still reacts to it.
+"""
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 
 import numpy as np
@@ -13,8 +20,8 @@ from .wmsr import wmsr_vector
 
 @dataclass
 class DefenseResult:
-    kept: list[AgentState]
-    dropped_ids: list[int]
+    kept: list[AgentState]        # all neighbours; flagged ones carry a corrected position
+    dropped_ids: list[int]        # ids whose reported position was rejected (flagged)
     wmsr_estimate: np.ndarray   # shape (3,)
 
 
@@ -44,6 +51,14 @@ def defend_neighbor_reports(
         reported = np.linalg.norm(report.position[:2] - own_xy)
         if abs(reported - sensed) > range_tolerance_m:
             dropped_ids.append(report.id)
+            corrected = copy.deepcopy(report)
+            bearing = report.position[:2] - own_xy
+            norm = float(np.linalg.norm(bearing))
+            if norm > 1e-9:
+                corrected.position[:2] = own_xy + bearing / norm * sensed
+            else:
+                corrected.position[:2] = true_by_id[report.id].position[:2]
+            kept.append(corrected)
         else:
             kept.append(report)
 

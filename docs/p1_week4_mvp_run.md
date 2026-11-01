@@ -1,27 +1,34 @@
 # P1 Week 4 MVP Run Summary
 
-The real simulation command was executed with:
+Command (run after merging all Week 4 branches and the week4 fixes):
+
 ```bash
 python main.py --scenario mvp --agents 60 --corridors 3
 ```
 
-## Printed Summary
+## Printed summary
 
 ```
 === Simulation Summary (MVP) ===
 Agents: 60
 Duration: 180.0 s
-Min Robustness: -7.937 m
-Safety Violations: 879
-ADMM Events: 2018
+Min Robustness: -2.562 m
+Safety Violations: 377
+ADMM Events: 2001
 Malicious IDs: [5]
-Reports Dropped: 0
-Overseer Dropped: 0
+Reports Dropped: 3981
+Overseer Dropped: 15
 ```
 
-## Generated Outputs in `outputs/mvp/`
-- `metrics.json`: Run metrics, counters, and robustness summary.
-- `stl_robustness.csv`: Logged STL robustness time series per tick.
-- `trajectory.csv`: Full agent trajectory dataset.
-- `final_frame.png`: Airspace top-down render at final simulation step.
+Selected values from `metrics.json`: min separation 5.44 m, 12 violation episodes,
+0 unrecovered, mean recovery 3.3 s, 56/60 arrivals, max directive staleness 31.9 s,
+0 component failures. "Reports Dropped" counts falsified reports that were flagged
+and corrected to the sensed range.
 
+## Outputs in `outputs/mvp/`
+- `metrics.json`: run metrics and engine counters
+- `stl_robustness.csv`: STL robustness per tick
+- `stl_events.csv`: violation start/end events
+- `trajectory.csv`: full trajectory (git-ignored, ~10 MB)
+- `final_frame.png`: top-down view at the final step
+- `simulation.gif`: only with `--gif`

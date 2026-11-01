@@ -99,12 +99,12 @@ def corridor_following(agent: Any, corridor: int) -> np.ndarray:
 
     Formula:
     y_target = corridor * centerline_spacing_meters.
-    q = (min(x + look_ahead, length_meters), y_target).
+    q = (x + look_ahead, y_target). The look-ahead point is not clamped at the
+    corridor end, so agents fly out through the exit instead of stopping and piling up there.
     v_goal = v_cruise * (q - p) / |q - p|, then add (0, -k_lat * (y - y_target)).
     """
     cfg = get_config()
     spacing = float(cfg["corridors"]["centerline_spacing_meters"])
-    length_meters = float(cfg["corridors"]["length_meters"])
     look_ahead = float(cfg["local_behavior"]["look_ahead"])
     v_cruise = float(cfg["local_behavior"]["v_cruise"])
     k_lat = float(cfg["local_behavior"]["k_lat"])
@@ -112,7 +112,7 @@ def corridor_following(agent: Any, corridor: int) -> np.ndarray:
     x = float(agent.position[0])
     y = float(agent.position[1])
     y_target = float(corridor) * spacing
-    q = np.array([min(x + look_ahead, length_meters), y_target], dtype=float)
+    q = np.array([x + look_ahead, y_target], dtype=float)
     p = np.array([x, y], dtype=float)
     diff = q - p
     dist = float(np.linalg.norm(diff))

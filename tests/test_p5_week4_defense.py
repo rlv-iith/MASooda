@@ -20,13 +20,17 @@ def test_honest_reports_are_kept():
     assert result.kept == true_neighbors
 
 
-def test_large_reported_displacement_is_dropped():
+def test_large_reported_displacement_is_flagged_and_corrected_to_sensed_range():
     own = _agent(0, [100.0, 100.0, 0.0])
     true_neighbors = [_agent(1, [110.0, 100.0, 0.0]), _agent(2, [100.0, 112.0, 0.0])]
     reports = [_agent(1, [135.0, 100.0, 0.0]), true_neighbors[1]]
     result = defend_neighbor_reports(own, reports, true_neighbors)
     assert result.dropped_ids == [1]
-    assert [neighbor.id for neighbor in result.kept] == [2]
+    # The flagged neighbour stays visible, placed at the trusted sensed range (10 m).
+    assert [neighbor.id for neighbor in result.kept] == [1, 2]
+    corrected = result.kept[0]
+    assert np.isclose(np.linalg.norm(corrected.position[:2] - own.position[:2]), 10.0)
+    np.testing.assert_allclose(corrected.position[:2], [110.0, 100.0])
 
 
 def test_small_falsification_within_tolerance_is_kept():

@@ -110,7 +110,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # 5. Build agents and run simulation
     agents = make_initial_agents(n=args.agents, seed=args.seed)
-    monitor = LiveSTLMonitor()
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    events_path = out_dir / "stl_events.csv"
+    if events_path.exists():
+        events_path.unlink()
+    monitor = LiveSTLMonitor(console_every_seconds=10.0, event_log_path=events_path)
     traj = TrajectoryLogger()
 
     result = run_simulation(
@@ -125,8 +130,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     # 6. Metrics
-    out_dir = Path(args.out)
-    out_dir.mkdir(parents=True, exist_ok=True)
 
     metrics_dict: dict[str, Any] = {}
     try:

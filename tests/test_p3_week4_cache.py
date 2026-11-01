@@ -93,3 +93,17 @@ def test_no_neighbors_returns_finite_forward_vector():
     assert np.all(np.isfinite(v_des))
     # Pointing towards destination with positive x component
     assert v_des[0] > 0.0
+
+
+def test_corridor_following_keeps_flying_past_corridor_end():
+    """Agents at the exit must keep forward speed instead of stopping at x = length_meters."""
+    from local_behavior.boids import corridor_following
+    from config.load_config import get_config
+
+    cfg = get_config()
+    length = float(cfg["corridors"]["length_meters"])
+    v_cruise = float(cfg["local_behavior"]["v_cruise"])
+    for x in (length - 5.0, length, length + 30.0):
+        agent = AgentState(id=0, type=AgentType.DELIVERY, position=[x, 50.0, 0.0])
+        v = corridor_following(agent, 1)
+        assert v[0] > 0.9 * v_cruise
