@@ -50,6 +50,10 @@ local_behavior:
 admm:
   tolerance: 0.001
   maximum_iterations: 50
+  relative_tolerance: 0.0001
+  rho: 1.0
+  safety_margin_factor: 1.01
+  iteration_sweep: [5, 10, 20, 50, 100]
 
 overseer:
   update_period_seconds: 2.0
@@ -66,4 +70,6 @@ attack:
   offset_magnitude_meters: 25.0
   ramp_rate_meters_per_second: 1.0
   direction_deg: null        # null: derived from the base seed
+  sweep_offsets_meters: [5.0, 10.0, 25.0, 50.0]
+  consensus_steps: 50
 
