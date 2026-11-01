@@ -28,6 +28,8 @@ class LiveSTLMonitor:
         self,
         spec: STLSpec | None = None,
         window_steps: int | None = None,
+        console_every_seconds: float | None = None,
+        event_log_path: str | Path | None = None,
     ) -> None:
         cfg = get_config()
         self.spec = spec if spec is not None else load_spec_from_config(cfg)
@@ -40,6 +42,24 @@ class LiveSTLMonitor:
 
         self.sliding_monitor = SlidingSTLMonitor(self.spec, window_steps=self.window_steps)
         self.history: list[dict[str, Any]] = []
+
+        self.console_every_seconds = console_every_seconds
+        self.event_log_path = Path(event_log_path) if event_log_path is not None else None
+        self._last_console_time: float | None = None
+        self.in_violation = False
+        self.events: list[dict[str, Any]] = []
+
+    def _append_event_to_file(self, ev: dict[str, Any]) -> None:
+        """Append an event record to event_log_path if configured."""
+        if self.event_log_path is None:
+            return
+        self.event_log_path.parent.mkdir(parents=True, exist_ok=True)
+        file_exists = self.event_log_path.exists()
+        with open(self.event_log_path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["t", "event", "rho", "worst_pair"])
+            writer.writerow([ev["t"], ev["event"], ev["rho"], ev["worst_pair"]])
 
     def log_state(self, t: float, agents: Sequence[AgentState]) -> STLRobustness:
         """Process simulation state at time t, log metrics, and return window robustness.
@@ -82,6 +102,37 @@ class LiveSTLMonitor:
         }
         self.history.append(record)
 
+        # Events tracking: ignore ticks whose status is not OK (startup window)
+        if str(rob_result.status) == "OK":
+            if not self.in_violation and rho_t < 0.0:
+                self.in_violation = True
+                ev = {
+                    "t": float(t),
+                    "event": "violation_start",
+                    "rho": float(rho_t),
+                    "worst_pair": worst_pair,
+                }
+                self.events.append(ev)
+                self._append_event_to_file(ev)
+            elif self.in_violation and rho_t >= 0.0:
+                self.in_violation = False
+                ev = {
+                    "t": float(t),
+                    "event": "violation_end",
+                    "rho": float(rho_t),
+                    "worst_pair": worst_pair,
+                }
+                self.events.append(ev)
+                self._append_event_to_file(ev)
+
+        # Console logging
+        if self.console_every_seconds is not None:
+            if self._last_console_time is None or (t - self._last_console_time) >= self.console_every_seconds - 1e-9:
+                self._last_console_time = t
+                print(
+                    f"[STL] t={t:6.1f}s  rho={rho_t:+.3f} m  status={rob_result.status}  violations={self.violation_count()}"
+                )
+
         return rob_result
 
     def violations(self) -> list[tuple[float, float, tuple[int, int] | None]]:
@@ -101,6 +152,27 @@ class LiveSTLMonitor:
         if not self.history:
             return float("inf")
         return float(min(r["rho"] for r in self.history))
+
+    def write_events(self, path: str | Path) -> Path:
+        """Write self.events to CSV with header t,event,rho,worst_pair."""
+        out_path = Path(path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["t", "event", "rho", "worst_pair"])
+            for ev in self.events:
+                writer.writerow([ev["t"], ev["event"], ev["rho"], ev["worst_pair"]])
+        return out_path
+
+    def summary(self) -> dict[str, Any]:
+        """Return summary dictionary with ticks, violation_count, min_robustness, num_violation_episodes."""
+        num_episodes = sum(1 for ev in self.events if ev.get("event") == "violation_start")
+        return {
+            "ticks": len(self.history),
+            "violation_count": self.violation_count(),
+            "min_robustness": self.min_robustness(),
+            "num_violation_episodes": num_episodes,
+        }
 
     def to_csv(self, path: str | Path) -> Path:
         """Export logged safety metrics to CSV with columns t,rho,window_rho,violation,status.
@@ -126,4 +198,3 @@ class LiveSTLMonitor:
                 ])
 
         return out_path
-
