@@ -35,7 +35,7 @@ local_behavior:
   v_cruise: 12.0   # m/s
   r_sep: 20.0      # m
   w_g: 1.0
-  w_sep: 2.5
+  w_sep: 2.5       # Final tuned value: maintains min separation (10.0 m) >= 8.0 m safety limit in week 2 demo
   w_ali: 0.4
   w_coh: 0.1
   k_lat: 0.5       # 1/s

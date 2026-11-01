@@ -172,21 +172,12 @@ def update_local_behavior(
     """Provide the project's single entry point for local (boids-style) behavior.
 
     - P3 owns the desired-velocity computation; P1 applies the dynamics limits afterwards.
-    - Week 1 stub: head toward the destination at v_cruise, capped at the maximum velocity.
-    - Neighbors and the directive are accepted but unused until the boids terms arrive in Week 2.
+    - Computes desired velocity using boids flocking and corridor following.
     - Returns a 3-vector with desired vz = 0, since altitude is a discrete layer.
     """
-    cfg = get_config()
-    speed = min(
-        float(cfg["local_behavior"]["v_cruise"]),
-        float(cfg["safety"]["maximum_velocity_meters_per_second"]),
-    )
-    to_goal = (agent_state.destination - agent_state.position)[:2]
-    distance = float(np.linalg.norm(to_goal))
-    desired = np.zeros(3)
-    if distance > 0.0:
-        desired[:2] = speed * to_goal / distance
-    return desired
+    from local_behavior.boids import compute_desired_velocity
+
+    return compute_desired_velocity(agent_state, neighbor_states, corridor_directive)
 
 
 def inject_attack(
