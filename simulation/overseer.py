@@ -16,10 +16,10 @@ from .schema import (
 )
 
 
-# Agents 0 and 1 share corridor 1, while agent 2 uses corridor 2. 
+# Agents 0 and 1 share corridor 0, while agent 2 uses corridor 1. 
 # It is not a traffic decision yet.  
 # The small fixed example gives P3 a predictable directive to test with and shows that more than one corridor can be represented.
-WEEK1_CORRIDOR_MAP: dict[int, int] = {0: 1, 1: 1, 2: 2}
+WEEK1_CORRIDOR_MAP: dict[int, int] = {0: 0, 1: 0, 2: 1}
 WEEK1_PRIORITY_TABLE: dict[AgentType, int] = {
     AgentType.EMERGENCY: 0,
     AgentType.EVTOL: 1,

@@ -14,7 +14,7 @@ def test_mock_returns_the_required_directive() -> None:
 
     # Occupancy maps each corridor to its agent count.
     # The Week 1 mock does not use occupancy for allocation yet.
-    snapshot = GlobalStateSnapshot(timestamp=12.5, corridor_occupancy={1: 2, 2: 1})
+    snapshot = GlobalStateSnapshot(timestamp=12.5, corridor_occupancy={0: 2, 1: 1})
 
     directive = overseer_update(snapshot)
 

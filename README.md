@@ -88,3 +88,25 @@ The repository is organized around the simulation, coordination algorithms, resi
 - Make experiments reproducible by recording parameters, traffic density, random seeds, and observed metrics.
 - Keep core simulation logic separate from rendering and dashboard code.
 
+## Week 1 status
+
+Week 1 integrates the six team members' first deliverables behind the shared interfaces in `simulation/interfaces.py`.
+
+| Owner | Week 1 deliverable | State |
+|-------|--------------------|-------|
+| P1 | 2.5D dynamics, mock data, top-down renderer, config loader | Real |
+| P2 | ADMM solver in `conflict_resolution/`, `resolve_conflict` | Real, priorities ignored until Week 3 |
+| P3 | Boids and corridor formulation (`docs/`), `local_behavior` config | Stub: `update_local_behavior` heads for the destination |
+| P4 | `overseer_update` | Mock directive |
+| P5 | Threat model (`docs/`), `AttackState`, `inject_attack` | No-op stub; `wmsr_filter` raises `NotImplementedError("Week 3")` |
+| P6 | STL monitor in `verification/` | Real |
+
+Corridor ids are 0, 1, 2 everywhere; their geometry is read from the `corridors:` section of `configs/base_config.yaml`.
+
+Run the checks from the repository root:
+
+```bash
+uv run pytest -q
+uv run python scripts/week1_check.py
+```
+

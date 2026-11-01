@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 
+from config.load_config import get_config
 from .mock_data import get_mock_agent_states, get_mock_comm_graph
 from .schema import AgentState, AgentType, CommunicationGraph
 
@@ -44,12 +45,27 @@ class CorridorGeometry:
         return self.y_max - self.y_min
 
 
-# 3 predefined parallel corridors from Section 5 / Section 9.3
-DEFAULT_CORRIDORS: list[CorridorGeometry] = [
-    CorridorGeometry(id=1, name="Corridor North (Lane 1)", x_min=0.0, x_max=200.0, y_min=10.0, y_max=30.0, capacity=15),
-    CorridorGeometry(id=2, name="Corridor Center (Lane 2)", x_min=0.0, x_max=200.0, y_min=50.0, y_max=70.0, capacity=15),
-    CorridorGeometry(id=3, name="Corridor South (Lane 3)", x_min=0.0, x_max=200.0, y_min=90.0, y_max=110.0, capacity=15),
-]
+def build_corridors(config: dict | None = None) -> list[CorridorGeometry]:
+    """Build the parallel corridors (ids 0..count-1) from the corridors section of the config."""
+    cfg = (config if config is not None else get_config())["corridors"]
+    spacing = float(cfg["centerline_spacing_meters"])
+    half_width = float(cfg["width_meters"]) / 2.0
+    length = float(cfg["length_meters"])
+    return [
+        CorridorGeometry(
+            id=k,
+            name=f"Corridor {k}",
+            x_min=0.0,
+            x_max=length,
+            y_min=k * spacing - half_width,
+            y_max=k * spacing + half_width,
+            capacity=int(cfg["capacity"]),
+        )
+        for k in range(int(cfg["count"]))
+    ]
+
+
+DEFAULT_CORRIDORS: list[CorridorGeometry] = build_corridors()
 
 TYPE_STYLES = {
     AgentType.EMERGENCY: {"color": "#E63946", "marker": "*", "label": "Emergency (P0)", "size": 150},
@@ -230,8 +246,12 @@ def render_top_down(
         )
 
     # Airspace bounds and cosmetics
-    ax.set_xlim(-10, 210)
-    ax.set_ylim(0, 120)
+    x_lo = min(c.x_min for c in corridors)
+    x_hi = max(c.x_max for c in corridors)
+    y_lo = min(c.y_min for c in corridors)
+    y_hi = max(c.y_max for c in corridors)
+    ax.set_xlim(x_lo - 0.05 * (x_hi - x_lo), x_hi + 0.05 * (x_hi - x_lo))
+    ax.set_ylim(y_lo - 20.0, y_hi + 20.0)
     ax.set_xlabel("X Position (meters)", color="#E2E8F0", fontsize=10, fontweight="normal")
     ax.set_ylabel("Y Position (meters)", color="#E2E8F0", fontsize=10, fontweight="normal")
     ax.set_title(title, color="#F7FAFC", fontsize=12, fontweight="bold", pad=12)

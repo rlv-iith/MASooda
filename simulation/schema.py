@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Tuple
 import numpy as np
 
 
@@ -172,6 +172,75 @@ class OverseerDirective:
         self.corridor_map = dict(self.corridor_map)
         self.priority_table = dict(self.priority_table)
         self.altitude_map = dict(self.altitude_map)
+
+
+@dataclass
+class AttackState:
+    """Describe which agents are malicious and what false positions they broadcast.
+
+    - P5 creates this each tick from the true agent states and the attack configuration.
+    - P1 overlays ``falsified`` on the true states to build the reported neighbor states.
+    - STL monitoring and metrics keep reading the true states.
+    """
+
+    malicious: list[int] = field(default_factory=list)
+    falsified: dict[int, np.ndarray] = field(default_factory=dict)  # sender id -> false position
+
+
+@dataclass
+class ConflictEvent:
+    """Record one conflict resolved by the distributed optimization layer.
+
+    - P2 creates it when agents negotiate a separation conflict.
+    - ``resolution`` maps each involved agent id to its resolved velocity.
+    """
+
+    agents_involved: list[int]
+    resolution: dict[int, np.ndarray]
+    converged: bool
+
+
+@dataclass
+class SimulationMetrics:
+    """Collect named evaluation metrics (for example min separation or STL robustness)."""
+
+    metrics: dict[str, float] = field(default_factory=dict)
+
+
+# Status codes reported by the STL monitor in STLRobustness.status.
+OK = "OK"
+INSUFFICIENT_HISTORY = "INSUFFICIENT_HISTORY"
+INVALID_DATA = "INVALID_DATA"
+NOT_ENOUGH_AGENTS = "NOT_ENOUGH_AGENTS"
+
+
+@dataclass(frozen=True)
+class STLSpec:
+    """Parameters of the minimum-separation STL specification.
+
+    - P6 reads these values from configs/base_config.yaml via load_spec_from_config.
+    - ``min_window_steps`` is the number of samples required before a verdict is given.
+    """
+
+    name: str = "min_separation"
+    d_min: float = 8.0  # m
+    min_window_steps: int = 2
+    dt: float = 0.1  # s
+
+
+@dataclass
+class STLRobustness:
+    """Signed robustness result of an STL check (positive: satisfied, negative: violated).
+
+    - ``value`` is the robustness margin in metres and ``violation`` is True when it is negative.
+    - The remaining fields are diagnostics; ``status`` is one of the status codes above.
+    """
+
+    value: float
+    violation: bool
+    status: str = OK
+    worst_step: Optional[int] = None
+    worst_pair: Optional[Tuple[int, int]] = None
 
 
 def validate_snapshot(snapshot: GlobalStateSnapshot) -> None:

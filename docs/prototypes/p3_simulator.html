@@ -1,0 +1,163 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MASooda P3 – Local Behavior Simulator</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f9;--fg:#1c2330;--pn:#fff;--mu:#6b7585;--ln:#d5dae2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--fg:#e6eaf0;--pn:#1b212b;--mu:#97a1b1;--ln:#303846}}
+:root[data-theme="dark"]{--bg:#12161d;--fg:#e6eaf0;--pn:#1b212b;--mu:#97a1b1;--ln:#303846}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;padding:12px;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1{font-size:17px;margin:0 0 2px}.sub{color:var(--mu);font-size:12px;margin-bottom:10px}
+#grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(250px,1fr);gap:12px}
+@media(max-width:820px){#grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:10px;padding:10px;margin-bottom:10px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu);margin:0 0 6px}
+canvas{display:block;width:100%;border-radius:6px;background:var(--bg);cursor:pointer}
+button{background:var(--pn);color:var(--fg);border:1px solid var(--ln);border-radius:6px;padding:5px 9px;font-size:13px;margin:2px 2px 2px 0;cursor:pointer}
+button:hover{border-color:var(--mu)}
+label{display:block;font-size:13px}.sl{display:grid;grid-template-columns:78px 1fr 44px;align-items:center;font-size:12px;gap:6px}
+table{border-collapse:collapse;width:100%;font-size:12px}td{padding:2px 4px}td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.ok{color:#2e9e5b;font-weight:600}.bad{color:#d93a3a;font-weight:600}
+#log{font-size:12px;color:var(--mu);min-height:90px}
+</style></head><body>
+<h1>MASooda · P3 Local Behavior Simulator</h1>
+<div class="sub">12 agents · 3 corridors · boids + corridor following + platooning + merge-zone lane change. ADMM (P2) is not simulated: conflicts rely on separation only.</div>
+<div id="grid"><div>
+ <div class="card"><canvas id="cv"></canvas><canvas id="mm" style="margin-top:6px"></canvas>
+ <div style="margin-top:6px">
+  <button onclick="paused=!paused;this.textContent=paused?'Play':'Pause'">Pause</button>
+  <button onclick="speed=speed==1?3:1;this.textContent='Speed ×'+speed">Speed ×1</button>
+  <button onclick="init()">Reset</button>
+  <button id="lk" onclick="toggleLink()">Overseer link: UP</button>
+  <button onclick="reshuffle()">Overseer: reshuffle 4 agents</button><br>
+  Selected agent → request corridor:
+  <button onclick="req(0)">C0</button><button onclick="req(1)">C1</button><button onclick="req(2)">C2</button>
+ </div>
+ <div class="sub" style="margin:6px 0 0">Click an agent to inspect it. Arrows: <span style="color:#2e9e5b">■</span> goal <span style="color:#d93a3a">■</span> separation <span style="color:#2a6fdb">■</span> alignment <span style="color:#8e44ad">■</span> cohesion <span style="color:#e08a1e">■</span> platooning. Dashed rings: comm 40 m, r_sep 20 m; solid red: d_min 8 m.</div></div>
+</div><div>
+ <div class="card"><h2>Safety (STL: G d ≥ d_min)</h2><div id="met"></div></div>
+ <div class="card"><h2>Selected agent</h2><div id="insp"></div></div>
+ <div class="card"><h2>Rules on/off</h2>
+  <label><input type="checkbox" checked data-r="sep"> Separation (all neighbours, r_sep 20 m)</label>
+  <label><input type="checkbox" checked data-r="ali"> Alignment (same corridor)</label>
+  <label><input type="checkbox" checked data-r="coh"> Cohesion (along corridor, weak)</label>
+  <label><input type="checkbox" checked data-r="plat"> Platooning (slow-down only)</label>
+  <label><input type="checkbox" checked data-r="prio"> Priority yield in separation (β)</label>
+  <h2 style="margin-top:8px">Parameters</h2>
+  <div class="sl">w_sep<input type="range" min="0" max="150" step="1" value="60" oninput="P.wsep=+this.value;this.nextElementSibling.textContent=this.value"><span>60</span></div>
+  <div class="sl">w_ali<input type="range" min="0" max="2" step=".05" value=".4" oninput="P.wali=+this.value;this.nextElementSibling.textContent=this.value"><span>0.4</span></div>
+  <div class="sl">w_coh<input type="range" min="0" max="1" step=".05" value=".1" oninput="P.wcoh=+this.value;this.nextElementSibling.textContent=this.value"><span>0.1</span></div>
+  <div class="sl">h (s)<input type="range" min=".4" max="2" step=".1" value="1" oninput="P.h=+this.value;this.nextElementSibling.textContent=this.value"><span>1</span></div>
+ </div>
+ <div class="card"><h2>Events</h2><div id="log"></div></div>
+</div></div>
+<script>
+const C={dt:.1,vmax:15,amax:4,dmin:8,rsep:20,comm:40,rplat:40,d0:12,ks:.3,kv:.5,klat:.5,latmax:6,look:40,L:1500,sp:50,m0:700,m1:800,beta:.5,tau:.5};
+const P={wg:1,wsep:60,wali:.4,wcoh:.1,h:1};
+const on={sep:1,ali:1,coh:1,plat:1,prio:1};
+const PN=['EMERGENCY','EVTOL','DELIVERY'],PC=['#d93a3a','#2a6fdb','#e08a1e'];
+const TC={g:'#2e9e5b',s:'#d93a3a',al:'#2a6fdb',co:'#8e44ad',pl:'#e08a1e'};
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let A=[],t=0,link=true,sel=0,viol=0,lanes=0,arr=0,log=[],paused=false,speed=1,rho=0,msep=99,R2=rng(7);
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),mm=document.getElementById('mm'),mx=mm.getContext('2d');
+let cw=800;
+function resize(){const w=cv.parentElement.clientWidth,d=window.devicePixelRatio||1;cw=w;
+ cv.width=w*d;cv.height=w*.5*d;cv.style.height=w*.5+'px';ctx.setTransform(d,0,0,d,0,0);
+ mm.width=w*d;mm.height=34*d;mm.style.height='34px';mx.setTransform(d,0,0,d,0,0)}
+window.addEventListener('resize',resize);
+function L(m){log.unshift('t='+t.toFixed(1)+'s  '+m);log=log.slice(0,7)}
+function init(){const r=rng(42);A=[];t=0;viol=0;lanes=0;arr=0;log=[];
+ for(let i=0;i<12;i++){const c=i%3,k=Math.floor(i/3);
+  A.push({id:i,pr:i==0?0:i<5?1:2,x:20+k*24+r()*6,y:c*C.sp+(r()-.5)*4,vx:9+r()*4,vy:0,corr:c,dir:c,wish:c,vc:10+r()*3,tm:{g:[0,0],s:[0,0],al:[0,0],co:[0,0],pl:[0,0]},bad:false,nn:0,ns:0,lead:null,gap:0,gs:0,cohOff:false})}
+ sel=0;L('reset: 4 agents per corridor, directive = nominal corridors')}
+function cidx(y){return Math.max(0,Math.min(2,Math.round(y/C.sp)))}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function toggleLink(){link=!link;document.getElementById('lk').textContent='Overseer link: '+(link?'UP':'DOWN');
+ L(link?'overseer link restored: pending requests delivered':'overseer link DOWN: agents use cached directive')}
+function req(c){const a=A[sel];if(c===a.corr){a.wish=a.corr;return}
+ a.wish=a.corr+Math.sign(c-a.corr);L('overseer requests #'+a.id+' → C'+a.wish+(link?'':' (not delivered: link down)'))}
+function reshuffle(){const ids=A.map(a=>a.id).sort(()=>R2()-.5).slice(0,4);
+ for(const i of ids){const a=A[i];a.wish=a.corr===0?1:a.corr===2?1:(R2()<.5?0:2)}L('overseer reshuffled #'+ids.join(', #'))}
+function step(){
+ if(link)for(const a of A)a.dir=a.wish;
+ const cc=A.map(a=>cidx(a.y));
+ for(const a of A){
+  if(a.dir!==a.corr&&a.x>=C.m0&&a.x<=C.m1){L('#'+a.id+' lane change C'+a.corr+' → C'+a.dir+' (merge zone)');a.corr=a.dir;lanes++}
+  const ci=cc[a.id],N=A.filter(b=>b!==a&&dist(a,b)<=C.comm),S=N.filter(b=>cc[b.id]===ci);
+  a.nn=N.length;a.ns=S.length;
+  const yt=a.corr*C.sp,dx=Math.min(a.x+C.look,C.L)-a.x,dy=yt-a.y,n=Math.hypot(dx,dy)||1;
+  const lat=Math.max(-C.latmax,Math.min(C.latmax,-C.klat*(a.y-yt)));
+  const g=[P.wg*a.vc*dx/n,P.wg*(a.vc*dy/n+lat)];
+  let s=[0,0];
+  for(const b of N){const d=dist(a,b)||.01;if(d<C.rsep){const k=1+(on.prio?C.beta*Math.max(0,a.pr-b.pr):0);s[0]+=k*(a.x-b.x)/(d*d);s[1]+=k*(a.y-b.y)/(d*d)}}
+  s=[P.wsep*on.sep*s[0],P.wsep*on.sep*s[1]];
+  let al=[0,0],co=[0,0];a.cohOff=false;
+  if(S.length){const mvx=S.reduce((q,b)=>q+b.vx,0)/S.length,mvy=S.reduce((q,b)=>q+b.vy,0)/S.length;
+   al=[P.wali*on.ali*(mvx-a.vx),P.wali*on.ali*(mvy-a.vy)];
+   if(S.some(b=>dist(a,b)<C.rsep))a.cohOff=true;else co=[P.wcoh*on.coh*(S.reduce((q,b)=>q+b.x,0)/S.length-a.x),0]}
+  let lead=null;for(const b of S)if(b.x>a.x&&dist(a,b)<=C.rplat&&(!lead||b.x<lead.x))lead=b;
+  let pl=[0,0];a.lead=lead?lead.id:null;
+  if(lead){a.gap=lead.x-a.x;a.gs=C.d0+P.h*Math.hypot(a.vx,a.vy);
+   pl[0]=on.plat*Math.min(0,C.ks*(a.gap-a.gs)+C.kv*(lead.vx-a.vx))}
+  let vd=[g[0]+s[0]+al[0]+co[0]+pl[0],g[1]+s[1]+al[1]+co[1]+pl[1]];
+  const sp=Math.hypot(vd[0],vd[1]);if(sp>C.vmax)vd=[vd[0]*C.vmax/sp,vd[1]*C.vmax/sp];
+  a.tm={g,s,al,co,pl};a.vd=vd}
+ for(const a of A){let ax=(a.vd[0]-a.vx)/C.tau,ay=(a.vd[1]-a.vy)/C.tau;const m=Math.hypot(ax,ay);
+  if(m>C.amax){ax*=C.amax/m;ay*=C.amax/m}
+  a.vx+=ax*C.dt;a.vy+=ay*C.dt;const v=Math.hypot(a.vx,a.vy);if(v>C.vmax){a.vx*=C.vmax/v;a.vy*=C.vmax/v}
+  a.x+=a.vx*C.dt;a.y+=a.vy*C.dt;if(a.x>C.L){a.x-=C.L;arr++}}
+ msep=99;for(const a of A)a.bad=false;
+ for(let i=0;i<A.length;i++)for(let j=i+1;j<A.length;j++){const d=dist(A[i],A[j]);if(d<msep)msep=d;if(d<C.dmin){A[i].bad=A[j].bad=true}}
+ const was=rho<0;rho=msep-C.dmin;if(rho<0){viol++;if(!was)L('STL violation: separation '+msep.toFixed(1)+' m < d_min')}
+ t+=C.dt}
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function arrow(x0,y0,vx,vy,col){if(Math.hypot(vx,vy)<.1)return;const k=6,x1=x0+vx*k,y1=y0+vy*k,an=Math.atan2(y1-y0,x1-x0);
+ ctx.strokeStyle=ctx.fillStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x1-6*Math.cos(an-.4),y1-6*Math.sin(an-.4));ctx.lineTo(x1-6*Math.cos(an+.4),y1-6*Math.sin(an+.4));ctx.fill()}
+function draw(){
+ const fg=css('--fg'),mu=css('--mu'),ln=css('--ln'),sc=cw/320,ch=cw*.5,a0=A[sel],cx=a0.x;
+ const X=x=>(x-cx+160)*sc,Y=y=>(y+30)*sc;
+ ctx.clearRect(0,0,cw,ch);ctx.font='11px system-ui';
+ const zones=[[0,100,'ENTRY','#2e9e5b'],[C.m0,C.m1,'MERGE ZONE · lane change · ADMM (P2)','#e0b21e'],[C.L-100,C.L,'EXIT','#2e9e5b']];
+ for(const[z0,z1,nm,col]of zones){if(X(z1)<0||X(z0)>cw)continue;ctx.globalAlpha=.13;ctx.fillStyle=col;ctx.fillRect(X(z0),0,(z1-z0)*sc,ch);ctx.globalAlpha=1;ctx.fillStyle=mu;ctx.fillText(nm,Math.max(4,X(z0)+4),ch-6)}
+ for(let k=0;k<3;k++){const y=k*C.sp;ctx.globalAlpha=.14;ctx.fillStyle=mu;ctx.fillRect(0,Y(y-10),cw,20*sc);ctx.globalAlpha=1;
+  ctx.setLineDash([6,6]);ctx.strokeStyle=ln;ctx.beginPath();ctx.moveTo(0,Y(y));ctx.lineTo(cw,Y(y));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=mu;ctx.fillText('C'+k,6,Y(y)-12*sc+11)}
+ const f0=Math.ceil((cx-160)/50)*50;ctx.fillStyle=mu;for(let x=f0;x<cx+160;x+=50)ctx.fillText(x+'m',X(x)+2,12);
+ const s=A[sel];
+ ctx.lineWidth=1;ctx.setLineDash([5,5]);ctx.strokeStyle=mu;ctx.beginPath();ctx.arc(X(s.x),Y(s.y),C.comm*sc,0,7);ctx.stroke();
+ ctx.strokeStyle='#d93a3a';ctx.beginPath();ctx.arc(X(s.x),Y(s.y),C.rsep*sc,0,7);ctx.stroke();ctx.setLineDash([]);
+ ctx.beginPath();ctx.arc(X(s.x),Y(s.y),C.dmin*sc,0,7);ctx.stroke();
+ if(s.lead!==null){const l=A[s.lead];ctx.strokeStyle=TC.pl;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(s.x),Y(s.y));ctx.lineTo(X(l.x),Y(l.y));ctx.stroke();
+  ctx.fillStyle=TC.pl;ctx.fillText('gap '+s.gap.toFixed(0)+' / gap* '+s.gs.toFixed(0)+' m',(X(s.x)+X(l.x))/2-30,Y(s.y)-8)}
+ for(const a of A){const px=X(a.x),py=Y(a.y);if(px<-20||px>cw+20)continue;
+  if(a.dir!==a.corr){ctx.strokeStyle=PC[a.pr];ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+30,Y(a.dir*C.sp));ctx.stroke();ctx.setLineDash([])}
+  ctx.fillStyle=PC[a.pr];ctx.beginPath();ctx.arc(px,py,3*sc,0,7);ctx.fill();
+  ctx.lineWidth=a.bad?3:a===s?2:0;ctx.strokeStyle=a.bad?'#ff2222':fg;if(a.bad||a===s){ctx.beginPath();ctx.arc(px,py,3*sc+2,0,7);ctx.stroke()}
+  ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(a.id,px,py+4);ctx.textAlign='left'}
+ const px=X(s.x),py=Y(s.y);for(const k of['g','s','al','co','pl'])arrow(px,py,s.tm[k][0],s.tm[k][1],TC[k]);
+ mx.clearRect(0,0,cw,34);mx.fillStyle=mu;mx.globalAlpha=.18;mx.fillRect(0,8,cw,18);mx.fillStyle='#e0b21e';mx.fillRect(C.m0/C.L*cw,8,100/C.L*cw,18);mx.globalAlpha=1;
+ mx.strokeStyle=fg;mx.strokeRect((cx-160)/C.L*cw,6,320/C.L*cw,22);
+ for(const a of A){mx.fillStyle=PC[a.pr];mx.beginPath();mx.arc(a.x/C.L*cw,10+a.corr*7,2.5,0,7);mx.fill()}}
+function ui(){
+ document.getElementById('met').innerHTML='t = '+t.toFixed(1)+' s · min separation <b>'+msep.toFixed(1)+' m</b><br>ρ(t) = min d − d_min = <span class="'+(rho<0?'bad':'ok')+'">'+rho.toFixed(1)+'</span> '+(rho<0?'(VIOLATION)':'(safe)')+'<br>violation ticks: '+viol+' · lane changes: '+lanes+' · exits: '+arr+'<br>overseer link: '+(link?'<span class="ok">UP</span>':'<span class="bad">DOWN (cached directive)</span>');
+ const a=A[sel],f=v=>v.toFixed(1),m=v=>Math.hypot(v[0],v[1]).toFixed(1),row=(k,n,c)=>'<tr><td><span class="sw" style="background:'+c+'"></span>'+n+'</td><td>('+f(a.tm[k][0])+', '+f(a.tm[k][1])+')</td><td>'+m(a.tm[k])+'</td></tr>';
+ let h='<b>#'+a.id+' · '+PN[a.pr]+'</b> (priority '+a.pr+')<br>Active corridor C'+a.corr+' · lane '+cidx(a.y)+'<br>';
+ if(a.wish!==a.dir)h+='<span class="bad">Request C'+a.wish+' not delivered (link down)</span><br>';
+ else if(a.dir!==a.corr)h+='Pending → C'+a.dir+': waits for merge zone (x 700–800), now x='+f(a.x)+'<br>';
+ h+='Neighbours: '+a.nn+' · same corridor: '+a.ns+(a.nn?'':' → goal seeking only')+'<br>';
+ h+=a.lead!==null?'Leader #'+a.lead+': gap '+f(a.gap)+' m vs gap* '+f(a.gs)+' m → '+(a.gap<a.gs?'<b>slowing</b>':'no action (slow-down only)')+'<br>':'No leader within 40 m<br>';
+ h+='Cohesion: '+(!on.coh?'rule off':a.ns===0?'no same-corridor neighbours':a.cohOff?'<b>OFF</b> (neighbour < r_sep)':'active')+'<br>';
+ h+='<table><tr><td>term</td><td>(vx, vy) m/s</td><td>|v|</td></tr>'+row('g','goal / corridor',TC.g)+row('s','separation',TC.s)+row('al','alignment',TC.al)+row('co','cohesion',TC.co)+row('pl','platooning',TC.pl)+'</table>';
+ h+='speed '+Math.hypot(a.vx,a.vy).toFixed(1)+' m/s (v_max 15) · cruise '+a.vc.toFixed(1);
+ document.getElementById('insp').innerHTML=h;document.getElementById('log').innerHTML=log.map(x=>'<div>'+x+'</div>').join('')}
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,sc=cw/320,cx=A[sel].x;let best=-1,bd=30;
+ for(const a of A){const d=Math.hypot((a.x-cx+160)*sc-px,(a.y+30)*sc-py);if(d<bd){bd=d;best=a.id}}if(best>=0)sel=best});
+document.querySelectorAll('input[data-r]').forEach(e=>e.addEventListener('change',()=>{on[e.dataset.r]=e.checked?1:0}));
+let last=performance.now(),acc=0,fc=0;
+function loop(n){const d=Math.min(.1,(n-last)/1000);last=n;if(!paused){acc+=d*speed;let k=0;while(acc>=C.dt&&k<8){step();acc-=C.dt;k++}if(k>=8)acc=0}
+ draw();if(++fc%4==0)ui();requestAnimationFrame(loop)}
+resize();init();requestAnimationFrame(loop);
+</script></body></html>

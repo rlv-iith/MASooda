@@ -24,6 +24,28 @@ corridors:
   width_meters: 20.0
   capacity: 15
   count: 3
+  centerline_spacing_meters: 50.0
+  length_meters: 1500.0
+  entry_zone_x_meters: [0.0, 100.0]
+  merge_zone_x_meters: [700.0, 800.0]
+  exit_zone_x_meters: [1400.0, 1500.0]
+
+# Boids-style local behavior (P3 formulation, starting values tuned in Week 2).
+local_behavior:
+  v_cruise: 12.0   # m/s
+  r_sep: 20.0      # m
+  w_g: 1.0
+  w_sep: 2.5
+  w_ali: 0.4
+  w_coh: 0.1
+  k_lat: 0.5       # 1/s
+  look_ahead: 40.0 # m
+  d_0: 12.0        # m
+  h: 1.0           # s
+  k_s: 0.3         # 1/s
+  k_v: 0.5
+  r_plat: 40.0     # m
+  beta: 0.5
 
 admm:
   tolerance: 0.001
@@ -36,5 +58,12 @@ stl:
   monitoring_period_seconds: 0.1
 
 attack:
+  enabled: false
+  malicious_ids: []
   start_time_seconds: 60.0
+  mode: constant             # constant or ramp
+  delivery: common           # common or per_neighbor
+  offset_magnitude_meters: 25.0
+  ramp_rate_meters_per_second: 1.0
+  direction_deg: null        # null: derived from the base seed
 
