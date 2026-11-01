@@ -5,6 +5,7 @@ from simulation.overseer import (
     WEEK1_ALTITUDE_MAP,
     WEEK1_CORRIDOR_MAP,
     WEEK1_PRIORITY_TABLE,
+    mock_overseer_update,
 )
 from simulation.schema import AgentType, GlobalStateSnapshot, OverseerDirective
 
@@ -16,7 +17,7 @@ def test_mock_returns_the_required_directive() -> None:
     # The Week 1 mock does not use occupancy for allocation yet.
     snapshot = GlobalStateSnapshot(timestamp=12.5, corridor_occupancy={0: 2, 1: 1})
 
-    directive = overseer_update(snapshot)
+    directive = mock_overseer_update(snapshot)
 
     # These mappings are shared with the local behavior module.
     assert isinstance(directive, OverseerDirective)

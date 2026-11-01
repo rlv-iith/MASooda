@@ -25,6 +25,7 @@ from conflict_resolution.adapter import resolve_conflict_event
 from conflict_resolution.solver import ADMMSolver
 from resilience.attack import inject_attack as _inject_attack
 from verification.stl_monitor import stl_monitor as _stl_monitor
+from global_overseer.policy import real_overseer_update
 from .dynamics import step_dynamics as _step_dynamics
 from .mock_data import get_mock_comm_graph
 from .overseer import mock_overseer_update
@@ -112,7 +113,7 @@ def overseer_update(global_state_snapshot: GlobalStateSnapshot) -> OverseerDirec
     - In Week 3 P4 will add priority-aware allocation and capacity handling.  
     - In Week 4 P4 will support cached directives when the overseer link fails.
     """
-    return mock_overseer_update(global_state_snapshot)
+    return real_overseer_update(global_state_snapshot)
 
 
 def stl_monitor(trajectory_window: np.ndarray | Sequence, spec: STLSpec) -> STLRobustness:

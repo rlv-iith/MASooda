@@ -57,6 +57,7 @@ admm:
 
 overseer:
   update_period_seconds: 2.0
+  policy: least_loaded        # least_loaded or round_robin
 
 stl:
   monitoring_period_seconds: 0.1
