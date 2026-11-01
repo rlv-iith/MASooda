@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+import sqlite3
 import time
 
 import matplotlib
@@ -16,6 +17,37 @@ import numpy as np
 
 from config.load_config import get_config
 from conflict_resolution.solver import ADMMSolver
+
+
+def save_to_sqlite(results: list[dict], db_path: Path) -> None:
+    """Store iteration sweep results into a local SQLite database."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS iteration_sweep (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            iteration_limit INTEGER,
+            percent_converged REAL,
+            mean_iterations REAL,
+            mean_primal_residual REAL,
+            mean_solve_time_ms REAL
+        )
+    """)
+    for r in results:
+        cur.execute("""
+            INSERT INTO iteration_sweep 
+            (iteration_limit, percent_converged, mean_iterations, mean_primal_residual, mean_solve_time_ms)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            r["iteration_limit"],
+            r["percent_converged"],
+            r["mean_iterations"],
+            r["mean_primal_residual"],
+            r["mean_solve_time_ms"],
+        ))
+    conn.commit()
+    conn.close()
 
 
 def generate_test_cases(n_cases: int, seed: int):
@@ -97,6 +129,10 @@ def run_sweep():
         ])
         writer.writeheader()
         writer.writerows(results)
+
+    # Save to SQLite DB for fast querying / computational ease
+    db_path = output_dir / "masooda_records.db"
+    save_to_sqlite(results, db_path)
 
     # Plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
