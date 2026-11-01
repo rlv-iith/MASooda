@@ -24,6 +24,7 @@ from config.load_config import get_config
 from conflict_resolution.adapter import resolve_conflict_event
 from conflict_resolution.solver import ADMMSolver
 from resilience.attack import inject_attack as _inject_attack
+from resilience.wmsr import wmsr_vector
 from verification.stl_monitor import stl_monitor as _stl_monitor
 from .dynamics import step_dynamics as _step_dynamics
 from .mock_data import get_mock_comm_graph
@@ -208,6 +209,9 @@ def wmsr_filter(
     """Filter neighbor reports with W-MSR, tolerating up to ``f`` misbehaving neighbors.
 
     - P5 owns this resilient-consensus filter, applied to x and y independently.
-    - Week 3 will implement it; it is a signature only for now.
+    - The horizontal coordinates are filtered independently; altitude is preserved.
     """
-    raise NotImplementedError("Week 3")
+    own_xy = np.asarray(own_state.position[:2], dtype=float)
+    neighbor_xy = [np.asarray(report.position[:2], dtype=float) for report in neighbor_reports]
+    filtered_xy = wmsr_vector(own_xy, neighbor_xy, f)
+    return np.array([filtered_xy[0], filtered_xy[1], own_state.position[2]], dtype=float)

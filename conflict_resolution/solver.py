@@ -74,7 +74,8 @@ class ADMMSolver:
         return cls(**params)
 
     def solve(self, positions: np.ndarray, targets: np.ndarray,
-              scenario: str = "unnamed", z: np.ndarray | None = None) -> ADMMResult:
+              scenario: str = "unnamed", z: np.ndarray | None = None,
+              weights: np.ndarray | None = None) -> ADMMResult:
         positions = np.asarray(positions, dtype=float)
         targets = np.asarray(targets, dtype=float)
         layer_z = None if z is None else np.asarray(z, dtype=float)
@@ -85,6 +86,11 @@ class ADMMSolver:
             positions, self.d_safe, activation_dist=self.d_safe + 2.0 * radius,
             z=layer_z, layer_gap=self.layer_gap)
         rho = self.rho
+
+        if weights is None:
+            w = np.ones(n, dtype=float)
+        else:
+            w = np.asarray(weights, dtype=float).ravel()
 
         if self.logger:
             self.logger.start()
@@ -113,7 +119,7 @@ class ADMMSolver:
             for e, c in enumerate(pairs):
                 acc[c.i] = acc[c.i] + (z_pair[e][0] - u_pair[e][0])
                 acc[c.j] = acc[c.j] + (z_pair[e][1] - u_pair[e][1])
-            x = (targets + rho * acc) / (1.0 + rho * K)[:, None]
+            x = (w[:, None] * targets + rho * acc) / (w + rho * K)[:, None]
 
             # ---- z-update: project onto each constraint set ----
             r_sq, s_sq, x_sq, z_sq, u_sq = 0.0, 0.0, 0.0, 0.0, 0.0

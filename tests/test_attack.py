@@ -1,6 +1,5 @@
 import copy
-
-import pytest
+import numpy as np
 
 from config.load_config import get_config
 from simulation.interfaces import inject_attack, wmsr_filter
@@ -30,7 +29,10 @@ def test_attack_config_defaults():
     assert cfg["offset_magnitude_meters"] == 25.0 and cfg["direction_deg"] is None
 
 
-def test_wmsr_filter_not_implemented_until_week_3():
+def test_wmsr_filter_returns_finite_three_vector():
     states = get_mock_agent_states()
-    with pytest.raises(NotImplementedError, match="Week 3"):
-        wmsr_filter(states[0], states[1:], 1)
+    result = wmsr_filter(states[0], states[1:], 1)
+    assert result.shape == (3,)
+    assert result.dtype.kind == "f"
+    assert np.isfinite(result).all()
+    assert result[2] == states[0].position[2]
