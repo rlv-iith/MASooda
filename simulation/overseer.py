@@ -8,6 +8,8 @@ and cached-directive handling during link failure (Week 4).
 
 from __future__ import annotations
 
+from config.load_config import get_config
+
 from .schema import (
     AgentType,
     GlobalStateSnapshot,
@@ -57,10 +59,21 @@ class GlobalOverseer:
     def __init__(
         self,
         corridors: list[int] | None = None,
-        policy: str = "least_loaded",
+        policy: str | None = None,
     ) -> None:
         self.corridors = list(corridors) if corridors is not None else list(DEFAULT_CORRIDOR_IDS)
-        self.policy = policy
+        config = get_config()
+        overseer_config = config.get("overseer", {})
+        corridor_config = config.get("corridors", {})
+        self.policy = policy or overseer_config.get("default_policy", "least_loaded")
+        self.capacity = int(corridor_config.get("capacity", 15))
+        self.last_corridor_map: dict[int, int] = {}
+        self.last_overflow: int = 0
+
+    def reset(self) -> None:
+        """Clear stateful corridor assignments retained between updates."""
+        self.last_corridor_map = {}
+        self.last_overflow = 0
 
     def update(
         self,
@@ -74,6 +87,7 @@ class GlobalOverseer:
         """
         validate_snapshot(global_state_snapshot)
 
+        self.last_overflow = 0
         active_policy = policy or self.policy
 
         # Determine corridors to use: if snapshot reports occupancy for specific corridors,
@@ -101,10 +115,44 @@ class GlobalOverseer:
                 corridor_map[agent_id] = assigned_corridor
                 # Default layer 0 for 2.5D airspace until P1 discrete layer mapping in W3
                 altitude_map[agent_id] = 0
+        elif active_policy == "priority_aware":
+            ordered_agent_ids = sorted(
+                global_state_snapshot.agent_ids,
+                key=lambda agent_id: (
+                    global_state_snapshot.agent_priorities.get(agent_id, 2),
+                    agent_id,
+                ),
+            )
+            for agent_id in ordered_agent_ids:
+                previous_corridor = self.last_corridor_map.get(agent_id)
+                if (
+                    previous_corridor in available_corridors
+                    and current_occupancy[previous_corridor] < self.capacity
+                ):
+                    assigned_corridor = previous_corridor
+                else:
+                    available_spots = [
+                        corridor
+                        for corridor in available_corridors
+                        if current_occupancy[corridor] < self.capacity
+                    ]
+                    if available_spots:
+                        assigned_corridor = min(
+                            available_spots,
+                            key=lambda corridor: (current_occupancy[corridor], corridor),
+                        )
+                    else:
+                        assigned_corridor = min(
+                            available_corridors,
+                            key=lambda corridor: (current_occupancy[corridor], corridor),
+                        )
+                        self.last_overflow += 1
+                corridor_map[agent_id] = assigned_corridor
+                current_occupancy[assigned_corridor] += 1
+                altitude_map[agent_id] = 0
+            self.last_corridor_map = dict(corridor_map)
         else:  # "least_loaded" policy
             for agent_id in global_state_snapshot.agent_ids:
-                # Find corridor with minimum occupancy.
-                # Tie-breaking: lower corridor id is selected first.
                 least_corridor = min(available_corridors, key=lambda c: (current_occupancy[c], c))
                 corridor_map[agent_id] = least_corridor
                 current_occupancy[least_corridor] += 1
@@ -121,11 +169,16 @@ class GlobalOverseer:
 _default_overseer = GlobalOverseer()
 
 
+def reset_default_overseer() -> None:
+    """Reset state retained by the module-level default overseer."""
+    _default_overseer.reset()
+
+
 def real_overseer_update(
     global_state_snapshot: GlobalStateSnapshot,
-    policy: str = "least_loaded",
+    policy: str | None = None,
 ) -> OverseerDirective:
-    """Public Week 2 overseer update using real coarse allocation logic."""
+    """Public real overseer update using the configured default policy."""
     return _default_overseer.update(global_state_snapshot, policy=policy)
 
 

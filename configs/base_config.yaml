@@ -64,6 +64,7 @@ admm:
 
 overseer:
   update_period_seconds: 2.0
+  default_policy: priority_aware
 
 stl:
   monitoring_period_seconds: 0.1

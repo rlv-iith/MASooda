@@ -3,7 +3,7 @@
 **Author:** Tanmay (P4)  
 **Module:** Global Overseer & Priority Arbitration  
 **Project:** MASooda (Multi-Agent System for Hierarchical, Priority-Aware, and Resilient Urban Air Traffic Management)  
-**Current Milestone:** Week 2 — Standalone Implementations (Section 10.4: Overseer Skeleton)
+**Current Milestone:** Week 3 — Priority-Aware Capacity Allocation
 
 ---
 
@@ -45,6 +45,14 @@ However, local drones only have limited vision and communication range. They can
      * Connected `overseer_update()` to `real_overseer_update()`, making dynamic traffic allocation active for the entire project.
   5. **Safety & Input Validation:**
      * Rigorously enforces `validate_snapshot()` preconditions before computation to prevent corrupted simulation states (e.g., negative time, negative drone counts, or negative drone IDs).
+
+### Week 3 — Priority-Aware Capacity Allocation
+* **Goal:** Preserve stability while giving higher-priority agents access to constrained corridors.
+* **Default Policy:** Added `default_policy: priority_aware` under the `overseer` configuration section; `GlobalOverseer` falls back to least-loaded if the setting is absent.
+* **Priority Order:** Agents are processed by `(agent_priorities[id], id)` in EMERGENCY, EVTOL, then DELIVERY order, with missing priorities defaulting to DELIVERY.
+* **Capacity Handling:** Each update starts from zero running loads. Existing assignments are retained while their corridor has capacity. Otherwise the least-loaded corridor below capacity is selected, using corridor ID to break ties. Once all corridors are full, the least-loaded corridor still receives agents and each overflow is counted in `last_overflow`.
+* **State and Reset:** `last_corridor_map` retains assignments between snapshots, while `reset()` and `reset_default_overseer()` clear state for deterministic repeated experiments.
+* **Validation:** A 30/45/60-agent contention sweep records corridor loads, overflow, post-first-update changes, and EMERGENCY priority compliance.
 
 ---
 
