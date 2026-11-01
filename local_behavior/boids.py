@@ -15,6 +15,12 @@ from config.load_config import get_config
 _last_corridor: dict[int, int] = {}
 
 
+def reset_local_behavior_cache() -> None:
+    """Clear the cached corridor targets kept between ticks."""
+    _last_corridor.clear()
+
+
+
 def corridor_of(y: float) -> int:
     """Determine corridor index for a given lateral y coordinate.
 
