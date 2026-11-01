@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import Sequence
 import numpy as np
 
+from config.load_config import get_config
 from simulation.schema import AgentState, ConflictEvent
+from .detection import detect_conflicts
 from .solver import ADMMSolver
 
 
@@ -32,7 +34,30 @@ def resolve_conflict_event(
         positions = np.array([a.position[:2] for a in agent_states], dtype=float)
         targets = positions + np.array([a.velocity[:2] for a in agent_states], dtype=float) * dt
 
-        result = solver.solve(positions, targets)
+        cfg = get_config()
+        priority_weights = cfg.get("admm", {}).get("priority_weights", {0: 10.0, 1: 3.0, 2: 1.0})
+        default_weight = float(priority_weights.get(2, priority_weights.get("2", 1.0)))
+
+        if priorities is None:
+            w = None
+        else:
+            w_list: list[float] = []
+            for a in agent_states:
+                if a.id in priorities:
+                    p = priorities[a.id]
+                    if hasattr(p, "value"):
+                        p = p.value
+                    if isinstance(p, str) and p.isdigit():
+                        p = int(p)
+                    elif isinstance(p, str):
+                        p_map = {"EMERGENCY": 0, "EVTOL": 1, "DELIVERY": 2}
+                        p = p_map.get(p.upper(), p)
+                    w_list.append(float(priority_weights.get(p, priority_weights.get(str(p), default_weight))))
+                else:
+                    w_list.append(default_weight)
+            w = np.array(w_list, dtype=float)
+
+        result = solver.solve(positions, targets, weights=w)
 
         resolution: dict[int, np.ndarray] = {}
         for k, agent in enumerate(agent_states):
@@ -52,3 +77,27 @@ def resolve_conflict_event(
             resolution=fallback_resolution,
             converged=False,
         )
+
+
+def resolve_all_conflicts(
+    agent_states: Sequence[AgentState],
+    priorities: dict[int, int] | None = None,
+) -> list[ConflictEvent]:
+    """Detect conflicts and resolve each conflicting group via ADMM.
+
+    - groups = detect_conflicts(agent_states)
+    - for each group, call resolve_conflict_event on just those agents (with priorities)
+    - return the list of ConflictEvent. Empty list if no conflicts.
+    """
+    groups = detect_conflicts(agent_states)
+    if not groups:
+        return []
+
+    agent_map = {a.id: a for a in agent_states}
+    events: list[ConflictEvent] = []
+    for group in groups:
+        group_states = [agent_map[aid] for aid in group]
+        event = resolve_conflict_event(group_states, priorities=priorities)
+        events.append(event)
+
+    return events

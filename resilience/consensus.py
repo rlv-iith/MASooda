@@ -11,6 +11,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from simulation.schema import CommunicationGraph
+from .wmsr import wmsr_scalar
 
 
 def plain_average(own_value: Any, neighbor_values: Sequence[Any]) -> Any:
@@ -63,6 +64,41 @@ def run_consensus(
                 nbr_ids = graph.neighbors(aid)
                 nbr_vals = [prev[nid] for nid in nbr_ids if nid in prev]
                 next_step[aid] = plain_average(prev[aid], nbr_vals)
+        history.append(next_step)
+
+    return history
+
+
+def run_wmsr_consensus(
+    initial_values: dict[int, float],
+    graph: CommunicationGraph,
+    liars: dict[int, float] | None,
+    steps: int,
+    f: int,
+) -> list[dict[int, float]]:
+    """Run synchronous scalar consensus with W-MSR filtering for honest agents.
+
+    Liars report their configured constant at every step and do not update.
+    Honest agents filter the neighbor values from the previous step with
+    ``wmsr_scalar`` before computing their next value.
+    """
+    liars_map = dict(liars) if liars else {}
+
+    current: dict[int, float] = {}
+    for aid, value in initial_values.items():
+        current[aid] = float(liars_map[aid] if aid in liars_map else value)
+    history: list[dict[int, float]] = [dict(current)]
+
+    for _ in range(steps):
+        prev = history[-1]
+        next_step: dict[int, float] = {}
+        for aid in initial_values:
+            if aid in liars_map:
+                next_step[aid] = float(liars_map[aid])
+            else:
+                neighbor_ids = graph.neighbors(aid)
+                neighbor_values = [prev[nid] for nid in neighbor_ids if nid in prev]
+                next_step[aid] = wmsr_scalar(prev[aid], neighbor_values, f)
         history.append(next_step)
 
     return history
