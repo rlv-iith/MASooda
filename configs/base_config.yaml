@@ -1,0 +1,40 @@
+# Shared baseline configuration from the MASooda workflow.
+#
+# Modules should load these values through one configuration loader instead of
+# embedding simulation parameters in their own implementation.  
+# P4 currently consumes only overseer_update_period; the remaining values are recorded now
+# so the other owners can build against the same baseline.
+
+simulation:
+  num_agents: 60
+  timestep_seconds: 0.1
+  duration_seconds: 180.0
+  random_seed: 42
+
+communication:
+  radius_meters: 40.0
+  nearest_neighbors: 6
+
+safety:
+  minimum_separation_meters: 8.0
+  maximum_velocity_meters_per_second: 15.0
+  maximum_acceleration_meters_per_second_squared: 4.0
+
+corridors:
+  width_meters: 20.0
+  capacity: 15
+  count: 3
+
+admm:
+  tolerance: 0.001
+  maximum_iterations: 50
+
+overseer:
+  update_period_seconds: 2.0
+
+stl:
+  monitoring_period_seconds: 0.1
+
+attack:
+  start_time_seconds: 60.0
+
