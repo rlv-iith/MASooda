@@ -42,7 +42,7 @@ local_behavior:
   v_cruise: 12.0   # m/s
   r_sep: 20.0      # m
   w_g: 1.0
-  w_sep: 2.5       # Final tuned value: maintains min separation (10.0 m) >= 8.0 m safety limit in week 2 demo
+  w_sep: 35.0      # Tuned in Week 3 to maintain >= 8.0 m minimum pairwise separation during multi-agent merges
   w_ali: 0.4
   w_coh: 0.1
   k_lat: 0.5       # 1/s
@@ -53,6 +53,8 @@ local_behavior:
   k_v: 0.5
   r_plat: 40.0     # m
   beta: 0.5
+  merge_lateral_speed: 2.0 # m/s, max sideways speed while merging
+  merge_gap: 15.0          # m, needed free gap along x in the target corridor
 
 admm:
   tolerance: 0.001

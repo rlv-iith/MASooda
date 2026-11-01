@@ -139,6 +139,68 @@ def target_corridor(agent: Any, directive: Any | None) -> int | None:
     return None
 
 
+def active_corridor(agent: Any, target: int | None) -> int | None:
+    """Determine the active corridor considering the merge zone.
+
+    - current = corridor_of(agent.position[1])
+    - if target is None -> return current
+    - if target == current -> return target
+    - if agent x is before the merge zone start -> return current (wait for the merge zone)
+    - if agent x is inside the merge zone or after it -> return target
+    """
+    current = corridor_of(agent.position[1])
+    if target is None:
+        return current
+    if target == current:
+        return target
+
+    cfg = get_config()
+    merge_zone = cfg["corridors"]["merge_zone_x_meters"]
+    merge_start = float(merge_zone[0])
+    x = float(agent.position[0])
+
+    if x < merge_start:
+        return current
+    return target
+
+
+def merge_adjustment(agent: Any, neighbors: Sequence[Any], target: int) -> np.ndarray:
+    """Compute adjustment for merging into another corridor.
+
+    Used only when active_corridor(...) != corridor_of(agent y) (the agent is merging):
+    - gap_ok = no neighbor that is already in the target corridor (corridor_of(n.y) == target)
+      has |n.x - agent.x| < merge_gap
+    - if gap_ok: lateral velocity toward the target corridor centerline, capped at
+      merge_lateral_speed
+    - if not gap_ok: lateral velocity 0 (stay in lane) and reduce forward speed by multiplying
+      vx by (1 - k_v) to open a gap (k_v already exists in the config)
+
+    Returns a 2-vector [vx_factor, vy].
+    """
+    cfg = get_config()
+    merge_gap = float(cfg["local_behavior"]["merge_gap"])
+    merge_lateral_speed = float(cfg["local_behavior"]["merge_lateral_speed"])
+    k_v = float(cfg["local_behavior"]["k_v"])
+
+    agent_x = float(agent.position[0])
+
+    gap_ok = True
+    for n in neighbors:
+        if getattr(n, "id", None) == getattr(agent, "id", None):
+            continue
+        if corridor_of(n.position[1]) == target:
+            if abs(float(n.position[0]) - agent_x) < merge_gap:
+                gap_ok = False
+                break
+
+    if gap_ok:
+        v_cf_y = corridor_following(agent, target)[1]
+        vy = float(np.clip(v_cf_y, -merge_lateral_speed, merge_lateral_speed))
+        return np.array([1.0, vy], dtype=float)
+    else:
+        return np.array([1.0 - k_v, 0.0], dtype=float)
+
+
 def compute_desired_velocity(
     agent: Any,
     neighbors: Sequence[Any],
@@ -170,7 +232,12 @@ def compute_desired_velocity(
 
     target_corr = target_corridor(agent, directive)
     if target_corr is not None:
-        v_goal = corridor_following(agent, target_corr)
+        active_corr = active_corridor(agent, target_corr)
+        v_goal = corridor_following(agent, active_corr)
+        if active_corr != agent_corr:
+            adj = merge_adjustment(agent, neighbors, active_corr)
+            v_goal[0] *= adj[0]
+            v_goal[1] = adj[1]
     else:
         to_dest = np.asarray(agent.destination[:2], dtype=float) - np.asarray(agent.position[:2], dtype=float)
         dist_dest = float(np.linalg.norm(to_dest))
