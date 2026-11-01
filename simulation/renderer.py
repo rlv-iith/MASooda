@@ -24,45 +24,7 @@ from .mock_data import get_mock_agent_states, get_mock_comm_graph
 from .schema import AgentState, AgentType, CommunicationGraph
 
 
-@dataclass
-class CorridorGeometry:
-    """Predefined spatial corridor lane."""
-
-    id: int
-    name: str
-    x_min: float
-    x_max: float
-    y_min: float
-    y_max: float
-    capacity: int = 15
-
-    @property
-    def y_center(self) -> float:
-        return (self.y_min + self.y_max) / 2.0
-
-    @property
-    def width(self) -> float:
-        return self.y_max - self.y_min
-
-
-def build_corridors(config: dict | None = None) -> list[CorridorGeometry]:
-    """Build the parallel corridors (ids 0..count-1) from the corridors section of the config."""
-    cfg = (config if config is not None else get_config())["corridors"]
-    spacing = float(cfg["centerline_spacing_meters"])
-    half_width = float(cfg["width_meters"]) / 2.0
-    length = float(cfg["length_meters"])
-    return [
-        CorridorGeometry(
-            id=k,
-            name=f"Corridor {k}",
-            x_min=0.0,
-            x_max=length,
-            y_min=k * spacing - half_width,
-            y_max=k * spacing + half_width,
-            capacity=int(cfg["capacity"]),
-        )
-        for k in range(int(cfg["count"]))
-    ]
+from .environment import CorridorGeometry, build_corridors
 
 
 DEFAULT_CORRIDORS: list[CorridorGeometry] = build_corridors()
