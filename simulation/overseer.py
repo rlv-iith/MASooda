@@ -116,6 +116,9 @@ class GlobalOverseer:
                 # Default layer 0 for 2.5D airspace until P1 discrete layer mapping in W3
                 altitude_map[agent_id] = 0
         elif active_policy == "priority_aware":
+            # Every agent in the snapshot is re-placed, so loads start from 0 here.
+            # (Starting from snapshot occupancy would count each agent twice.)
+            current_occupancy = {c: 0 for c in available_corridors}
             ordered_agent_ids = sorted(
                 global_state_snapshot.agent_ids,
                 key=lambda agent_id: (
