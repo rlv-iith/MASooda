@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 import matplotlib
 # Use Agg backend if non-interactive
 matplotlib.use("Agg")
@@ -289,6 +289,133 @@ def render_top_down(
         plt.show()
 
     return fig
+
+
+def animate_simulation(
+    result: Any,
+    save_path: str | Path,
+    every_n_ticks: int = 5,
+) -> None:
+    """Animate a simulation result and save as GIF.
+
+    Parameters
+    ----------
+    result : Any
+        The simulation trajectory history with times, positions, and agent_ids.
+    save_path : str or Path
+        Destination file path for the output GIF.
+    every_n_ticks : int, default 5
+        Interval between rendered frames.
+    """
+    import matplotlib.animation as animation
+
+    corridors = DEFAULT_CORRIDORS
+    fig, ax = plt.subplots(figsize=(12, 7), dpi=100)
+    fig.patch.set_facecolor("#12161F")
+    ax.set_facecolor("#1A202C")
+
+    # Draw corridors
+    for corridor in corridors:
+        rect = patches.Rectangle(
+            (corridor.x_min, corridor.y_min),
+            corridor.x_max - corridor.x_min,
+            corridor.width,
+            linewidth=1.2,
+            edgecolor="#4A5568",
+            facecolor="#2D3748",
+            alpha=0.45,
+            linestyle="--",
+            zorder=1,
+        )
+        ax.add_patch(rect)
+
+        # Centerline
+        ax.plot(
+            [corridor.x_min, corridor.x_max],
+            [corridor.y_center, corridor.y_center],
+            color="#718096",
+            linestyle=":",
+            linewidth=1.0,
+            alpha=0.7,
+            zorder=2,
+        )
+
+        # Label
+        ax.text(
+            corridor.x_min + 5,
+            corridor.y_max - 4,
+            f"{corridor.name} [Cap: {corridor.capacity}]",
+            color="#A0AEC0",
+            fontsize=8.5,
+            fontweight="bold",
+            zorder=3,
+        )
+
+    # Airspace bounds and cosmetics
+    x_lo = min(c.x_min for c in corridors)
+    x_hi = max(c.x_max for c in corridors)
+    y_lo = min(c.y_min for c in corridors)
+    y_hi = max(c.y_max for c in corridors)
+    ax.set_xlim(x_lo - 20.0, x_hi + 20.0)
+    ax.set_ylim(y_lo - 20.0, y_hi + 20.0)
+    ax.set_xlabel("X Position (meters)", color="#E2E8F0", fontsize=10)
+    ax.set_ylabel("Y Position (meters)", color="#E2E8F0", fontsize=10)
+    ax.tick_params(colors="#A0AEC0", labelsize=8.5)
+    for spine in ax.spines.values():
+        spine.set_color("#4A5568")
+    ax.grid(True, linestyle="--", alpha=0.15, color="#A0AEC0")
+
+    time_text = ax.text(
+        0.02,
+        0.95,
+        "",
+        transform=ax.transAxes,
+        color="#F7FAFC",
+        fontsize=10,
+        fontweight="bold",
+        bbox=dict(boxstyle="round,pad=0.3", facecolor="#2D3748", edgecolor="#4A5568", alpha=0.85),
+        zorder=7,
+    )
+
+    # Initial scatter for agents
+    colors = ["#E63946" if aid % 3 == 0 else "#457B9D" if aid % 3 == 1 else "#E9C46A" for aid in result.agent_ids]
+    init_xy = result.positions[0, :, :2] if len(result.positions) > 0 else np.empty((0, 2))
+    sc = ax.scatter(
+        init_xy[:, 0] if len(init_xy) > 0 else [],
+        init_xy[:, 1] if len(init_xy) > 0 else [],
+        s=40,
+        c=colors,
+        edgecolors="#FFFFFF",
+        linewidths=0.5,
+        zorder=5,
+    )
+
+    step_interval = max(1, every_n_ticks)
+    frame_indices = list(range(0, len(result.times), step_interval))
+    if (len(result.times) - 1) not in frame_indices and len(result.times) > 0:
+        frame_indices.append(len(result.times) - 1)
+
+    def update(frame_idx: int):
+        pos_xy = result.positions[frame_idx, :, :2]
+        sc.set_offsets(pos_xy)
+        t = result.times[frame_idx]
+        time_text.set_text(f"t = {t:.1f} s | Active: {pos_xy.shape[0]}")
+        return [sc, time_text]
+
+    plt.tight_layout()
+
+    anim = animation.FuncAnimation(
+        fig,
+        update,
+        frames=frame_indices,
+        blit=True,
+    )
+
+    p = Path(save_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    writer = animation.PillowWriter(fps=10)
+    anim.save(str(p), writer=writer)
+    plt.close(fig)
 
 
 if __name__ == "__main__":

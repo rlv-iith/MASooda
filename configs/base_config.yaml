@@ -14,6 +14,13 @@ simulation:
 communication:
   radius_meters: 40.0
   nearest_neighbors: 6
+  mode: radius
+
+control:
+  velocity_time_constant_seconds: 0.5
+
+scenario:
+  type_mix: {EMERGENCY: 0.1, EVTOL: 0.3, DELIVERY: 0.6}
 
 safety:
   minimum_separation_meters: 8.0
@@ -56,6 +63,10 @@ overseer:
 
 stl:
   monitoring_period_seconds: 0.1
+  window_steps: 10
+  min_window_steps: 2
+  window_steps: 10
+  min_window_steps: 2
 
 attack:
   enabled: false

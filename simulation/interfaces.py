@@ -92,7 +92,30 @@ def build_comm_graph(
     - In Week 1, returns the mock fixed communication graph.
     - In Week 2, real radius-based and k-nearest-neighbor graphs will be computed.
     """
-    return get_mock_comm_graph()
+    from .comm_graph import build_knn_graph, build_radius_graph
+
+    if all_agent_states is None:
+        all_agent_states = []
+
+    cfg = get_config()
+    comm_cfg = cfg.get("communication", {})
+
+    if isinstance(radius_or_k, float):
+        return build_radius_graph(all_agent_states, radius_or_k)
+    elif isinstance(radius_or_k, int) and not isinstance(radius_or_k, bool):
+        return build_knn_graph(all_agent_states, radius_or_k)
+    elif radius_or_k is None:
+        mode = comm_cfg.get("mode", "radius")
+        if mode == "radius":
+            radius = float(comm_cfg.get("radius_meters", 40.0))
+            return build_radius_graph(all_agent_states, radius)
+        elif mode == "knn":
+            k = int(comm_cfg.get("nearest_neighbors", 6))
+            return build_knn_graph(all_agent_states, k)
+        else:
+            raise ValueError(f"Unknown communication mode: {mode}")
+    else:
+        raise TypeError(f"radius_or_k must be float, int, or None; got {type(radius_or_k)}")
 
 
 class OverseerUpdate(Protocol):

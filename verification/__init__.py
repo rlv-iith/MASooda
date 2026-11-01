@@ -6,3 +6,4 @@ from .stl_monitor import (
     instantaneous_robustness, SlidingSTLMonitor, window_from_states,
     liveness_robustness, load_trajectory_csv, load_spec_from_config,
 )
+from .from_engine import window_from_result
