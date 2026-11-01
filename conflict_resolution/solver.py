@@ -53,6 +53,24 @@ class ADMMSolver:
         self.logger = logger
         self.layer_gap = layer_gap
 
+    @classmethod
+    def from_config(cls) -> "ADMMSolver":
+        """Build an ADMMSolver from configs/base_config.yaml values."""
+        from config.load_config import get_config
+        cfg = get_config()
+        safety = cfg["safety"]
+        admm = cfg["admm"]
+        sim = cfg["simulation"]
+        return cls(
+            d_safe=float(safety["minimum_separation_meters"]) * float(admm["safety_margin_factor"]),
+            v_max=float(safety["maximum_velocity_meters_per_second"]),
+            dt=float(sim["timestep_seconds"]),
+            rho=float(admm["rho"]),
+            eps_abs=float(admm["tolerance"]),
+            eps_rel=float(admm["relative_tolerance"]),
+            max_iters=int(admm["maximum_iterations"]),
+        )
+
     def solve(self, positions: np.ndarray, targets: np.ndarray,
               scenario: str = "unnamed", z: np.ndarray | None = None) -> ADMMResult:
         positions = np.asarray(positions, dtype=float)
@@ -83,6 +101,8 @@ class ADMMSolver:
         x = targets.copy()
         history: list[tuple[float, float]] = []
         converged, r_norm, s_norm, it = False, np.inf, np.inf, 0
+        best_x = x.copy()
+        best_r_norm = np.inf
 
         for it in range(1, self.max_iters + 1):
             # ---- x-update: closed form per agent ----
@@ -121,6 +141,10 @@ class ADMMSolver:
             s_norm = rho * np.sqrt(s_sq)
             history.append((r_norm, s_norm))
 
+            if r_norm <= best_r_norm:
+                best_x = x.copy()
+                best_r_norm = r_norm
+
             m = max(1, sum(K))  # total number of consensus entries
             eps_pri = np.sqrt(m) * self.eps_abs + self.eps_rel * max(np.sqrt(x_sq), np.sqrt(z_sq))
             eps_dual = np.sqrt(m) * self.eps_abs + self.eps_rel * rho * np.sqrt(
@@ -132,7 +156,7 @@ class ADMMSolver:
 
         # Use the feasible-side copy (z_ball satisfies the speed limit exactly);
         # pair constraints are satisfied to tolerance, so nudge-check in result.
-        final = x
+        final = x if converged else best_x
         result = ADMMResult(final, converged, it, float(r_norm), float(s_norm),
                             len(pairs), history)
 
