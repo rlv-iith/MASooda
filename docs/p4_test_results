@@ -164,3 +164,25 @@ Below is the breakdown of each test case, explaining the scenario tested, the in
   * Assignments are dynamic, appropriate, and strictly non-identical (`d1.corridor_map != d2.corridor_map`).
 * **Why This Validates Safety:**  
   Satisfies the Week 2 Definition of Done audit check.
+
+---
+
+## Week 3 Priority-Aware Contention Sweep
+
+**Test module:** `tests/test_p4_week3_priority.py`
+
+**Benchmark script:** `scripts/p4_week3_contention.py`
+
+**Capacity:** 15 agents per corridor across corridors 0, 1, and 2
+
+**Method:** 10 seeds for each agent count, with snapshots at timestamps 0, 2, 4, 6, and 8 seconds.
+
+| Agents (N) | Mean corridor 0 load | Mean corridor 1 load | Mean corridor 2 load | Mean overflow | Mean post-first changes | Emergency priority compliance |
+|---:|---:|---:|---:|---:|---:|---:|
+| 30 | 10.00 | 10.00 | 10.00 | 0.00 | 0.00 | 1.00 |
+| 45 | 15.00 | 15.00 | 15.00 | 0.00 | 0.00 | 1.00 |
+| 60 | 20.00 | 20.00 | 20.00 | 15.00 | 0.00 | 1.00 |
+
+The priority-aware policy processes agents in EMERGENCY, EVTOL, then DELIVERY order, with agent ID breaking ties within a priority. Existing assignments are retained while their corridor remains below capacity, limiting unnecessary movement. If no corridor has capacity, the least-loaded corridor receives the assignment and overflow is incremented. The sweep confirmed zero post-first-update corridor changes and complete EMERGENCY priority compliance.
+
+Artifacts: [CSV results](../outputs/p4_week3_contention.csv) and [bar plot](../outputs/p4_week3_contention.png).

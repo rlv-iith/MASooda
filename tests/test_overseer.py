@@ -102,7 +102,7 @@ def test_real_overseer_least_loaded_policy() -> None:
         agent_ids=[101, 102, 103, 104],
     )
 
-    directive = overseer_update(snapshot)
+    directive = real_overseer_update(snapshot, policy="least_loaded")
 
     print("ALLOCATION PROCESS:")
     print("  • Agent 101 -> Assigned to least-loaded Corridor 1 (occupancy was 2 -> now 3)")
@@ -134,7 +134,7 @@ def test_real_overseer_tie_breaking_distribution() -> None:
         agent_ids=[1, 2, 3, 4],
     )
 
-    directive = overseer_update(snapshot)
+    directive = real_overseer_update(snapshot, policy="least_loaded")
 
     print(f"FINAL OUTPUT CORRIDOR MAP: {directive.corridor_map}")
     print("  • Agent 1 -> Corridor 0")
@@ -186,7 +186,7 @@ def test_real_overseer_empty_agent_list() -> None:
         agent_ids=[],
     )
 
-    directive = overseer_update(snapshot)
+    directive = real_overseer_update(snapshot, policy="least_loaded")
 
     print(f"FINAL OUTPUT DIRECTIVE: corridor_map={directive.corridor_map}, altitude_map={directive.altitude_map}")
     print("=" * 70)
@@ -205,8 +205,8 @@ def test_non_trivial_directive_definition_of_done() -> None:
     s1 = GlobalStateSnapshot(timestamp=1.0, corridor_occupancy={0: 10, 1: 0}, agent_ids=[99])
     s2 = GlobalStateSnapshot(timestamp=2.0, corridor_occupancy={0: 0, 1: 10}, agent_ids=[99])
 
-    d1 = overseer_update(s1)
-    d2 = overseer_update(s2)
+    d1 = real_overseer_update(s1, policy="least_loaded")
+    d2 = real_overseer_update(s2, policy="least_loaded")
 
     print(f"Scenario 1 (Corridor 0 crowded, Corridor 1 empty) -> Agent 99 assigned to: Corridor {d1.corridor_map[99]}")
     print(f"Scenario 2 (Corridor 0 empty, Corridor 1 crowded) -> Agent 99 assigned to: Corridor {d2.corridor_map[99]}")
