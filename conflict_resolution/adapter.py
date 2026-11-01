@@ -28,6 +28,17 @@ def resolve_conflict_event(
         if not agent_states:
             return ConflictEvent(agents_involved=[], resolution={}, converged=True)
 
+        if any(
+            not np.all(np.isfinite(agent.position))
+            or not np.all(np.isfinite(agent.velocity))
+            for agent in agent_states
+        ):
+            return ConflictEvent(
+                agents_involved=agent_ids,
+                resolution={a.id: a.velocity.copy() for a in agent_states},
+                converged=False,
+            )
+
         solver = ADMMSolver.from_config()
         dt = solver.dt
 

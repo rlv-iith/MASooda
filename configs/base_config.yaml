@@ -92,4 +92,5 @@ attack:
 resilience:
   f: 1
   liar_counts: [1, 2]
+  range_tolerance_meters: 3.0
 
