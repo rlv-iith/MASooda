@@ -69,8 +69,6 @@ stl:
   monitoring_period_seconds: 0.1
   window_steps: 10
   min_window_steps: 2
-  window_steps: 10
-  min_window_steps: 2
 
 attack:
   enabled: false
