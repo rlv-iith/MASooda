@@ -8,9 +8,11 @@ Idea
     climbs/descends to a less crowded neighbouring layer.
 
 Run:  uv run python demo_admm_25d.py
-Out:  outputs/admm_25d.png, outputs/admm_25d.gif, outputs/admm_25d_log.csv
+Out:  outputs/admm_25d/<timestamp>/ (PNG, GIF, CSV, SQLite DB)
 """
+from datetime import datetime
 from pathlib import Path
+import sqlite3
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -21,7 +23,9 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from conflict_resolution.solver import ADMMSolver
 from conflict_resolution.convergence import ConvergenceLogger
 
-OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
+# ---------------- Dynamic Output Folder (subfolder with date/time) ----------------
+timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+OUTPUT_DIR = Path(__file__).resolve().parent / "outputs" / "admm_25d" / timestamp_str
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------- parameters ----------------
@@ -97,8 +101,40 @@ for t in range(TICKS):
 
 P, Z = np.array(P), np.array(Z)
 occupancy = np.array(occupancy).T
+
+# Save CSV log
 log_csv_path = OUTPUT_DIR / "admm_25d_log.csv"
 log.to_csv(str(log_csv_path))
+
+# Save to SQLite Database
+db_path = OUTPUT_DIR / "admm_25d_records.db"
+conn = sqlite3.connect(db_path)
+cur = conn.cursor()
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS tick_records (
+        tick INTEGER PRIMARY KEY,
+        scenario TEXT,
+        n_agents INTEGER,
+        n_constraints INTEGER,
+        iterations INTEGER,
+        converged BOOLEAN,
+        solve_time_ms REAL,
+        final_primal_residual REAL,
+        final_dual_residual REAL,
+        min_separation REAL
+    )
+""")
+for idx, r in enumerate(log.records):
+    cur.execute("""
+        INSERT INTO tick_records VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        idx, r.scenario, r.n_agents, r.n_constraints, r.iterations,
+        r.converged, r.solve_time_ms, r.final_primal_residual,
+        r.final_dual_residual, r.min_separation
+    ))
+conn.commit()
+conn.close()
+
 s = log.summary()
 finite = [m for m in min_sep if np.isfinite(m)]
 print(f"Agents: {N_AGENTS} | layers: 7 | ticks: {TICKS}")
@@ -171,4 +207,8 @@ gif_path = OUTPUT_DIR / "admm_25d.gif"
 anim.save(gif_path, writer=PillowWriter(fps=8), dpi=80)
 plt.close(fig2)
 
-print(f"Saved: {static_png_path}, {gif_path}, {log_csv_path}")
+print(f"\nSaved all results in: {OUTPUT_DIR}/")
+print(f"  - PNG : {static_png_path.name}")
+print(f"  - GIF : {gif_path.name}")
+print(f"  - CSV : {log_csv_path.name}")
+print(f"  - DB  : {db_path.name}")
