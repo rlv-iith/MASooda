@@ -134,6 +134,7 @@ def run_simulation(
     reports_dropped = 0
 
     last_graph = None
+    layer_changes = 0
 
     if n_agents == 0:
         return SimulationResult(
@@ -153,6 +154,8 @@ def run_simulation(
                 "reports_dropped": 0,
                 "overseer_dropped": 0,
                 "max_directive_staleness_s": 0.0,
+                "layer_counts_final": {},
+                "layer_changes": 0,
             },
         )
 
@@ -204,6 +207,12 @@ def run_simulation(
                 for agent in current_agents:
                     if agent.id in cached_directive.corridor_map:
                         agent.corridor_assignment = cached_directive.corridor_map[agent.id]
+                    if agent.id in cached_directive.altitude_map:
+                        new_layer = int(cached_directive.altitude_map[agent.id])
+                        if new_layer != int(agent.altitude_layer):
+                            layer_changes += 1
+                        agent.altitude_layer = new_layer
+                        agent.position[2] = float(agent.altitude_layer)
 
         if cached_directive is not None and last_directive_time is not None:
             staleness = t_now - last_directive_time
@@ -237,6 +246,10 @@ def run_simulation(
             neighbor_ids = graph.neighbors(agent.id)
             true_nbrs = [agent_by_id[nid] for nid in neighbor_ids if nid in agent_by_id]
             reported_nbrs = [reported_by_id[nid] for nid in neighbor_ids if nid in reported_by_id]
+            # Drones on different altitude layers cannot collide, so they ignore each other.
+            same = lambda n: int(getattr(n, "altitude_layer", 0)) == int(agent.altitude_layer)
+            true_nbrs = [n for n in true_nbrs if same(n)]
+            reported_nbrs = [n for n in reported_nbrs if same(n)]
 
             if agent.id in malicious_current:
                 nbrs = true_nbrs
@@ -306,6 +319,11 @@ def run_simulation(
 
     overseer_dropped = getattr(link, "dropped", 0) if link is not None else 0
 
+    layer_counts_final: dict[int, int] = {}
+    for a in current_agents:
+        layer = int(a.altitude_layer)
+        layer_counts_final[layer] = layer_counts_final.get(layer, 0) + 1
+
     stats = {
         "admm_events": admm_events,
         "admm_nonconverged": admm_nonconverged,
@@ -316,6 +334,8 @@ def run_simulation(
         "reports_dropped": reports_dropped,
         "overseer_dropped": overseer_dropped,
         "max_directive_staleness_s": max_directive_staleness_s,
+        "layer_counts_final": layer_counts_final,
+        "layer_changes": layer_changes,
     }
 
     return SimulationResult(
