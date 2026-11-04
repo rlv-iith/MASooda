@@ -69,10 +69,13 @@ class GlobalOverseer:
         self.capacity = int(corridor_config.get("capacity", 15))
         self.last_corridor_map: dict[int, int] = {}
         self.last_overflow: int = 0
+        self.last_layer_map: dict[int, int] = {}
+        self.airspace_config = config.get("airspace", {})
 
     def reset(self) -> None:
         """Clear stateful corridor assignments retained between updates."""
         self.last_corridor_map = {}
+        self.last_layer_map = {}
         self.last_overflow = 0
 
     def update(
@@ -117,8 +120,13 @@ class GlobalOverseer:
                 altitude_map[agent_id] = 0
         elif active_policy == "priority_aware":
             # Every agent in the snapshot is re-placed, so loads start from 0 here.
-            # (Starting from snapshot occupancy would count each agent twice.)
-            current_occupancy = {c: 0 for c in available_corridors}
+            # Capacity counts per (corridor, layer); layer 2 is reserved for EMERGENCY.
+            emergency_layer = int(self.airspace_config.get("emergency_layer", 2))
+            occ: dict[tuple[int, int], int] = {
+                (c, layer): 0
+                for c in available_corridors
+                for layer in (0, 1, emergency_layer)
+            }
             ordered_agent_ids = sorted(
                 global_state_snapshot.agent_ids,
                 key=lambda agent_id: (
@@ -128,32 +136,37 @@ class GlobalOverseer:
             )
             for agent_id in ordered_agent_ids:
                 previous_corridor = self.last_corridor_map.get(agent_id)
-                if (
-                    previous_corridor in available_corridors
-                    and current_occupancy[previous_corridor] < self.capacity
-                ):
-                    assigned_corridor = previous_corridor
-                else:
-                    available_spots = [
-                        corridor
-                        for corridor in available_corridors
-                        if current_occupancy[corridor] < self.capacity
-                    ]
-                    if available_spots:
-                        assigned_corridor = min(
-                            available_spots,
-                            key=lambda corridor: (current_occupancy[corridor], corridor),
-                        )
+                previous_layer = self.last_layer_map.get(agent_id)
+
+                def emptiest(layer: int) -> int:
+                    return min(available_corridors, key=lambda c: (occ[(c, layer)], c))
+
+                if global_state_snapshot.agent_types.get(agent_id) == AgentType.EMERGENCY:
+                    layer = emergency_layer
+                    if (
+                        previous_corridor in available_corridors
+                        and occ[(previous_corridor, layer)] < self.capacity
+                    ):
+                        corridor = previous_corridor
                     else:
-                        assigned_corridor = min(
-                            available_corridors,
-                            key=lambda corridor: (current_occupancy[corridor], corridor),
-                        )
+                        corridor = emptiest(layer)
+                else:
+                    candidates: list[tuple[int, int]] = []
+                    if previous_corridor in available_corridors and previous_layer in (0, 1):
+                        candidates.append((previous_corridor, previous_layer))
+                    candidates.append((emptiest(0), 0))
+                    candidates.append((emptiest(1), 1))
+                    for corridor, layer in candidates:
+                        if occ[(corridor, layer)] < self.capacity:
+                            break
+                    else:
+                        corridor, layer = emptiest(1), 1
                         self.last_overflow += 1
-                corridor_map[agent_id] = assigned_corridor
-                current_occupancy[assigned_corridor] += 1
-                altitude_map[agent_id] = 0
+                occ[(corridor, layer)] += 1
+                corridor_map[agent_id] = corridor
+                altitude_map[agent_id] = layer
             self.last_corridor_map = dict(corridor_map)
+            self.last_layer_map = dict(altitude_map)
         else:  # "least_loaded" policy
             for agent_id in global_state_snapshot.agent_ids:
                 least_corridor = min(available_corridors, key=lambda c: (current_occupancy[c], c))

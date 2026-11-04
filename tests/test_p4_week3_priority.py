@@ -68,7 +68,7 @@ def test_priority_aware_overflow_is_reported_for_delivery_only():
     overseer = GlobalOverseer(policy="priority_aware")
     emergency_ids = list(range(5))
     evtol_ids = list(range(5, 15))
-    delivery_ids = list(range(15, 50))
+    delivery_ids = list(range(15, 100))
     agent_ids = emergency_ids + evtol_ids + delivery_ids
     priorities = {
         **{agent_id: 0 for agent_id in emergency_ids},
@@ -76,10 +76,18 @@ def test_priority_aware_overflow_is_reported_for_delivery_only():
         **{agent_id: 2 for agent_id in delivery_ids},
     }
 
-    directive = overseer.update(snapshot(0.0, agent_ids, priorities))
+    snap = snapshot(0.0, agent_ids, priorities)
+    snap.agent_types = {
+        **{a: AgentType.EMERGENCY for a in emergency_ids},
+        **{a: AgentType.EVTOL for a in evtol_ids},
+        **{a: AgentType.DELIVERY for a in delivery_ids},
+    }
+    directive = overseer.update(snap)
     allocation_order = sorted(agent_ids, key=lambda agent_id: (priorities[agent_id], agent_id))
 
+    # Layers 0 and 1 hold 2 x 45 = 90 normal agents; 95 normal agents -> 5 overflow.
     assert overseer.last_overflow == 5
+    assert all(directive.altitude_map[a] == 2 for a in emergency_ids)
     assert set(allocation_order[-5:]).issubset(delivery_ids)
     assert all(agent_id in directive.corridor_map for agent_id in emergency_ids + evtol_ids)
 

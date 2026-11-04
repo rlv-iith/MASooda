@@ -68,7 +68,8 @@ def resolve_conflict_event(
                     w_list.append(default_weight)
             w = np.array(w_list, dtype=float)
 
-        result = solver.solve(positions, targets, weights=w)
+        z = np.array([float(getattr(a, "altitude_layer", 0)) for a in agent_states], dtype=float)
+        result = solver.solve(positions, targets, weights=w, z=z)
 
         resolution: dict[int, np.ndarray] = {}
         for k, agent in enumerate(agent_states):

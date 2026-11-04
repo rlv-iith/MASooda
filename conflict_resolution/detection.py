@@ -16,6 +16,7 @@ def detect_conflicts(
     """Find which agents are in conflict and partition them into groups of up to max_group_size.
 
     - Two agents are "in conflict" if their x,y distance < admm.detection_radius_meters
+      AND they are on the same altitude layer
       AND (if merge_zone_only is true) both have x inside corridors.merge_zone_x_meters.
       Read merge_zone_x_meters directly from the config.
     - Build groups = connected components of the conflict pairs (only agents with at least
@@ -54,6 +55,10 @@ def detect_conflicts(
     if merge_zone_only:
         in_zone = (positions[:, 0] >= merge_x_min) & (positions[:, 0] <= merge_x_max)
         conflict_mask &= in_zone[:, None] & in_zone[None, :]
+
+    # Agents on different altitude layers cannot collide, so they never conflict.
+    layers = np.asarray([int(getattr(a, "altitude_layer", 0)) for a in agent_list], dtype=int)
+    conflict_mask &= layers[:, None] == layers[None, :]
 
     # Build adjacency among conflicting agents. Keep ids and set-based traversal
     # below unchanged to preserve component and output ordering.

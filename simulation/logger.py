@@ -41,6 +41,7 @@ class TrajectoryLogger:
                 "vy": float(agent.velocity[1]),
                 "corridor": agent.corridor_assignment,
                 "type": type_str,
+                "layer": int(agent.altitude_layer),
             })
 
     def as_position_array(self) -> np.ndarray:
@@ -68,7 +69,7 @@ class TrajectoryLogger:
     def to_csv(self, path: str | Path) -> Path:
         """Write recorded trajectory to a CSV file.
 
-        The columns are: t,agent_id,x,y,vx,vy,corridor,type.
+        The columns are: t,agent_id,x,y,vx,vy,corridor,type,layer.
         Parent folders are created automatically.
 
         Returns
@@ -81,7 +82,7 @@ class TrajectoryLogger:
 
         with open(out_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["t", "agent_id", "x", "y", "vx", "vy", "corridor", "type"])
+            writer.writerow(["t", "agent_id", "x", "y", "vx", "vy", "corridor", "type", "layer"])
             for r in self.rows:
                 corridor_val = r["corridor"] if r["corridor"] is not None else ""
                 writer.writerow([
@@ -93,6 +94,7 @@ class TrajectoryLogger:
                     r["vy"],
                     corridor_val,
                     r["type"],
+                    r["layer"],
                 ])
 
         return out_path
