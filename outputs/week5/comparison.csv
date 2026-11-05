@@ -1,0 +1,3 @@
+architecture,scenario,seed,num_agents,duration_s,attack_enabled,link_failure,initial_conditions_hash,throughput_per_s,arrivals,safety_violation_ticks,violation_episodes,mean_recovery_time_s,max_recovery_time_s,min_robustness_m,min_separation_m,admm_events,admm_nonconverged,reports_dropped,overseer_calls,overseer_failures,wall_time_s
+hierarchical,e4_e5,42,30,60.0,False,False,d593c92bfe150ae62c8dcb19e997d7922277bcd3c1696af9efe7ebfd0f44fbd6,0.0,0,565,1,nan,nan,-7.978090118394865,0.02190988160513463,353,0,0,30,0,144.41605719999643
+hierarchical,e4_e5,42,30,60.0,True,False,d593c92bfe150ae62c8dcb19e997d7922277bcd3c1696af9efe7ebfd0f44fbd6,0.0,0,565,1,nan,nan,-7.978090118394865,0.02190988160513463,353,0,0,30,0,133.15481099998578
