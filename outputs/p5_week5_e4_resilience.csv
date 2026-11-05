@@ -1,0 +1,5 @@
+architecture,seed,attack_enabled,throughput_per_s,arrivals,safety_violation_ticks,violation_episodes,mean_recovery_time_s,min_robustness_m,reports_dropped,malicious_ids,post_attack_violation_ticks
+hierarchical,42,False,0.0,0,773,3,36.85000000000001,-7.978090118394865,0,[],209
+hierarchical,42,True,0.0,0,798,3,38.39999999999999,-7.978090118394865,2360,[1],234
+decentralized_undefended,42,False,0.0,0,0,0,nan,0.04156207179811666,0,[],0
+decentralized_undefended,42,True,0.0,0,0,0,nan,0.04156207179811666,0,[1],0
