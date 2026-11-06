@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
+import time
 from typing import Any, Sequence
 
 import matplotlib
@@ -14,6 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from config.load_config import get_config
+from experiments.runner import (
+    ARCHITECTURES,
+    build_run_row,
+    get_runner,
+    initial_conditions_hash,
+    write_rows,
+)
 from simulation.engine import run_simulation
 from simulation.logger import TrajectoryLogger
 from simulation.overseer import reset_default_overseer
@@ -30,6 +38,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     default_seed = int(cfg.get("simulation", {}).get("random_seed", 42))
 
     parser = argparse.ArgumentParser(description="MASooda Urban Air Traffic Simulation")
+    parser.add_argument(
+        "--architecture",
+        choices=ARCHITECTURES,
+        default="hierarchical",
+        help="Coordination architecture (default: hierarchical)",
+    )
     parser.add_argument(
         "--scenario",
         choices=["mvp", "nominal"],
@@ -118,16 +132,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     monitor = LiveSTLMonitor(console_every_seconds=10.0, event_log_path=events_path)
     traj = TrajectoryLogger()
 
-    result = run_simulation(
-        agents,
-        duration_s=args.duration,
-        loggers=[traj, monitor],
-        use_overseer=True,
-        use_admm=True,
-        attack_config=attack_config,
-        defended=defended,
-        overseer_link_config=overseer_link_config,
-    )
+    t_start = time.perf_counter()
+    if args.architecture == "hierarchical":
+        result = run_simulation(
+            agents,
+            duration_s=args.duration,
+            loggers=[traj, monitor],
+            use_overseer=True,
+            use_admm=True,
+            attack_config=attack_config,
+            defended=defended,
+            overseer_link_config=overseer_link_config,
+        )
+    else:
+        try:
+            runner = get_runner(args.architecture)
+        except RuntimeError as err:
+            sys.stderr.write(f"{err}\n")
+            sys.exit(2)
+        result = runner(
+            agents,
+            duration_s=args.duration,
+            loggers=[traj, monitor],
+            attack_config=attack_config,
+            overseer_link_config=overseer_link_config,
+        )
+    wall_time_s = time.perf_counter() - t_start
 
     # 6. Metrics
 
@@ -138,6 +168,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         metrics_dict.update(result.stats)
         metrics_dict["overseer_calls"] = result.overseer_calls
         metrics_dict["overseer_failures"] = result.overseer_failures
+        metrics_dict["architecture"] = args.architecture
         write_metrics(metrics_dict, out_dir / "metrics.json")
     except Exception:
         metrics_dict = {
@@ -145,10 +176,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             "safety_violation_ticks": int(monitor.violation_count()),
             "overseer_calls": int(result.overseer_calls),
             "overseer_failures": int(result.overseer_failures),
+            "architecture": args.architecture,
         }
         metrics_dict.update(result.stats)
         with open(out_dir / "metrics.json", "w", encoding="utf-8") as f:
             json.dump(metrics_dict, f, indent=2, default=str)
+
+    # Write run_row.csv
+    info = {
+        "architecture": args.architecture,
+        "scenario": args.scenario,
+        "seed": args.seed,
+        "num_agents": len(agents),
+        "duration_s": float(args.duration),
+        "attack_enabled": bool(attack_config.get("enabled", False)),
+        "link_failure": bool(overseer_link_config.get("enabled", False)),
+        "initial_conditions_hash": initial_conditions_hash(agents),
+        "wall_time_s": wall_time_s,
+    }
+    run_row = build_run_row(result, metrics_dict, info)
+    write_rows([run_row], out_dir / "run_row.csv")
 
     # 7. Save outputs
     monitor.to_csv(out_dir / "stl_robustness.csv")
@@ -191,6 +238,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     summary_lines = [
         f"=== Simulation Summary ({args.scenario.upper()}) ===",
+        f"Architecture: {args.architecture}",
         f"Agents: {len(agents)}",
         f"Duration: {args.duration:.1f} s",
         f"Min Robustness: {min_rob:.3f} m" if isinstance(min_rob, (int, float)) else f"Min Robustness: {min_rob}",

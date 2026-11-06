@@ -103,3 +103,10 @@ resilience:
   liar_counts: [1, 2]
   range_tolerance_meters: 3.0
 
+experiments:
+  seeds: [42, 43, 44]
+  agent_counts: [30, 45, 60, 75]
+  architectures: [hierarchical, centralized, decentralized_undefended]
+  output_dir: outputs/week5
+
+
