@@ -57,6 +57,7 @@ Severity refers to risk to scientific claims and demonstration interpretation: *
 | D18 | Saved P3 merge results (`outputs/p3_week4_merge_check.csv`; `docs/p3_week4_notes.md`) show ADMM minimum distance 0.4112 m, 255 violation ticks, versus 1.3066 m and 388 ticks without ADMM; both are well below 8 m. This is documented evidence that current integration does not ensure separation, even if the violation tick comparison looks favorable. | **Critical** — safety claim and final conclusions. | Reframe ADMM as experimental conflict mitigation, not a safety guarantee. Use D01/D05/D06/D07 fixes, then re-run paired seeds. Add independent post-step safety monitor and count predicted-vs-actual violations, nonconvergence, and fallback. A true guarantee would require a verified reachable-set/barrier or safety-filter layer and assumptions. | **Before:** one result suggests fewer violating ticks but severe collisions remain; no safety guarantee. **After:** demo openly distinguishes mitigation from guarantee and includes corrected results. Safety plots show signed robustness, collision episodes, lower quantiles across seeds, and controller fallback. Success must be measured; no improvement is promised in advance. |
 | D19 | README and proposal claim resilience under communication loss, while only the overseer link has a deterministic outage window. Agent-to-agent graph is recomputed from geometry every tick; no message delay, packet loss, stale neighbor data, or vehicle link failure is modeled. | **Medium** — communication resilience scope. | Either narrow claims to overseer-link outage only, or model agent-link loss, latency, stale packets, and delivery probability with explicit deterministic seeds. Track age-of-information and graph connectivity. | **Before:** only cached overseer directive is tested during outage. **After:** demo can distinguish DTC outage from V2V disruption and show effects on safety/throughput. Verify outage windows, stale-message use, graph partitions, and recovery. |
 | D20 | `resilience/wmsr.py` is a scalar/vector trimming routine, but the threat model's stated graph robustness conditions are not evaluated in the integrated runs. The W-MSR consensus scripts are separate from local flight-control defense. Current report correction also consults truth (D02). | **High** — theoretical guarantee conditions and implementation boundary. | Keep consensus-theory experiments separate from flight-control attack experiments; log the graph and verify required degree/robustness assumptions for each guarantee. Report only empirical robustness when conditions are not satisfied. Connect filtered consensus to control only after D02's dataflow is specified. | **Before:** W-MSR unit/consensus evidence can be mistaken for end-to-end resilient flight control. **After:** a layered evidence chain shows algorithm, topology condition, integration, and system outcome separately. Include fraction of time assumptions hold and honest-agent error bounds. |
+| D21 | `conflict_resolution/adapter.py` predicts target positions as `p + v_des*dt`, but `simulation/engine.py` converts the resolved velocity into acceleration and `simulation/dynamics.py` advances position using the old velocity before updating velocity. The ADMM one-step position prediction therefore does not match the state transition it controls. | **Critical** — control/solver coupling and numerical validity. | Make the optimization predict the actual reachable next state under the acceleration clamp and velocity-tracking time constant, or replace it with a multi-step MPC/safety-filter formulation. Coordinate the contract with P1 dynamics ownership; include acceleration-reachable sets and use the same integrator in prediction and execution. | **Before:** a converged projected position can still differ from the simulated next position because control has lag. **After:** solver constraints refer to the state the engine will actually produce; event counts and trajectories may change. Verify by comparing predicted and integrated next positions in randomized state tests and analytic acceleration-limited cases. |
 
 ### B. Missing evidence and limitations (not asserted as code bugs)
 
@@ -193,7 +194,32 @@ Recommended visuals: top-down trajectories with corridor boundaries; optional si
 | M03/M07 | Tests/runtime not audited by execution here | Medium/High | Run full suite and standardized benchmarks | Establish actual status | Verified final release | CI + benchmark record | P0 final |
 | M06 | Metrics called with ignored monitor/logger args | Low | Correct the call signature | No intended metric change | Cleaner reproducibility | CLI output comparison | P2 |
 
-## 10. Demonstration-ready checklist
+## 10. P2 Week 6 implementation log
+
+The following first correction is implemented on branch `p2_week6`; it is not yet merged to `main`.
+
+### Step 1: Keep connected conflict components intact
+
+Lalith (P2) removed fixed five-agent chunking from `conflict_resolution/detection.py`. A connected component is now passed to one ADMM solve so a nearby pair cannot be omitted solely because a sorted-x chunk boundary split it. The obsolete `admm.max_group_size` setting was removed, the detection/profile regression tests now expect full components, the P2 scaling note was corrected, and the demo description now says ADMM negotiates adjustments rather than implying a guarantee.
+
+The same 60-agent, seed-42, converging demo was run before and after for 10 simulated seconds with five configured layers and 4 fps. Existing user outputs were preserved; these comparison artifacts are in separate folders under `outputs/p2_week6_before/` and `outputs/p2_week6_after/`.
+
+| Metric | Before (chunked) | After (full components) |
+|---|---:|---:|
+| ADMM solver calls | 1,326 | 406 |
+| Largest solver group | 5 | 40 |
+| Convergence rate | 84.0% | 65.0% |
+| Mean iterations | 19.1 | 24.7 |
+| Mean solve time | 6.17 ms | 13.99 ms |
+| 95th percentile solve time | 19.67 ms | 61.33 ms |
+| Minimum same-layer separation | 3.49 m | 3.00 m |
+| Demo STL robustness | -6.00 m | -6.00 m |
+
+**Interpretation:** this is a correctness fix to conflict coverage, not a demonstrated safety improvement. It reduced duplicated chunk solves but created larger, more expensive optimization problems; safety remained violated and the measured same-layer minimum became 0.49 m lower in this particular matched run. Of 406 after-fix calls, 142 did not converge. A captured 40-agent failed component contained a 4.609 m pair; with a 15 m/s speed cap and 0.1 s timestep, the pair can gain at most 3.0 m in one tick even if both agents move directly apart, which is below the solver's 8.08 m margin. Raising the iteration limit from 50 to 200 did not make that case converge. It is a one-step infeasibility at that state, not evidence that more iterations alone fix it.
+
+Targeted verification passed: **22 tests** across detection, profiling, scaling hooks, layers, and the ADMM solver. The full repository suite then passed: **230 tests**. Pytest needed a workspace-local temporary directory because its default user-temp directory is not accessible in this environment. The next P2/P1 joint correction should address D21's dynamics-prediction mismatch and earlier multi-step avoidance of states that become infeasible in one tick. No safety guarantee is claimed.
+
+## 11. Demonstration-ready checklist
 
 - [ ] One collision definition in meters is used by ADMM, live STL, offline metrics, charts, and documentation.
 - [ ] Layer identifiers and physical altitude are not conflated.
@@ -209,6 +235,6 @@ Recommended visuals: top-down trajectories with corridor boundaries; optional si
 - [ ] Final animation/dashboard is labeled live or recorded accurately and agrees with machine-readable CSV/JSON metrics.
 - [ ] Limitations and negative/failed results are shown alongside successful cases.
 
-## 11. Audit limitations
+## 12. Audit limitations
 
 The audit inventoried the repository files and inspected the main architecture, all core implementation packages, experiment scripts/tests inventory, README/configuration, technical Markdown notes, the proposal PDF, Boids formulation PDF, threat-model PDF, and saved output CSV headers plus selected result rows. The test suite and simulations were not executed, and not every historical CSV row or image pixel was independently reprocessed. The Git working tree was read successfully with an explicit per-command safe-directory override; the pre-existing untracked output artifacts and `web_sandbox/` were left untouched. Findings above distinguish code-confirmed behavior from missing validation and proposed research extensions.

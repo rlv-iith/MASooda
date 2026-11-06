@@ -23,10 +23,8 @@ def old_detect_conflicts(agent_states, config=None):
     corridors_cfg = config.get("corridors", {})
     detection_radius = float(admm_cfg.get("detection_radius_meters", 20.0))
     merge_zone_only = bool(admm_cfg.get("merge_zone_only", True))
-    max_group_size = int(admm_cfg.get("max_group_size", 5))
     merge_zone = corridors_cfg.get("merge_zone_x_meters", [700.0, 800.0])
     merge_x_min, merge_x_max = float(merge_zone[0]), float(merge_zone[1])
-    agent_map = {a.id: a for a in agent_states}
     agent_list = list(agent_states)
     n = len(agent_list)
     in_merge_zone = lambda x: merge_x_min <= x <= merge_x_max
@@ -59,16 +57,7 @@ def old_detect_conflicts(agent_states, config=None):
                         queue.append(nbr)
             components.append(comp)
     components.sort(key=lambda c: min(c))
-    groups = []
-    for comp in components:
-        if len(comp) <= max_group_size:
-            groups.append(sorted(comp))
-        else:
-            comp_agents = [agent_map[aid] for aid in comp]
-            comp_agents.sort(key=lambda a: (float(a.position[0]), a.id))
-            for k in range(0, len(comp_agents), max_group_size):
-                groups.append(sorted(a.id for a in comp_agents[k:k + max_group_size]))
-    return groups
+    return [sorted(comp) for comp in components]
 
 
 def _merge_agents(n, seed):
@@ -80,7 +69,7 @@ def _merge_agents(n, seed):
     return agents
 
 
-def test_vectorized_detection_matches_original_for_five_seeds():
+def test_vectorized_detection_matches_full_component_reference_for_five_seeds():
     for seed in range(5):
         agents = _merge_agents(60, seed)
         assert detect_conflicts(agents) == old_detect_conflicts(agents)

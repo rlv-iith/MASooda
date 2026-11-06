@@ -62,21 +62,20 @@ Run `python scripts/p2_week5_admm_scaling.py` to populate
 
 The configured ADMM iteration limit is **50** (`admm.maximum_iterations`).
 
-1. **Iterations vs N:** Mean iterations grow modestly with N because larger
-   fleets produce more conflict groups, but each group is capped at
-   `max_group_size = 5` agents by the detection module.  The per-group ADMM
-   problem size therefore stays bounded, and iterations rarely approach the
-   50-iteration ceiling.
+1. **Iterations vs N:** Earlier results used a five-agent chunk limit. Lalith
+   (P2) removed this split because it could omit close-pair constraints across
+   chunk boundaries. The updated solver processes each connected conflict
+   component intact. Component size, iteration count, and convergence must be
+   re-measured; the previous bounded-size conclusion no longer applies.
 
-2. **Solve time vs N:** Mean solve time per ADMM call remains roughly constant
-   since group size is capped.  However, the total number of solver calls
-   increases with N, so the aggregate time per tick grows.
+2. **Solve time vs N:** Per-call cost may rise with connected-component size.
+   Measure component-size distributions and solver time directly instead of
+   assuming constant solve time.
 
 3. **Resolve time per tick vs N:** This metric captures the full cost of
-   conflict detection + all ADMM solves in a single simulation tick.  It
-   scales approximately linearly with N because the number of conflicting
-   groups (and thus solver invocations) grows with agent density.
+   conflict detection plus all ADMM solves in a tick. Its scaling depends on
+   both the number and size of connected components and must be re-measured.
 
-4. **Convergence:** At the default tolerance settings, the vast majority of
-   solver calls converge well within 50 iterations.  The 50-iteration limit
-   is not a binding constraint under normal (no-attack) conditions.
+4. **Convergence:** Re-measure after the grouping change. Larger joint solves
+   may take longer or reach the configured 50-iteration limit. Report
+   convergence and fallback rates along with timing.
