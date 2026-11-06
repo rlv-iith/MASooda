@@ -3,97 +3,151 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#07111f">
-  <title>MASooda | Urban Airspace Operations</title>
+  <meta name="theme-color" content="#060d18">
+  <title>MASooda Live Airspace</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
+  <div class="boot-warn" style="font:16px system-ui;padding:16px;background:#fff3cd;color:#5a4300;border-bottom:2px solid #e0b000">
+    <b>The page's stylesheet and script did not load.</b> An older server is probably still running on this port.
+    Stop every running <code>python -m web_sandbox.server</code> (Ctrl+C in each terminal, or on Windows:
+    <code>netstat -ano | findstr :8765</code> then <code>taskkill /PID &lt;pid&gt; /F</code>), start it once more, and press Ctrl+F5.
+  </div>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="MASooda home"><span class="brand-mark">✣</span><span><b>MASooda</b><small>Urban Airspace Operations</small></span></a>
-    <nav class="scenes" aria-label="Simulation scenario">
-      <button class="scene active" data-scene="flow"><b>Corridor Flow</b><small>Baseline traffic</small></button>
-      <button class="scene" data-scene="priority"><b>Priority Operations</b><small>Emergency response</small></button>
-      <button class="scene" data-scene="outage"><b>Controller Outage</b><small>Link resilience</small></button>
-      <button class="scene" data-scene="attack"><b>False Reports</b><small>Attack and defense</small></button>
-      <button class="scene" data-scene="decentralized"><b>Decentralized</b><small>No overseer</small></button>
-    </nav>
-    <div class="top-actions"><span class="live-status"><i></i><span id="systemStatus">CONNECTING</span></span><button id="newRun" class="primary">▶ <span>New Run</span></button></div>
+    <div class="brand"><span class="mark">✣</span><div><b>MASooda</b><small>Hierarchical, priority-aware, resilient urban air traffic management</small></div></div>
+    <div class="chips">
+      <span class="chip"><i id="sysDot" class="dot"></i>System <b id="sysStatus">CONNECTING</b></span>
+      <span class="chip">Run <b id="runState">—</b></span>
+      <span class="chip">Sim time <b id="clock">0.0 s</b></span>
+      <span class="chip">Airborne <b id="cntAir">0</b> · Queued <b id="cntQueue">0</b> · Landed <b id="cntLand">0</b> · Crashed <b id="cntCrash">0</b></span>
+      <span class="chip" id="linkChip">DTC link <b id="linkState">—</b></span>
+    </div>
+    <div class="transport">
+      <button id="playBtn" class="ghost" title="Play / pause (space)">❚❚</button>
+      <div class="seg" id="speedSeg"><button data-speed="1">1×</button><button data-speed="2" class="on">2×</button><button data-speed="4">4×</button><button data-speed="8">8×</button></div>
+      <button id="restartBtn" class="ghost" title="Replay from start">↺</button>
+    </div>
   </header>
 
-  <main>
-    <section class="statusbar" aria-label="Simulation status">
-      <div><small>Run state</small><strong id="runState">READY</strong></div>
-      <div><small>Simulation time</small><strong id="simClock">—</strong></div>
-      <div><small>Active fleet</small><strong><span id="activeDrones">—</span> drones</strong></div>
-      <div><small>Scenario seed</small><strong id="activeSeed">—</strong></div>
-      <div class="spacer"></div>
-      <div class="speed-control" aria-label="Playback speed"><small>Playback</small><div><button data-speed="0.5">0.5×</button><button class="selected" data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div></div>
-      <button id="playPause" class="secondary" disabled>▶ Play</button>
-      <button id="replay" class="secondary" disabled>↺ Replay</button>
+  <main class="layout">
+    <section class="map-card">
+      <div class="map-head">
+        <div><span class="eyebrow" id="mapEyebrow">Live airspace</span><h1 id="sceneTitle">Normal operations</h1></div>
+        <div class="map-tools">
+          <div class="seg" id="mapSeg" title="Map"></div>
+          <div class="seg" id="layerSeg" title="Altitude layer filter"><button data-layer="all" class="on">All layers</button></div>
+          <label class="tog"><input type="checkbox" id="tgRoutes"> All routes</label>
+          <label class="tog"><input type="checkbox" id="tgLinks"> V2V links</label>
+          <label class="tog"><input type="checkbox" id="tgSectors" checked> Sectors</label>
+          <label class="tog"><input type="checkbox" id="tgContext" checked> Base map</label>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <canvas id="map" aria-label="Map of the corridor network with live drone positions — click a drone to select it"></canvas>
+        <div class="legend">
+          <span><i class="sw emergency"></i>Emergency</span><span><i class="sw evtol"></i>eVTOL</span><span><i class="sw delivery"></i>Delivery</span>
+          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span>
+        </div>
+        <div class="zoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit map">⤢</button><button id="zFollow" aria-label="Follow selected drone" title="Follow selected drone">◎</button></div>
+        <div id="buffer" class="buffer" hidden>computing ahead…</div>
+        <div id="tip" class="tip" hidden></div>
+        <div class="attrib" id="attrib"></div>
+      </div>
+      <div class="timeline"><span id="tLabel">t = 0.0 s</span><input id="scrub" type="range" min="0" max="0" value="0" step="0.1" aria-label="Simulation time"><span id="tMax">/ — s</span></div>
     </section>
 
-    <section class="main-grid">
-      <section class="map-panel" aria-label="Live airspace map">
-        <div class="map-title"><div><span class="eyebrow">MASOODA SIMULATION</span><h1>Live airspace</h1></div><span id="mapSource" class="map-badge">Loading map context…</span></div>
-        <canvas id="map" role="img" aria-label="Map context with configured airspace corridors and simulated drone trajectories"></canvas>
-        <div class="map-legend"><span><i class="dot emergency"></i>Emergency</span><span><i class="dot evtol"></i>eVTOL</span><span><i class="dot delivery"></i>Delivery</span><span><i class="line corridor"></i>Model corridor</span><span><i class="line road"></i>Road context</span></div>
-        <div class="map-actions"><button id="importTiff">Import GeoTIFF</button><button id="importRoads">Import road GeoJSON</button><button id="loadSample">Hyderabad sample</button><input id="tiffFile" type="file" accept=".tif,.tiff" hidden><input id="roadsFile" type="file" accept=".geojson,.json,application/geo+json,application/json" hidden></div>
-        <div class="map-foot"><span>Road map is context; flights follow configured 2.5D corridors, not road centerlines.</span><span>Local simulation frame · metres</span></div>
-        <div class="map-zoom"><button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="fitMap" aria-label="Fit map">⌗</button></div>
-        <div class="timeline"><span id="frameLabel">No run loaded</span><input id="frameSlider" type="range" min="0" max="0" value="0" disabled aria-label="Simulation time"></div>
+    <aside class="rail">
+      <section class="card" id="droneCard">
+        <div class="card-head"><h2>Selected drone · 2.5D view</h2><select id="dronePick" aria-label="Select drone"></select></div>
+        <div class="dhead"><span id="dName" class="dname">—</span><span id="dBadge" class="badge">—</span><span id="dStatus" class="pill">—</span></div>
+        <canvas id="view25" aria-label="2.5D view around the selected drone"></canvas>
+        <div class="bar"><i id="dProg"></i></div>
+        <dl class="kv">
+          <dt>Mission</dt><dd id="dTask">—</dd>
+          <dt>Route</dt><dd id="dRoute">—</dd>
+          <dt>Layer · altitude</dt><dd id="dLayer">—</dd>
+          <dt>Speed · heading</dt><dd id="dSpeed">—</dd>
+          <dt>Remaining · ETA</dt><dd id="dEta">—</dd>
+          <dt>Nearest same-layer</dt><dd id="dNear">—</dd>
+          <dt>V2V links (degree)</dt><dd id="dDeg">—</dd>
+          <dt>DTC link</dt><dd id="dDtc">—</dd>
+          <dt>ADMM · shifts · alerts</dt><dd id="dCounts">—</dd>
+        </dl>
+        <div class="card-head sub"><h3>Events for this drone</h3><span class="muted" id="dEvCount">0</span></div>
+        <ol id="dEvents" class="dev"></ol>
       </section>
 
-      <aside class="control-rail">
-        <section class="panel selected-drone">
-          <div class="panel-heading"><h2>Selected drone</h2><span id="droneBadge" class="badge">—</span></div>
-          <strong id="droneName" class="drone-name">Select a drone</strong>
-          <div id="droneTask" class="muted">Run a scenario, then click a drone on the map.</div>
-          <dl class="drone-details"><dt>Position · x / y / layer</dt><dd id="dronePosition">—</dd><dt>Speed</dt><dd id="droneSpeed">—</dd><dt>Destination</dt><dd id="droneDestination">—</dd><dt>Priority / corridor</dt><dd id="droneAssignment">—</dd></dl>
-        </section>
+      <section class="card">
+        <div class="card-head"><h2>Scenario</h2><span class="muted" id="seedLabel"></span></div>
+        <div class="scenes" id="scenes">
+          <button data-scene="normal" class="on"><b>Normal ops</b><small>Balanced fleet</small></button>
+          <button data-scene="emergency"><b>Emergency surge</b><small>Priority + reserved layer</small></button>
+          <button data-scene="outage"><b>DTC outage</b><small>Controller link down</small></button>
+          <button data-scene="attack"><b>Spoofing attack</b><small>W-MSR defence on</small></button>
+          <button data-scene="undefended"><b>Undefended attack</b><small>Defence off</small></button>
+          <button data-scene="decentral"><b>Decentralized</b><small>No DTC</small></button>
+        </div>
+        <div class="grid2">
+          <label>Fleet size<input id="fleet" type="number" min="1" max="150" value="60"></label>
+          <label>Duration (s)<input id="duration" type="number" min="5" max="900" value="240"></label>
+          <label>Departure window (s)<input id="window" type="number" min="0" max="900" value="90"></label>
+          <label>Random seed<input id="seed" type="number" min="0" value="42"></label>
+        </div>
+        <div class="mix"><span>Mix %</span>
+          <label class="e">EMG<input id="mixE" type="number" min="0" max="100" value="10"></label>
+          <label class="v">eVTOL<input id="mixV" type="number" min="0" max="100" value="30"></label>
+          <label class="d">DEL<input id="mixD" type="number" min="0" max="100" value="60"></label>
+        </div>
+        <div class="switches">
+          <label><input type="checkbox" id="swOverseer" checked> P4 Drone Traffic Controller (DTC)</label>
+          <label><input type="checkbox" id="swAdmm" checked> P2 ADMM deconfliction</label>
+          <label><input type="checkbox" id="swDefense" checked> P5 Report defence (W-MSR)</label>
+          <label><input type="checkbox" id="swAttack"> P5 Inject spoofing attack</label>
+          <label><input type="checkbox" id="swOutage"> P4 DTC link outage</label>
+        </div>
+        <details class="adv"><summary>Model parameters (from configs/base_config.yaml)</summary><div id="advFields" class="grid2"></div></details>
+        <button id="runBtn" class="primary">▶ Launch simulation</button>
+        <p id="status" class="status" aria-live="polite">Connecting to the local simulator…</p>
+      </section>
 
-        <section class="panel mission-panel">
-          <div class="panel-heading"><h2>Mission setup</h2><button id="resetInputs" class="text-button">Reset</button></div>
-          <div class="field-grid two">
-            <label>Fleet size<input id="fleetCount" type="number" min="1" step="1" inputmode="numeric" value="30"></label>
-            <label>Duration · seconds<input id="duration" type="number" min="0.1" step="any" inputmode="decimal" value="30"></label>
-            <label>Random seed<input id="seed" type="number" min="0" step="1" inputmode="numeric" value="42"></label>
-            <label>Cruise speed · m/s<input id="cruiseSpeed" type="number" min="0" step="any" inputmode="decimal"></label>
-            <label>Starting altitude layer<input id="startingLayer" type="number" min="0" step="1" inputmode="numeric" value="0"></label>
-          </div>
-          <div class="mix-heading"><span>Vehicle / task mix</span><span class="muted">percent of fleet</span></div>
-          <div class="field-grid three">
-            <label class="type-label emergency-label">Emergency<input id="mixEmergency" type="number" min="0" max="100" step="1" value="10"></label>
-            <label class="type-label evtol-label">eVTOL<input id="mixEvtol" type="number" min="0" max="100" step="1" value="30"></label>
-            <label class="type-label delivery-label">Delivery<input id="mixDelivery" type="number" min="0" max="100" step="1" value="60"></label>
-          </div>
-          <div class="mix-total"><span id="mixSummary">Mix totals 100%</span><span id="capacitySummary">Local compute limit: —</span></div>
-          <div class="scenario-notice" id="sceneDescription">Vehicles are generated in the configured entry area and assigned across the configured corridors.</div>
-          <div class="module-switches"><label><input id="useOverseer" type="checkbox" checked> Global overseer</label><label><input id="useAdmm" type="checkbox" checked> ADMM separation</label><label><input id="useDefense" type="checkbox" checked> Neighbor-report defense</label></div>
-          <details class="config-details"><summary>Model settings from project config</summary><div id="configControls" class="config-controls"></div></details>
-          <details class="json-details"><summary>Preview backend JSON</summary><pre id="manifestPreview">Loading configuration…</pre></details>
-          <button id="runButton" class="run-button primary">Run simulation <span>→</span></button>
-          <div id="statusMessage" class="status-message" aria-live="polite">Connecting to the local simulator…</div>
-        </section>
-      </aside>
+      <section class="card">
+        <div class="card-head"><h2>DTC · sector × layer load</h2><span class="muted" id="capLabel"></span></div>
+        <table class="occ" id="occ"></table>
+      </section>
+    </aside>
+
+    <section class="kpis" id="kpis">
+      <article id="kCrashCard"><small>Crashes</small><b id="kCrash">—</b><span id="kCrashSub">collisions (&lt; 2 m)</span></article>
+      <article id="kLosCard"><small>Near misses</small><b id="kLos">—</b><span>loss-of-separation episodes</span></article>
+      <article><small>Min separation</small><b id="kSep">—</b><span id="kSepSub">STL: G(d ≥ d<sub>min</sub>)</span></article>
+      <article id="kViolCard"><small>Violation ticks</small><b id="kViol">—</b><span>robustness &lt; 0</span></article>
+      <article><small>ADMM resolutions</small><b id="kAdmm">—</b><span id="kAdmmSub">conflict groups</span></article>
+      <article><small>Altitude shifts</small><b id="kShift">—</b><span>tactical collision avoidance</span></article>
+      <article><small>DTC directives</small><b id="kLayer">—</b><span id="kLayerSub">layer changes</span></article>
+      <article><small>Corridor boundary holds</small><b id="kTube">—</b><span id="kTubeSub">tube wall projections</span></article>
+      <article id="kRepCard"><small id="kRepLabel">Spoofed reports filtered</small><b id="kRep">—</b><span id="kRepSub">trusted range check</span></article>
+      <article><small>Arrivals</small><b id="kArr">—</b><span id="kArrSub">of fleet</span></article>
     </section>
 
-    <section class="metrics" aria-label="Simulation metrics">
-      <article><small>Total drones</small><strong id="metricFleet">—</strong><span>from run manifest</span></article>
-      <article><small>Arrivals</small><strong id="metricArrivals">—</strong><span>passed configured exit x</span></article>
-      <article><small>Average speed</small><strong id="metricSpeed">—</strong><span>m/s · across samples</span></article>
-      <article id="separationMetric"><small>Minimum separation</small><strong id="metricSeparation">—</strong><span id="separationContext">configured threshold —</span></article>
-      <article id="violationsMetric"><small>Safety-violation ticks</small><strong id="metricViolations">—</strong><span>STL margin below zero</span></article>
-      <article><small>ADMM convergence</small><strong id="metricAdmm">—</strong><span id="admmContext">conflict events</span></article>
-      <article><small>Controller link</small><strong id="metricLink">—</strong><span id="linkContext">overseer requests</span></article>
-      <article><small>Attack reports</small><strong id="metricReports">—</strong><span>filtered by defense</span></article>
+    <div class="bottom">
+    <section class="card chart-card">
+      <div class="card-head"><h2>STL safety robustness</h2><span class="muted">ρ(t) = min d<sub>ij</sub> − d<sub>min</sub> · layer-aware</span></div>
+      <canvas id="chart" aria-label="STL robustness over time"></canvas>
+      <div class="card-head sub"><h3>Governance log</h3><span class="muted" id="logCount">0 events</span></div>
+      <ol id="log" class="glog"></ol>
     </section>
-
-    <section class="bottom-grid">
-      <section class="panel chart-panel"><div class="panel-heading"><h2>Safety robustness</h2><span>minimum-separation margin · metres</span></div><canvas id="safetyChart" role="img" aria-label="Safety robustness over simulation time"></canvas></section>
-      <section class="panel log-panel"><div class="panel-heading"><h2>Run log</h2><span id="logCount">0 entries</span></div><ol id="eventLog"><li class="muted">Runs and warnings will appear here.</li></ol></section>
+    <section class="card net-card">
+      <div class="card-head"><h2>Network theory · DTC + V2V graph</h2><span class="muted">click a node to select</span></div>
+      <div class="net-grid">
+        <canvas id="netGraph" aria-label="Communication network: DTC hub and drone-to-drone links"></canvas>
+        <div class="net-stats" id="netStats"></div>
+      </div>
+      <canvas id="netChart" aria-label="Network and DTC metrics over time"></canvas>
+      <div class="net-legend" id="netLegend"></div>
     </section>
-    <p class="source-note">Safety threshold and motion settings come from <code>configs/base_config.yaml</code>. This is a research simulation, not an operational flight authorization.</p>
+    </div>
   </main>
+  <footer class="foot">Research simulation. IITH corridors are traced from the campus map (schematic, ~0.95 m/px); Hyderabad corridors are OpenStreetMap centrelines (ODbL). Corridors are a planning backbone, not approved flight paths. Computed locally by MASooda's simulator modules.</footer>
 </body>
 </html>
