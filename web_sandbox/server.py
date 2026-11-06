@@ -7,6 +7,7 @@ http://127.0.0.1:8765. This demo server intentionally binds to loopback only.
 from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import hashlib
 import json
 from pathlib import Path
 import traceback
@@ -20,7 +21,7 @@ from simulation.scenario_manifest import prepare_scenario_manifest
 from simulation.engine import run_simulation
 import local_behavior.boids as boids
 import simulation.overseer as overseer
-from verification.metrics import compute_run_metrics
+from verification.metrics import compute_run_metrics, robustness_series
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = ROOT / "web_sandbox"
@@ -64,7 +65,14 @@ class ScenarioHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         route = urlparse(self.path).path
-        if route in ("/", "/index.html"):
+        if route in ("/", "/index.html", "/live"):
+            payload = (WEB_ROOT / "live_demo.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        elif route == "/prototype":
             payload = (WEB_ROOT / "index.html").read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -73,6 +81,19 @@ class ScenarioHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
         elif route == "/api/config":
             self._send_json(200, get_config())
+        elif route in ("/data/hyderabad_roads_sample.geojson", "/data/hyderabad_roads_sample.tif"):
+            path = ROOT / "data" / Path(route).name
+            if not path.is_file():
+                self._send_json(404, {"error": "sample_map_not_found"})
+                return
+            payload = path.read_bytes()
+            content_type = "application/geo+json; charset=utf-8" if path.suffix == ".geojson" else "image/tiff"
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(payload)
         else:
             self._send_json(404, {"error": "route_not_found"})
 
@@ -109,12 +130,31 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 config=prepared["config"],
             )
             metrics = compute_run_metrics(result, config=prepared["config"])
+            d_safe = float(prepared["config"]["safety"]["minimum_separation_meters"])
+            run_record = {
+                "duration_s": prepared["duration_s"],
+                "config": prepared["config"],
+                "agents": [agent.to_dict() for agent in prepared["agents"]],
+                "tasks": prepared["tasks"],
+                "use_overseer": prepared["use_overseer"],
+                "use_admm": prepared["use_admm"],
+                "defended": prepared["defended"],
+                "overseer_link_config": prepared["overseer_link_config"],
+                "attack_config": prepared["attack_config"],
+            }
+            run_hash = hashlib.sha256(
+                json.dumps(run_record, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+            ).hexdigest()
             self._send_json(200, {
+                "run_hash": run_hash,
+                "run_record": run_record,
                 "times": result.times,
                 "agent_ids": result.agent_ids,
                 "tasks": prepared["tasks"],
                 "positions": result.positions,
                 "velocities": result.velocities,
+                "robustness_m": robustness_series(result.positions, d_safe),
+                "mean_speed_mps": float(np.mean(np.linalg.norm(result.velocities, axis=2))),
                 "metrics": metrics,
             })
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
