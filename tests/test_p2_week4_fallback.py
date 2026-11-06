@@ -24,7 +24,7 @@ def _packed_agents(n=5, spacing=2.0):
     ]
 
 
-def test_nonconverged_event_has_finite_best_iterate_velocities(monkeypatch):
+def test_nonconverged_event_returns_original_intents(monkeypatch):
     cfg = config_loader.get_config()
     previous_limit = cfg["admm"]["maximum_iterations"]
     try:
@@ -35,7 +35,8 @@ def test_nonconverged_event_has_finite_best_iterate_velocities(monkeypatch):
         cfg["admm"]["maximum_iterations"] = previous_limit
 
     assert event.converged is False
-    assert all(np.all(np.isfinite(velocity)) for velocity in event.resolution.values())
+    for agent in _packed_agents():
+        np.testing.assert_array_equal(event.resolution[agent.id], agent.velocity)
 
 
 def test_normal_config_resolves_packed_agents_to_safe_next_positions():
