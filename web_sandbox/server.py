@@ -81,6 +81,7 @@ class ScenarioHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
         elif route == "/api/config":
             self._send_json(200, get_config())
+        # P2 / Lalith: serve the attributed Hyderabad map assets to the local demo.
         elif route in ("/data/hyderabad_roads_sample.geojson", "/data/hyderabad_roads_sample.tif"):
             path = ROOT / "data" / Path(route).name
             if not path.is_file():
