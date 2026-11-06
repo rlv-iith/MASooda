@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
+from functools import wraps
 import time
-from typing import Sequence
+from typing import Callable, Sequence, TypeVar, cast
 import numpy as np
 
-from config.load_config import get_config
+from config.load_config import get_config, use_run_config
 from conflict_resolution.adapter import resolve_all_conflicts
 from resilience.attack import apply_attack, inject_attack
 
@@ -36,6 +37,17 @@ from simulation.interfaces import (
 )
 from simulation.schema import AgentState, GlobalStateSnapshot, OverseerDirective
 
+_RunFunction = TypeVar("_RunFunction", bound=Callable)
+
+
+def _with_run_config(function: _RunFunction) -> _RunFunction:
+    """Scope optional per-run settings across the engine and its helpers."""
+    @wraps(function)
+    def wrapped(*args, config: dict | None = None, **kwargs):
+        with use_run_config(config):
+            return function(*args, **kwargs)
+    return cast(_RunFunction, wrapped)
+
 
 @dataclass
 class SimulationResult:
@@ -50,6 +62,7 @@ class SimulationResult:
     stats: dict = field(default_factory=dict)
 
 
+@_with_run_config
 def run_simulation(
     agents: Sequence[AgentState],
     duration_s: float | None = None,
@@ -59,6 +72,7 @@ def run_simulation(
     attack_config: dict | None = None,
     defended: bool = True,
     overseer_link_config: dict | None = None,
+    config: dict | None = None,
 ) -> SimulationResult:
     """Execute forward simulation for a fleet of agents.
 
@@ -80,6 +94,9 @@ def run_simulation(
         Whether honest agents use P5's defence against falsified reports.
     overseer_link_config : dict, optional
         Configuration for OverseerLink communication drops and latency.
+    config : dict, optional
+        Per-run configuration. When provided, the engine and downstream modules
+        read it for this call only; the shared YAML-backed defaults are unchanged.
 
     Returns
     -------

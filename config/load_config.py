@@ -7,14 +7,17 @@ to ensure experimental consistency and reproducibility.
 from __future__ import annotations
 
 import os
+from contextvars import ContextVar
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 import yaml
 
 # Default configuration path relative to repository root
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "base_config.yaml"
 
 _CONFIG_CACHE: dict[str, Any] = {}
+_RUN_CONFIG: ContextVar[dict[str, Any] | None] = ContextVar("masooda_run_config", default=None)
 
 
 def load_config(config_path: str | Path | None = None, reload: bool = False) -> dict[str, Any]:
@@ -49,8 +52,28 @@ def load_config(config_path: str | Path | None = None, reload: bool = False) -> 
 
 
 def get_config() -> dict[str, Any]:
-    """Get the cached base configuration."""
+    """Get the active run configuration, or the cached base configuration."""
+    run_config = _RUN_CONFIG.get()
+    if run_config is not None:
+        return run_config
     return load_config()
+
+
+@contextmanager
+def use_run_config(config: dict[str, Any] | None) -> Iterator[None]:
+    """Make a validated config visible to this simulation call and its helpers.
+
+    Context-local state prevents one request's settings from leaking into another
+    concurrent run. Passing ``None`` keeps the existing base-config behavior.
+    """
+    if config is None:
+        yield
+        return
+    token = _RUN_CONFIG.set(config)
+    try:
+        yield
+    finally:
+        _RUN_CONFIG.reset(token)
 
 
 def get_safety_limits(config: dict[str, Any] | None = None) -> tuple[float, float]:
