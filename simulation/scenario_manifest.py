@@ -39,18 +39,27 @@ def _merge_config(base: dict[str, Any], override: dict[str, Any], path: str = "c
         raise ValueError(f"{path} must be an object")
     merged = deepcopy(base)
     for key, value in override.items():
-        if key not in base:
+        normalized_key = key
+        if normalized_key not in base and isinstance(normalized_key, str):
+            # JSON object keys are strings, while YAML priority maps use integers.
+            try:
+                candidate = int(normalized_key)
+            except ValueError:
+                candidate = None
+            if candidate in base:
+                normalized_key = candidate
+        if normalized_key not in base:
             raise ValueError(f"Unknown configuration key: {path}.{key}")
-        current = base[key]
-        current_path = f"{path}.{key}"
+        current = base[normalized_key]
+        current_path = f"{path}.{normalized_key}"
         if isinstance(current, dict):
             if not isinstance(value, dict):
                 raise ValueError(f"{current_path} must be an object")
-            merged[key] = _merge_config(current, value, current_path)
+            merged[normalized_key] = _merge_config(current, value, current_path)
         elif isinstance(current, bool):
             if not isinstance(value, bool):
                 raise ValueError(f"{current_path} must be a boolean")
-            merged[key] = value
+            merged[normalized_key] = value
         elif isinstance(current, (int, float)) and not isinstance(current, bool):
             if (
                 not isinstance(value, (int, float))
@@ -59,15 +68,15 @@ def _merge_config(base: dict[str, Any], override: dict[str, Any], path: str = "c
                 or (isinstance(current, int) and not isinstance(value, int))
             ):
                 raise ValueError(f"{current_path} must be numeric")
-            merged[key] = value
+            merged[normalized_key] = value
         elif isinstance(current, list):
             if not isinstance(value, list):
                 raise ValueError(f"{current_path} must be a list")
-            merged[key] = deepcopy(value)
+            merged[normalized_key] = deepcopy(value)
         elif not isinstance(value, type(current)):
             raise ValueError(f"{current_path} must be a {type(current).__name__}")
         else:
-            merged[key] = value
+            merged[normalized_key] = value
     return merged
 
 
