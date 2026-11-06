@@ -40,7 +40,9 @@ def main() -> None:
         n_agents = 30
         duration_s = 60.0
         seeds = [42]
+        attack_start_s = 20.0
     else:
+        attack_start_s = None
         n_agents = 60
         duration_s = float(cfg["simulation"]["duration_seconds"])
         seeds = exp_cfg.get("seeds", [42, 43, 44])
@@ -73,6 +75,7 @@ def main() -> None:
                     link_failure=False,
                     scenario="e4_e5",
                     return_series=True,
+                    attack_start_s=attack_start_s,
                 )
                 rows.append(row)
 
@@ -94,7 +97,7 @@ def main() -> None:
     print(f"Saved verification report to {txt_path}")
 
     # 3. Plot STL robustness by architecture
-    attack_start = float(cfg.get("attack", {}).get("start_time_seconds", 60.0))
+    attack_start = attack_start_s if attack_start_s is not None else float(cfg.get("attack", {}).get("start_time_seconds", 60.0))
     fig, ax = plt.subplots(figsize=(10, 6))
     for arch, (times, series) in series_by_arch.items():
         ax.plot(times, series, label=arch, linewidth=1.5)

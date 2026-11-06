@@ -124,6 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # 5. Build agents and run simulation
     agents = make_initial_agents(n=args.agents, seed=args.seed)
+    ic_hash = initial_conditions_hash(agents)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     events_path = out_dir / "stl_events.csv"
@@ -191,7 +192,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "duration_s": float(args.duration),
         "attack_enabled": bool(attack_config.get("enabled", False)),
         "link_failure": bool(overseer_link_config.get("enabled", False)),
-        "initial_conditions_hash": initial_conditions_hash(agents),
+        "initial_conditions_hash": ic_hash,
         "wall_time_s": wall_time_s,
     }
     run_row = build_run_row(result, metrics_dict, info)

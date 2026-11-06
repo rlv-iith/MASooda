@@ -162,6 +162,7 @@ def run_experiment(
     link_failure: bool = False,
     scenario: str = "custom",
     return_series: bool = False,
+    attack_start_s: float | None = None,
 ):
     """Execute forward simulation for one experiment configuration."""
     reset_default_overseer()
@@ -175,6 +176,8 @@ def run_experiment(
     h = initial_conditions_hash(agents)
 
     attack_config = {**cfg.get("attack", {}), "enabled": attack_enabled}
+    if attack_start_s is not None:
+        attack_config["start_time_seconds"] = float(attack_start_s)
 
     link_failure_cfg = cfg.get("overseer", {}).get("link_failure", {})
     if link_failure:
