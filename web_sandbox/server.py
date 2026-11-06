@@ -72,6 +72,19 @@ class ScenarioHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
+        elif route in ("/app.js", "/styles.css"):
+            path = WEB_ROOT / route.lstrip("/")
+            if not path.is_file():
+                self._send_json(404, {"error": "asset_not_found"})
+                return
+            payload = path.read_bytes()
+            content_type = "text/javascript; charset=utf-8" if path.suffix == ".js" else "text/css; charset=utf-8"
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(payload)
         elif route == "/prototype":
             payload = (WEB_ROOT / "index.html").read_bytes()
             self.send_response(200)
@@ -81,6 +94,8 @@ class ScenarioHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
         elif route == "/api/config":
             self._send_json(200, get_config())
+        elif route == "/api/limits":
+            self._send_json(200, {"max_agent_ticks": MAX_AGENT_TICKS})
         # P2 / Lalith: serve the attributed Hyderabad map assets to the local demo.
         elif route in ("/data/hyderabad_roads_sample.geojson", "/data/hyderabad_roads_sample.tif"):
             path = ROOT / "data" / Path(route).name
@@ -119,7 +134,7 @@ class ScenarioHandler(BaseHTTPRequestHandler):
             # The current simulator has module-level behavioral state. Serve runs
             # sequentially and reset these caches to keep scenarios independent.
             boids.reset_local_behavior_cache()
-            overseer.reset_default_overseer()
+            overseer.reset_default_overseer(config=prepared["config"])
             result = run_simulation(
                 agents=prepared["agents"],
                 duration_s=prepared["duration_s"],
