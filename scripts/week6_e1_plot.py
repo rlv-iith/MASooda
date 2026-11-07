@@ -173,7 +173,7 @@ seeds, n = runs with a value.
 {chr(10).join(weak_lines(d))}
 
 ## Caveats
-- Config: admm.max_group_size = {admm['max_group_size']}, admm.merge_zone_only = {admm['merge_zone_only']},
+- Config: admm.max_group_size = {admm.get('max_group_size', 'removed (conflict groups kept whole)')}, admm.merge_zone_only = {admm['merge_zone_only']},
   admm.detection_radius_meters = {admm['detection_radius_meters']} — conflicts are only detected inside the merge
   zone and groups are capped, so solver effort reflects merge-zone traffic only.
 - Solve times are wall-clock on the hardware above and include Python overhead.
