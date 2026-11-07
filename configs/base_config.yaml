@@ -26,6 +26,7 @@ safety:
   minimum_separation_meters: 8.0
   maximum_velocity_meters_per_second: 15.0
   maximum_acceleration_meters_per_second_squared: 4.0
+  detect_and_avoid_radius_meters: 30.0   # route mode: onboard sensing of drones without Remote ID
 
 corridors:
   width_meters: 20.0
@@ -55,6 +56,7 @@ local_behavior:
   beta: 0.5
   merge_lateral_speed: 2.0 # m/s, max sideways speed while merging
   merge_gap: 15.0          # m, needed free gap along x in the target corridor
+  junction_merge_zone_m: 40.0  # m, route mode: merge rule applies this far before a road junction
 
 admm:
   tolerance: 0.001
@@ -264,3 +266,113 @@ visualization:
     frame_stride_ticks: 5     # recorded videos: one frame every N ticks (0.5 s at dt = 0.1)
 
 
+
+# Live web demo (web_sandbox/server.py + simulation/route_engine.py).
+# Server / browser limits and streaming settings. The spatial index never
+# changes a result (tests/test_route_spatial.py), it only makes large fleets faster.
+# Phase 4 DTC operator console (simulation/dtc_console.py).
+dtc_console:
+  outage_policy: queue           # queue | drop: commands sent while the DTC link is down
+  queue_ttl_s: 30.0              # a queued command expires after this
+  ground_now_max_pad_m: 800.0    # ground now: nearest pad within this route distance, else land in place
+  hold_gain: 0.5                 # 1/s, loiter controller
+  hold_max_speed: 3.0            # m/s
+  hold_check_s: 60.0             # energy check for a hold: hold this long, then finish the route
+  lost_link_default: continue    # continue | hold | rtb | land
+  charge_c_rate: 2.0             # fast charge (1/h)
+  charge_target_pct: 90.0
+  swap_time_s: 90.0
+  service_pad_capacity: 2        # drones served at once per battery-service pad; others queue (FIFO)
+
+# Phase 5 repeated operations (route mode). Off by default; the long-duration preset turns it on.
+operations:
+  sorties: false                 # after landing, take a new mission from that pad
+  turnaround_s: 30.0
+  service_soc_pct: 35.0          # below this SoC the next sortie starts with a battery service
+  service_mode: swap             # swap | charge
+  service_roles: [depot]         # vertiport roles that have battery service
+
+# Phase 3B drone health model (simulation/drone_health.py, docs/DRONE_HEALTH_MODEL.md).
+drone_health:
+  enabled: true
+  ambient_c: 35.0              # Hyderabad pre-monsoon; heat-wave preset 42
+  site_elevation_m: 542.0      # Hyderabad
+  wind_mps: [0.0, 0.0]
+  v_climb_mps: 3.0
+  soc_min_pct: 5.0             # usable energy is counted down to this SoC
+  random_fleet_soc_pct: [35.0, 100.0]   # seeded initial SoC of random-fleet drones
+  random_fleet_soh_pct: [80.0, 100.0]
+  alpha_r_per_k: 0.01          # internal resistance rise per K below 25 C
+  cell_soc_sigma_pct: 0.4
+  cell_r_sigma: 0.03
+  bms_period_s: 0.5
+  thresholds:
+    soc_warning_pct: 30.0
+    soc_critical_pct: 15.0
+    cell_fault_v: 3.0
+    pack_warning_c: 55.0
+    pack_critical_c: 65.0
+    pack_fault_c: 75.0
+    motor_warning_c: 90.0
+    motor_critical_c: 110.0
+    imbalance_warning_mv: 50.0
+    imbalance_critical_mv: 100.0
+    current_warning_frac: 0.8
+    hysteresis_soc_pct: 2.0
+    hysteresis_c: 3.0
+    hysteresis_mv: 10.0
+  responses:
+    check_period_s: 1.0
+    reserve_margin: 0.2
+    landing_time_s: 30.0
+    overheat_speed_frac: 0.6
+    overheat_critical_hold_s: 30.0
+    dtc_unhealthy_priority: true    # CRITICAL/FAULT drones get right of way to land (section 8)
+  link:
+    p_tx_dbm: 27.0
+    pl0_db: 40.0
+    path_loss_exponent: 2.7
+    shadowing_sigma_db: 4.0
+    rssi50_dbm: -95.0
+    loss_slope_db: 2.5
+  gnss:
+    hdop0: 0.9
+    spoof_radius_m: 150.0
+    spoof_hdop_gain: 3.0
+  faults:
+    capacity_loss_frac: 0.3
+    cell_failure_soc_drop_pct: 15.0
+    cell_failure_r_factor: 4.0
+    overheating_heat_frac_hover: 0.6   # cell-venting precursor; 0.15 never reached WARNING on a 2-3 min campus flight
+    motor_degradation_health: 0.8
+    gnss_degradation_hdop: 5.0
+  ocv_cell_v: [[0, 3.00], [5, 3.30], [10, 3.45], [20, 3.60], [40, 3.72], [60, 3.85], [80, 4.00], [100, 4.20]]
+  types:
+    DELIVERY:  {mass_kg: 6.0, payload_kg: 2.0, rotors: 4, rotor_diameter_m: 0.38, figure_of_merit: 0.65,
+                eta_prop: 0.80, cda_m2: 0.08, avionics_w: 25.0, cells_series: 6, v_nominal: 22.2,
+                capacity_wh: 500.0, r_pack_ohm: 0.020, c_max: 5.0, pack_c_j_per_k: 2500.0,
+                pack_ha0: 3.0, pack_ha1: 1.0, motor_c_j_per_k: 400.0, motor_ha0: 5.0, motor_ha1: 2.0}
+    EMERGENCY: {mass_kg: 10.0, payload_kg: 3.0, rotors: 6, rotor_diameter_m: 0.55, figure_of_merit: 0.65,
+                eta_prop: 0.80, cda_m2: 0.12, avionics_w: 40.0, cells_series: 12, v_nominal: 44.4,
+                capacity_wh: 800.0, r_pack_ohm: 0.040, c_max: 5.0, pack_c_j_per_k: 4000.0,
+                pack_ha0: 3.0, pack_ha1: 1.0, motor_c_j_per_k: 600.0, motor_ha0: 6.0, motor_ha1: 2.5}
+    EVTOL:     {mass_kg: 450.0, payload_kg: 100.0, rotors: 16, rotor_diameter_m: 1.5, figure_of_merit: 0.70,
+                eta_prop: 0.85, cda_m2: 1.2, avionics_w: 500.0, cells_series: 108, v_nominal: 400.0,
+                capacity_wh: 25000.0, r_pack_ohm: 0.050, c_max: 5.0, pack_c_j_per_k: 139000.0,
+                pack_ha0: 60.0, pack_ha1: 25.0, motor_c_j_per_k: 20000.0, motor_ha0: 200.0, motor_ha1: 80.0}
+
+web:
+  max_fleet: 500                 # largest fleet a run may request (set from the Phase 1d benchmark)
+  max_duration_s: 3600           # longest run a request may ask for
+  realtime_max_fleet: 500        # largest fleet measured >= 1x real time (Phase 1d: 3.4x at 500 on a 2-vCPU Xeon 2.1 GHz); UI warns above it
+  target_frames_per_sim_s: 5     # streamed frames per simulated second (dt 0.1 s -> every 2nd tick)
+  max_kb_per_sim_s: 40           # adaptive stride: raise the stride if frames would exceed this budget
+  est_bytes_per_drone_frame: 22  # compact-frame size estimate used by the adaptive stride
+  max_frames_in_memory: 6000     # server and browser thin older frames beyond this (events are kept)
+  max_edges_per_frame: 600       # V2V edges streamed per frame (evenly sampled above this)
+  poll_batch: 400                # frames returned per /frames request
+  spatial_index: true            # uniform-grid neighbour queries in the route engine
+  grid_cell_m: 40.0
+  interactive_lead_s: 5.0         # Phase 3: while a page is watching, the simulator stays at most this far
+                                  # ahead of playback so operator commands land near the time on screen
+  watcher_timeout_s: 5.0          # no poll for this long -> the simulator runs ahead freely              # grid cell size (comm radius is a good choice)

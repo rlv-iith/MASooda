@@ -1,0 +1,95 @@
+{
+ "id": "dtc_outage",
+ "order": 5,
+ "title": "DTC outage: lost-link procedures",
+ "description": "The DTC link drops from 80 s to 150 s. Three variants run with the same seed and compare the fleet lost-link policy: continue on the last directive, hold position until the link returns, or return to base. An operator speed limit sent at 125 s waits in the outage queue and is delivered when the link comes back.",
+ "kpi_focus": [
+  "arrivals",
+  "delay",
+  "energy used",
+  "near misses",
+  "directive staleness"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 100,
+  "duration_s": 240,
+  "outage": {
+   "enabled": true,
+   "start_s": 80,
+   "end_s": 150
+  }
+ },
+ "script": [
+  {
+   "t": 125,
+   "type": "speed_limit",
+   "params": {
+    "sector": 4,
+    "v": 8,
+    "expires_s": 60
+   },
+   "reason": "sent during the outage"
+  }
+ ],
+ "variants": [
+  {
+   "label": "continue",
+   "script": [
+    {
+     "t": 1,
+     "type": "lost_link_policy",
+     "params": {
+      "policy": "continue"
+     },
+     "reason": "fleet lost-link policy continue"
+    }
+   ]
+  },
+  {
+   "label": "hold",
+   "script": [
+    {
+     "t": 1,
+     "type": "lost_link_policy",
+     "params": {
+      "policy": "hold"
+     },
+     "reason": "fleet lost-link policy hold"
+    }
+   ]
+  },
+  {
+   "label": "rtb",
+   "script": [
+    {
+     "t": 1,
+     "type": "lost_link_policy",
+     "params": {
+      "policy": "rtb"
+     },
+     "reason": "fleet lost-link policy rtb"
+    }
+   ]
+  }
+ ],
+ "timeline": [
+  [
+   1,
+   "Fleet lost-link policy set (variant: continue / hold / rtb)"
+  ],
+  [
+   80,
+   "DTC link DOWN — policy applies"
+  ],
+  [
+   125,
+   "Operator speed limit queued (link down)"
+  ],
+  [
+   150,
+   "Link restored: holds released, queued command delivered"
+  ]
+ ]
+}

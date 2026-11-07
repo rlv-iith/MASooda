@@ -20,13 +20,15 @@
       <span class="chip"><i id="sysDot" class="dot"></i>System <b id="sysStatus">CONNECTING</b></span>
       <span class="chip">Run <b id="runState">—</b></span>
       <span class="chip">Sim time <b id="clock">0.0 s</b></span>
-      <span class="chip">Airborne <b id="cntAir">0</b> · Queued <b id="cntQueue">0</b> · Landed <b id="cntLand">0</b> · Crashed <b id="cntCrash">0</b></span>
+      <span class="chip">Airborne <b id="cntAir">0</b> · Queued <b id="cntQueue">0</b> · Landed <b id="cntLand">0</b> · Forced <b id="cntForced">0</b> · Crashed <b id="cntCrash">0</b></span>
       <span class="chip" id="linkChip">DTC link <b id="linkState">—</b></span>
     </div>
     <div class="transport">
       <button id="playBtn" class="ghost" title="Play / pause (space)">❚❚</button>
       <div class="seg" id="speedSeg"><button data-speed="1">1×</button><button data-speed="2" class="on">2×</button><button data-speed="4">4×</button><button data-speed="8">8×</button></div>
       <button id="restartBtn" class="ghost" title="Replay from start">↺</button>
+      <button id="dlBtn" class="ghost" title="Download this run as JSON (manifest, config, command log, KPIs, events, frames)">⤓ Run</button>
+      <label class="ghost filebtn" title="Load a downloaded run and replay it without re-simulating">⤒ Load<input type="file" id="loadRun" accept=".json,application/json" hidden></label>
     </div>
   </header>
 
@@ -47,11 +49,13 @@
         <canvas id="map" aria-label="Map of the corridor network with live drone positions — click a drone to select it"></canvas>
         <div class="legend">
           <span><i class="sw emergency"></i>Emergency</span><span><i class="sw evtol"></i>eVTOL</span><span><i class="sw delivery"></i>Delivery</span>
-          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span>
+          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span><span><i class="sw spoof"></i>Spoofed report → W-MSR estimate</span><span><i class="sw junction"></i>Junction merge (amber = gap blocked)</span><span><i class="sw bmsw"></i>BMS warning</span><span><i class="sw bmsc"></i>BMS critical / fault</span><span>⊘ Forced landing</span>
         </div>
         <div class="zoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit map">⤢</button><button id="zFollow" aria-label="Follow selected drone" title="Follow selected drone">◎</button></div>
         <div id="buffer" class="buffer" hidden>computing ahead…</div>
         <div id="tip" class="tip" hidden></div>
+        <div id="ctxMenu" class="ctx" hidden></div>
+        <div id="drawHint" class="drawhint" hidden></div>
         <div class="attrib" id="attrib"></div>
       </div>
       <div class="timeline"><span id="tLabel">t = 0.0 s</span><input id="scrub" type="range" min="0" max="0" value="0" step="0.1" aria-label="Simulation time"><span id="tMax">/ — s</span></div>
@@ -61,6 +65,8 @@
       <section class="card" id="droneCard">
         <div class="card-head"><h2>Selected drone · 2.5D view</h2><select id="dronePick" aria-label="Select drone"></select></div>
         <div class="dhead"><span id="dName" class="dname">—</span><span id="dBadge" class="badge">—</span><span id="dStatus" class="pill">—</span></div>
+        <div class="seg tabs" id="dTabs"><button data-tab="ov" class="on">Overview</button><button data-tab="hl">Health <i id="dHealthDot" class="hdot"></i></button></div>
+        <div id="tabOv">
         <canvas id="view25" aria-label="2.5D view around the selected drone"></canvas>
         <div class="bar"><i id="dProg"></i></div>
         <dl class="kv">
@@ -73,13 +79,91 @@
           <dt>V2V links (degree)</dt><dd id="dDeg">—</dd>
           <dt>DTC link</dt><dd id="dDtc">—</dd>
           <dt>ADMM · shifts · alerts</dt><dd id="dCounts">—</dd>
+          <dt>Last ADMM negotiation</dt><dd id="dNeg">—</dd>
+          <dt id="dPrioLbl">Emergency priority</dt><dd id="dPrio">—</dd>
+          <dt>Neighbour reports</dt><dd id="dTrust">—</dd>
         </dl>
+        </div>
+        <div id="tabHl" hidden>
+          <div class="hl-top">
+            <div class="gauge"><div class="gfill" id="hSocBar"></div><span id="hSoc">—</span></div>
+            <div><span class="pill" id="hStatus">—</span> <span class="codes" id="hCodes"></span></div>
+          </div>
+          <dl class="kv">
+            <dt>Voltage · current · power</dt><dd id="hVip">—</dd>
+            <dt>Energy left · time · range</dt><dd id="hLeft">—</dd>
+            <dt>State of health · capacity</dt><dd id="hSoh">—</dd>
+            <dt>Pack temperature</dt><dd id="hTp">—</dd>
+            <dt>Motor / ESC temperature</dt><dd id="hTm">—</dd>
+            <dt>Cells (min · imbalance)</dt><dd id="hCellTxt">—</dd>
+            <dt>DTC link RSSI · loss</dt><dd id="hLink">—</dd>
+            <dt>GNSS fix · HDOP</dt><dd id="hGnss">—</dd>
+            <dt>Motor health · energy used</dt><dd id="hMotor">—</dd>
+            <dt>Faults</dt><dd id="hFaults">—</dd>
+          </dl>
+          <canvas id="hCells" aria-label="Per-cell voltages"></canvas>
+          <canvas id="hChart" aria-label="SoC and temperature over time"></canvas>
+          <div class="net-legend"><span><i style="background:#2fe0a0"></i>SoC %</span><span><i style="background:#ff8a4c"></i>Max temp °C</span><span class="muted" id="hNote"></span></div>
+        </div>
         <div class="card-head sub"><h3>Events for this drone</h3><span class="muted" id="dEvCount">0</span></div>
         <ol id="dEvents" class="dev"></ol>
       </section>
 
+      <section class="card" id="consoleCard">
+        <div class="card-head"><h2>DTC console</h2><span class="muted" id="ccLink">—</span></div>
+        <div class="cc-sel"><span id="ccSel">No drones selected</span><button class="ghost sm" id="ccClear">Clear</button></div>
+        <p class="hint">Click a drone · Shift+click to add · Ctrl+drag a box · right-click for a menu · keys: H hold, R resume, G ground, B return, Q quarantine, [ ] layer, Esc clear.</p>
+        <div class="cc-filter">
+          <select id="ccfType"><option value="">any type</option><option>EMERGENCY</option><option>EVTOL</option><option>DELIVERY</option></select>
+          <select id="ccfSector"><option value="">any sector</option></select>
+          <select id="ccfLayer"><option value="">any layer</option></select>
+          <select id="ccfStatus"><option value="1">airborne</option><option value="0">queued</option><option value="">any status</option></select>
+          <button class="ghost sm" id="ccfApply">Select matching</button>
+        </div>
+        <div class="cc-bar">
+          <button class="ghost" data-cmd="hold" title="H">⏸ Hold</button>
+          <button class="ghost" data-cmd="resume" title="R">▶ Resume</button>
+          <button class="ghost" data-cmd="ground_now" title="G">⤓ Ground now</button>
+          <button class="ghost" data-cmd="rtb" title="B">↩ Return to base</button>
+          <button class="ghost" data-cmd="quarantine" title="Q">⛔ Quarantine</button>
+          <button class="ghost" data-cmd="promote">⚕ Make EMERGENCY</button>
+          <button class="ghost" data-cmd="demote">Normal priority</button>
+        </div>
+        <div class="cc-row"><span>Layer</span><select id="ccLayer"></select><button class="ghost sm" data-cmd="change_layer">Change layer</button></div>
+        <div class="cc-row"><span>Reroute to</span><select id="ccDest"></select><button class="pick" id="ccVia" title="Click a point on the map to fly via it">◎ via</button><button class="ghost sm" data-cmd="reroute">Reroute</button></div>
+        <div class="cc-row"><span>Speed ≤</span><input id="ccV" type="number" min="0.5" step="0.5" value="6"><span>m/s for</span><input id="ccExp" type="number" min="1" step="5" value="60"><span>s</span><select id="ccVSector"><option value="">selected drones</option></select><button class="ghost sm" data-cmd="speed_limit">Apply</button></div>
+        <div class="cc-row"><span>Battery at</span><select id="ccPad"></select><select id="ccMode"><option value="swap">swap</option><option value="charge">charge</option></select><button class="ghost sm" data-cmd="divert_charge">Divert</button></div>
+        <div class="cc-row"><span>Lost link</span><select id="ccLL"><option>continue</option><option>hold</option><option>rtb</option><option>land</option></select><button class="ghost sm" data-cmd="ll_selected">Selected</button><button class="ghost sm" data-cmd="ll_fleet">Fleet default</button></div>
+        <div class="sub-h">Airspace</div>
+        <div class="cc-row"><button class="ghost sm" id="ccTfrDraw">✎ Draw restricted area</button><span>from</span><input id="ccTfrStart" type="number" min="0" step="5" placeholder="now"><span>to</span><input id="ccTfrEnd" type="number" min="1" step="5" placeholder="end"><span>s</span></div>
+        <ol class="fh-list" id="ccTfrList"></ol>
+        <div class="cc-row"><span>Ground stop</span><select id="ccGsSector"></select><span>release at</span><input id="ccGsRel" type="number" min="0" step="10" placeholder="manual"><span>s</span><button class="ghost sm" data-cmd="ground_stop">Stop</button><button class="ghost sm" data-cmd="ground_stop_release">Release</button></div>
+        <div class="sub-h">Fleet health actions</div>
+        <div class="cc-row"><button class="ghost sm" data-cmd="fleet_ground_bms_critical">Ground all BMS CRITICAL</button><span>Recall below</span><input id="ccRecall" type="number" min="1" max="100" value="30"><span>% SoC</span><button class="ghost sm" data-cmd="fleet_recall_below_soc">Recall</button></div>
+        <div id="ccConfirm" class="cc-confirm" hidden></div>
+        <div class="sub-h">Command history <span class="muted" id="ccHistCount"></span></div>
+        <ol class="cc-hist" id="ccHist"></ol>
+      </section>
+
       <section class="card">
         <div class="card-head"><h2>Scenario</h2><span class="muted" id="seedLabel"></span></div>
+        <div class="presets">
+          <label class="archsel">Scenario preset
+            <select id="presetSel"><option value="">— none: build your own below —</option></select></label>
+          <div id="presetInfo" class="preset-info" hidden>
+            <p id="presetDesc"></p>
+            <ol id="presetTimeline" class="preset-tl"></ol>
+            <p class="muted" id="presetMeta"></p>
+            <button id="presetRun" class="primary">▶ Run this preset</button>
+          </div>
+        </div>
+        <label class="archsel">Architecture
+          <select id="arch">
+            <option value="hierarchical">Hierarchical — DTC + local boids/ADMM (MASooda)</option>
+            <option value="centralized">Centralized — DTC computes every velocity</option>
+            <option value="decentralized">Decentralized — no DTC, ADMM + defence</option>
+            <option value="decentralized_undefended">Decentralized, undefended — no DTC, no defence</option>
+          </select></label>
         <div class="scenes" id="scenes">
           <button data-scene="normal" class="on"><b>Normal ops</b><small>Balanced fleet</small></button>
           <button data-scene="emergency"><b>Emergency surge</b><small>Priority + reserved layer</small></button>
@@ -89,10 +173,22 @@
           <button data-scene="decentral"><b>Decentralized</b><small>No DTC</small></button>
         </div>
         <div class="grid2">
-          <label>Fleet size<input id="fleet" type="number" min="1" max="150" value="60"></label>
-          <label>Duration (s)<input id="duration" type="number" min="5" max="900" value="240"></label>
-          <label>Departure window (s)<input id="window" type="number" min="0" max="900" value="90"></label>
+          <label>Fleet size <span class="muted" id="fleetHint"></span><input id="fleet" type="number" min="1" value="60"></label>
+          <label>Duration (s)<input id="duration" type="number" min="5" value="240"></label>
+          <label>Departure window (s)<input id="window" type="number" min="0" value="90"></label>
           <label>Random seed<input id="seed" type="number" min="0" value="42"></label>
+        </div>
+        <p class="warn" id="fleetWarn" hidden></p>
+        <div class="weather">
+          <div class="sub-h">Weather <span class="muted">(battery, motor and air-density model)</span></div>
+          <div class="seg" id="wxPresets"><button data-t="15" data-w="2">Winter 15 °C</button><button data-t="35" data-w="0" class="on">Pre-monsoon 35 °C</button><button data-t="42" data-w="4">Heat wave 42 °C</button></div>
+          <div class="grid2 cd">
+            <label>Temperature (°C)<input id="wxTemp" type="number" min="-20" max="55" step="1" value="35"></label>
+            <label>Wind speed (m/s)<input id="wxWind" type="number" min="0" max="15" step="0.5" value="0"></label>
+            <label>Wind from (°, 0 = north)<input id="wxDir" type="number" min="0" max="359" step="5" value="270"></label>
+            <label>Air density<output id="wxRho">—</output></label>
+          </div>
+          <p class="hint">Wind changes airspeed and so power draw; it does not push the drones in this simulation.</p>
         </div>
         <div class="mix"><span>Mix %</span>
           <label class="e">EMG<input id="mixE" type="number" min="0" max="100" value="10"></label>
@@ -102,6 +198,7 @@
         <div class="switches">
           <label><input type="checkbox" id="swOverseer" checked> P4 Drone Traffic Controller (DTC)</label>
           <label><input type="checkbox" id="swAdmm" checked> P2 ADMM deconfliction</label>
+          <label><input type="checkbox" id="swMerge" checked> P3 Junction merging + platoons</label>
           <label><input type="checkbox" id="swDefense" checked> P5 Report defence (W-MSR)</label>
           <label><input type="checkbox" id="swAttack"> P5 Inject spoofing attack</label>
           <label><input type="checkbox" id="swOutage"> P4 DTC link outage</label>
@@ -109,6 +206,56 @@
         <details class="adv"><summary>Model parameters (from configs/base_config.yaml)</summary><div id="advFields" class="grid2"></div></details>
         <button id="runBtn" class="primary">▶ Launch simulation</button>
         <p id="status" class="status" aria-live="polite">Connecting to the local simulator…</p>
+      </section>
+
+      <section class="card" id="fleetHealth">
+        <div class="card-head"><h2>Fleet health · BMS</h2><span class="muted" id="fhAmb"></span></div>
+        <div class="fh-counts" id="fhCounts"></div>
+        <div class="sub-h">Lowest charge (airborne) <span class="muted">click to select</span></div>
+        <ol class="fh-list" id="fhLow"></ol>
+        <div class="sub-h">Active alerts <span class="muted">last 60 s</span></div>
+        <ol class="fh-list alerts" id="fhAlerts"></ol>
+      </section>
+
+      <section class="card" id="builderCard">
+        <div class="card-head"><h2>Custom drones</h2><span class="muted" id="cdCount">0 in scenario</span></div>
+        <p class="hint">Add your own drones next to the random fleet (set fleet size to 0 for custom drones only).</p>
+        <details id="cdForm" class="adv" open><summary id="cdFormTitle">New drone</summary>
+          <div class="grid2 cd">
+            <label>Type<select id="cdType"><option>DELIVERY</option><option>EVTOL</option><option>EMERGENCY</option></select></label>
+            <label>Priority<input id="cdPrio" type="number" min="0" max="9" placeholder="type default"></label>
+            <label>Origin <button type="button" class="pick" data-pick="cdOrigin" title="Click a vertiport on the map">◎ map</button><select id="cdOrigin"></select></label>
+            <label>Destination <button type="button" class="pick" data-pick="cdDest" title="Click a vertiport on the map">◎ map</button><select id="cdDest"></select></label>
+            <label>Departure (s)<input id="cdDep" type="number" min="0" step="0.1" value="0"></label>
+            <label>Cruise speed (m/s)<input id="cdSpeed" type="number" min="0.1" step="0.1" placeholder="type default"></label>
+            <label>Preferred layer<select id="cdLayer"></select></label>
+            <label class="chk"><input type="checkbox" id="cdCoop" checked> Cooperative (broadcasts Remote ID)</label>
+            <label class="chk"><input type="checkbox" id="cdMal"> Malicious (spoofer)</label>
+            <label>Spoof offset dx, dy (m)<span class="pair"><input id="cdDx" type="number" step="1" value="25"><input id="cdDy" type="number" step="1" value="0"></span></label>
+          </div>
+          <div class="sub-h">Health inputs <span class="muted">(used by the battery model in Phase 3B)</span></div>
+          <div class="grid2 cd">
+            <label>Battery (Wh)<input id="cdWh" type="number" min="1" step="1" placeholder="type default"></label>
+            <label>Initial SoC (%)<input id="cdSoc" type="number" min="1" max="100" placeholder="100"></label>
+            <label>State of health (%)<input id="cdSoh" type="number" min="1" max="100" placeholder="100"></label>
+            <label>Payload (kg)<input id="cdPay" type="number" min="0" step="0.1" placeholder="type default"></label>
+            <label>Scheduled fault<select id="cdFault"><option value="">none</option><option value="capacity_loss">capacity loss</option><option value="cell_failure">cell failure / imbalance</option><option value="overheating">overheating</option><option value="motor_degradation">motor degradation</option><option value="gnss_degradation">GNSS degradation</option></select></label>
+            <label>Fault time (s)<input id="cdFaultT" type="number" min="0" step="1" placeholder="—"></label>
+          </div>
+          <div class="cd-btns">
+            <button id="cdAdd" class="ghost">＋ Add to scenario</button>
+            <button id="cdNow" class="ghost" title="Inject into the running simulation; departs at the current sim time">⚡ Add drone now</button>
+            <button id="cdClear" class="ghost">Clear</button>
+          </div>
+        </details>
+        <ol id="cdList" class="cd-list"></ol>
+        <div class="cd-btns">
+          <label class="ghost filebtn" title="Import a drone list (JSON or CSV)">⤒ Import<input type="file" id="cdImport" accept=".json,.csv,application/json,text/csv" hidden></label>
+          <button id="cdExpJson" class="ghost">⤓ JSON</button>
+          <button id="cdExpCsv" class="ghost">⤓ CSV</button>
+          <button id="cdRemoveAll" class="ghost">Remove all</button>
+        </div>
+        <p id="cdMsg" class="status" aria-live="polite"></p>
       </section>
 
       <section class="card">
@@ -120,19 +267,40 @@
     <section class="kpis" id="kpis">
       <article id="kCrashCard"><small>Crashes</small><b id="kCrash">—</b><span id="kCrashSub">collisions (&lt; 2 m)</span></article>
       <article id="kLosCard"><small>Near misses</small><b id="kLos">—</b><span>loss-of-separation episodes</span></article>
-      <article><small>Min separation</small><b id="kSep">—</b><span id="kSepSub">STL: G(d ≥ d<sub>min</sub>)</span></article>
+      <article title="Layer-aware 3D separation from the route engine. verification/metrics.py (robustness_series) measures horizontal distance only, so experiment numbers use a different definition."><small>Min separation · 3D layer-aware</small><b id="kSep">—</b><span id="kSepSub">STL: G(d ≥ d<sub>min</sub>)</span></article>
       <article id="kViolCard"><small>Violation ticks</small><b id="kViol">—</b><span>robustness &lt; 0</span></article>
       <article><small>ADMM resolutions</small><b id="kAdmm">—</b><span id="kAdmmSub">conflict groups</span></article>
+      <article id="kPrioCard"><small>Emergency compliance</small><b id="kPrio">—</b><span id="kPrioSub">P4 · sector-layer under capacity</span></article>
+      <article id="kMergeCard"><small>Junction merges</small><b id="kMerge">—</b><span id="kMergeSub">P3 · gap rule</span></article>
       <article><small>Altitude shifts</small><b id="kShift">—</b><span>tactical collision avoidance</span></article>
       <article><small>DTC directives</small><b id="kLayer">—</b><span id="kLayerSub">layer changes</span></article>
       <article><small>Corridor boundary holds</small><b id="kTube">—</b><span id="kTubeSub">tube wall projections</span></article>
       <article id="kRepCard"><small id="kRepLabel">Spoofed reports filtered</small><b id="kRep">—</b><span id="kRepSub">trusted range check</span></article>
       <article><small>Arrivals</small><b id="kArr">—</b><span id="kArrSub">of fleet</span></article>
+      <article id="kEnergyCard"><small>Energy per delivery</small><b id="kEnergy">—</b><span id="kEnergySub">Wh drawn per delivered drone</span></article>
+      <article id="kBattCard"><small>Battery responses</small><b id="kBatt">—</b><span id="kBattSub">diversions · forced landings</span></article>
     </section>
 
     <div class="bottom">
+    <section class="card cmp-card" id="cmpCard" hidden>
+      <div class="card-head"><h2 id="cmpTitle">Variant comparison</h2><span class="muted" id="cmpNote">same seed, same flights</span></div>
+      <div class="cmp-wrap"><table class="cmp" id="cmpTable"></table></div>
+    </section>
+    <section class="card batt-card" id="battCard">
+      <div class="card-head"><h2>Battery matrix · every drone</h2>
+        <div class="batt-tools">
+          <span class="muted" id="battSummary"></span>
+          <select id="battSort"><option value="id">sort: drone id</option><option value="soc">sort: lowest SoC first</option><option value="bms">sort: worst BMS first</option></select>
+          <select id="battShow"><option value="all">all drones</option><option value="air">airborne only</option></select>
+        </div>
+      </div>
+      <canvas id="battGrid" aria-label="Battery state of charge of every drone over time"></canvas>
+      <div class="net-legend"><span><i style="background:#2fe0a0"></i>SoC ≥ 30 %</span><span><i style="background:#f6bd4b"></i>below 30 % / BMS warning</span><span><i style="background:#ff3b5c"></i>below 15 % / critical / fault</span><span class="muted">tile graph = SoC over the last 2 min · dim = on the ground · click a tile to open its Health tab</span></div>
+      <div id="battTip" class="tip" hidden></div>
+    </section>
     <section class="card chart-card">
-      <div class="card-head"><h2>STL safety robustness</h2><span class="muted">ρ(t) = min d<sub>ij</sub> − d<sub>min</sub> · layer-aware</span></div>
+      <div class="card-head"><h2>STL safety robustness</h2><span class="muted">ρ(t) = min d<sub>ij</sub> − d<sub>min</sub></span></div>
+      <p class="defn">Safety definition: <b>layer-aware 3D</b> distance (horizontal offset and layer gap × layer height) from the route engine. <code>verification/metrics.py</code> uses horizontal distance only, so its numbers differ.</p>
       <canvas id="chart" aria-label="STL robustness over time"></canvas>
       <div class="card-head sub"><h3>Governance log</h3><span class="muted" id="logCount">0 events</span></div>
       <ol id="log" class="glog"></ol>
@@ -145,6 +313,14 @@
       </div>
       <canvas id="netChart" aria-label="Network and DTC metrics over time"></canvas>
       <div class="net-legend" id="netLegend"></div>
+    </section>
+    <section class="card admm-card">
+      <div class="card-head"><h2>P2 · ADMM convergence timer</h2><span class="muted" id="admmHead">iterations and solve time per conflict group</span></div>
+      <div class="admm-grid">
+        <canvas id="admmChart" aria-label="ADMM iterations and solve time over time"></canvas>
+        <dl class="kv" id="admmStats"></dl>
+      </div>
+      <div class="net-legend"><span><i style="background:#37d7f2"></i>Iterations · mean</span><span><i style="background:#2fe0a0"></i>Iterations · max</span><span><i style="background:#f6bd4b"></i>Solve ms · mean (right axis)</span><span><i style="background:#ff5f72"></i>Fallback (not converged)</span></div>
     </section>
     </div>
   </main>

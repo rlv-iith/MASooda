@@ -1,0 +1,53 @@
+{
+ "id": "intruder",
+ "order": 7,
+ "title": "Non-cooperative intruder",
+ "description": "An unregistered drone with no Remote ID flies from the Main Gate to SNCC through campus traffic. The DTC and ADMM cannot see it; other drones only detect it with onboard sensing inside 30 m and avoid it. The operator slows traffic in the central sector while it passes.",
+ "kpi_focus": [
+  "detections",
+  "near misses with the intruder",
+  "avoidance manoeuvres"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 80,
+  "duration_s": 180
+ },
+ "drones": [
+  {
+   "name": "intruder",
+   "type": "DELIVERY",
+   "origin": "V2",
+   "destination": "V12",
+   "depart_s": 30,
+   "cooperative": false
+  }
+ ],
+ "script": [
+  {
+   "t": 60,
+   "type": "speed_limit",
+   "params": {
+    "sector": 1,
+    "v": 6,
+    "expires_s": 60
+   },
+   "reason": "intruder reported in the centre"
+  }
+ ],
+ "timeline": [
+  [
+   30,
+   "@intruder (no Remote ID) departs Main Gate → SNCC"
+  ],
+  [
+   30,
+   "Invisible to the DTC and ADMM; others sense it within 30 m"
+  ],
+  [
+   60,
+   "Operator speed limit 6 m/s in S1 for 60 s"
+  ]
+ ]
+}

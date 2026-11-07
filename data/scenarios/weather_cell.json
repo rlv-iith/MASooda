@@ -1,0 +1,63 @@
+{
+ "id": "weather_cell",
+ "order": 6,
+ "title": "Weather cell crossing the corridors",
+ "description": "A thunderstorm cell about 250 m across drifts east from the Main Gate towards SNCC at roughly 10 m/s, with an 8 m/s westerly wind. The cell is a moving no-fly area (a chain of short restricted areas): drones reroute around it, hold, or land if they are caught inside, and westbound legs cost more energy into the wind.",
+ "kpi_focus": [
+  "reroutes",
+  "holds",
+  "energy per delivery",
+  "nobody inside the cell"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 120,
+  "duration_s": 300,
+  "config": {
+   "drone_health": {
+    "wind_mps": [
+     8.0,
+     0.0
+    ]
+   }
+  }
+ },
+ "macros": [
+  {
+   "type": "moving_cell",
+   "name": "Storm",
+   "from": [
+    -1000,
+    250
+   ],
+   "to": [
+    850,
+    -150
+   ],
+   "radius_m": 125,
+   "steps": 12,
+   "start_s": 60,
+   "end_s": 240,
+   "reason": "thunderstorm cell"
+  }
+ ],
+ "timeline": [
+  [
+   0,
+   "Wind 8 m/s from the west"
+  ],
+  [
+   60,
+   "Storm cell appears at the Main Gate"
+  ],
+  [
+   60,
+   "Drifts east about 10 m/s; drones reroute, hold or land"
+  ],
+  [
+   240,
+   "Cell gone past SNCC"
+  ]
+ ]
+}

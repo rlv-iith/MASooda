@@ -1,0 +1,66 @@
+{
+ "id": "popup_tfr",
+ "order": 3,
+ "title": "Pop-up restricted area (VIP visit)",
+ "description": "A VIP visit to the Academic Area: a temporary flight restriction over the Academic Area and LHC roads is announced at 60 s and active from 70 s to 180 s. Drones inside are rerouted out or land, new routes plan around it, and departures from the LHC and Academic Area pads are held until it is lifted.",
+ "kpi_focus": [
+  "reroutes",
+  "holds",
+  "nobody inside while active",
+  "extra route length"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 120,
+  "duration_s": 240
+ },
+ "script": [
+  {
+   "t": 60,
+   "type": "tfr",
+   "params": {
+    "polygon": [
+     [
+      -130,
+      -230
+     ],
+     [
+      230,
+      -230
+     ],
+     [
+      230,
+      40
+     ],
+     [
+      -130,
+      40
+     ]
+    ],
+    "start_s": 70,
+    "end_s": 180,
+    "name": "VIP"
+   },
+   "reason": "VIP visit"
+  }
+ ],
+ "timeline": [
+  [
+   0,
+   "Normal operations"
+  ],
+  [
+   60,
+   "TFR VIP announced (dashed): Academic Area + LHC, 70–180 s"
+  ],
+  [
+   70,
+   "Active: reroute out / land; departures at V5, V7 held"
+  ],
+  [
+   180,
+   "Lifted; held departures go"
+  ]
+ ]
+}

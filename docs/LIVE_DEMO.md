@@ -26,6 +26,76 @@ Pick the map with the selector on the map header, or open `/?map=hyderabad`.
 - **Merge-gap departure:** a drone stays on its pad until the junction where its approach leg joins the corridor is clear on its layer.
 - **Polygon geofence** (IITH campus boundary): positions outside are projected back inside.
 
+## Phase 2 panels and controls
+
+- **Architecture** selector: hierarchical (MASooda), centralized (the DTC computes every velocity,
+  no ADMM, trusts reports), decentralized (no DTC, ADMM + defence), decentralized undefended. The
+  scenario header shows the initial-conditions hash, identical across architectures for the same
+  seed, fleet and map.
+- **P2 · ADMM convergence timer** (bottom): iterations (mean/max) and solve time per frame,
+  run totals with p95, fallback (non-converged) ticks; the drone card shows the drone's last
+  negotiation. Solve time is wall-clock and is the only non-deterministic number.
+- **Emergency compliance** KPI and a per-emergency line in the drone card: delay vs nominal free-flow
+  time, yields (ground hold / altitude shift / gated directive), time on the reserved layer.
+- **Junction merges** KPI and map rings at junctions with a merge in progress (amber: the gap rule
+  is slowing the merging drone by `1 - k_v`); platoon count and time headway.
+- **Spoofing view**: for each spoofer the map shows its broadcast position (dashed purple) and the
+  W-MSR estimate fused from the receivers' corrections (green ×); the drone card lists each
+  neighbour report as kept / corrected / unverified (or accepted, when the defence is off).
+- **Safety definition**: min separation and ρ(t) are layer-aware 3D (route engine);
+  `verification/metrics.py` is horizontal-only, so experiment numbers differ.
+- **⤓ Run / ⤒ Load** (top bar): download the run as JSON (manifest, resolved config, command log,
+  per-frame KPIs, events, frames) and replay it later without re-simulating.
+
+## Custom drones (Phase 3)
+
+The **Custom drones** card builds drones before launch: type, priority, origin/destination
+(dropdown or ◎ then click a vertiport on the map), departure, cruise speed, preferred layer,
+cooperative / malicious (+ spoof offset) and health inputs with an optional scheduled fault. They fly
+together with the random fleet (fleet size 0 = custom drones only). **Import** reads JSON or CSV
+(every bad row is listed), **⤓ JSON / CSV** export the list. During a run, **⚡ Add drone now**
+injects the form as a command; the drone departs at the simulator's next tick (the simulator stays
+at most 5 s ahead of playback while the page is open).
+
+## Drone health (Phase 3B)
+
+Every drone carries a battery/BMS/thermal model (`docs/DRONE_HEALTH_MODEL.md`). The map rings
+drones by BMS status (amber warning, red critical/fault), draws a battery glyph below 30 % SoC and
+⊘ where a drone landed in place. The drone card's **Health** tab shows SoC, voltage, current and power,
+energy/time/range left, SoH, per-cell voltages, pack and motor temperatures against their limits,
+BMS status and fault codes, DTC link RSSI and packet loss, GNSS fix/HDOP, and SoC/temperature over
+time. Full detail streams for the selected drone (a few seconds behind selection while live).
+**Fleet health** lists counts by BMS status, the lowest-charge airborne drones and alerts from the
+last 60 s. Onboard responses (pre-flight check, divert on low reserve or CRITICAL, land in place on
+FAULT, speed limit when hot) and the DTC right-of-way rule appear in the governance log with
+severity. Schedule faults from the Custom drones form.
+
+## DTC operator console (Phase 4) and weather
+
+The **DTC console** card issues real ATC/UTM-style commands to the selected drones:
+- **Selection:** click, Shift+click, Ctrl+drag a box, or the filter.
+- **Commands:** hold/resume, ground now, return to base, layer change, reroute (with a via point
+  picked on the map), speed limits (drone or sector), priority, quarantine, battery swap/charge,
+  lost-link policy, restricted areas drawn on the map, sector ground stops, and fleet health
+  actions.
+- **Energy check:** movement commands are checked against each drone's energy first. Infeasible
+  ones show the nearest reachable pad.
+- **Delivery:** commands travel over the DTC link (queued during an outage). The history panel
+  shows sent / queued / acknowledged / failed / expired.
+- **Shortcuts:** H R G B Q, [ ] layer, Esc. Right-click a drone for a menu.
+
+**Weather** (Scenario card): temperature presets and wind for the battery/thermal/air-density model.
+
+## Scenario presets (Phase 5)
+
+The Scenario card has a **Scenario preset** list with ten scripted IITH scenarios: medical
+emergency, vertiport congestion, VIP restricted area, GPS spoofing, DTC outage, weather cell,
+non-cooperative intruder, battery failure, heat wave and 60-minute operations. Each shows its
+description and timeline before you press **Run this preset**. Scripted commands appear in the
+command history like operator commands, and you can still give your own. Presets with variants
+(DTC outage: continue / hold / RTB; heat wave: 44 °C / 30 °C) also run the other variants in the
+background and fill a comparison table under the KPIs.
+
 ## What changed and why
 
 Before: the Hyderabad map was only a picture behind the simulation. The engine

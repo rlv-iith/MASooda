@@ -1,0 +1,84 @@
+{
+ "id": "heat_wave",
+ "order": 9,
+ "title": "Hyderabad heat wave (44 °C) vs a normal day",
+ "description": "The same 150-drone afternoon is flown at 44 °C and at 30 °C. Thinner hot air raises hover power, packs and motors run hotter, and two drones with overheating faults reach their limits sooner. The comparison table shows energy per delivery, peak temperatures, speed limits and diversions side by side.",
+ "kpi_focus": [
+  "energy per delivery",
+  "max pack / motor temperature",
+  "diversions",
+  "forced landings"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 150,
+  "duration_s": 300,
+  "config": {
+   "drone_health": {
+    "ambient_c": 44.0,
+    "wind_mps": [
+     2.0,
+     0.0
+    ]
+   }
+  }
+ },
+ "drones": [
+  {
+   "name": "hot1",
+   "type": "DELIVERY",
+   "origin": "V13",
+   "destination": "V12",
+   "depart_s": 10,
+   "fault": {
+    "type": "overheating",
+    "t_s": 60
+   }
+  },
+  {
+   "name": "hot2",
+   "type": "DELIVERY",
+   "origin": "V2",
+   "destination": "V11",
+   "depart_s": 15,
+   "fault": {
+    "type": "overheating",
+    "t_s": 60
+   }
+  }
+ ],
+ "variants": [
+  {
+   "label": "heat wave 44 °C"
+  },
+  {
+   "label": "normal 30 °C",
+   "request": {
+    "config": {
+     "drone_health": {
+      "ambient_c": 30.0
+     }
+    }
+   }
+  }
+ ],
+ "timeline": [
+  [
+   0,
+   "Variant A 44 °C / variant B 30 °C, wind 2 m/s, same seed"
+  ],
+  [
+   10,
+   "@hot1, @hot2 depart on long routes"
+  ],
+  [
+   60,
+   "Both get an overheating fault"
+  ],
+  [
+   300,
+   "Comparison table: energy, temperatures, diversions"
+  ]
+ ]
+}
