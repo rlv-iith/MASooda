@@ -1,167 +1,91 @@
-# Urban Aerial Hierarchical Swarm Governance
+<div align="center">
 
-Simulation and evaluation of a hierarchical traffic-management system for autonomous drones operating in crowded urban airspace.
+# MASooda Live Airspace
 
-## Project Overview
+**Hierarchical, priority-aware and resilient traffic management for urban drone fleets — live in your browser.**
 
-The system combines local drone-to-drone decision-making with a centralized Drone Traffic Controller (DTC). Drones exchange information to make immediate safety decisions, while the DTC manages corridor allocation, traffic priorities, and global flow.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-masooda.onrender.com-2fe0a0?style=for-the-badge)](https://masooda.onrender.com/)
 
-The simulation focuses on:
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-Canvas-F7DF1E?logo=javascript&logoColor=black)
+![pytest](https://img.shields.io/badge/tested_with-pytest-0A9EDC?logo=pytest&logoColor=white)
 
-- Safe separation, collision avoidance, and destination arrival
-- Heterogeneous drones with different priorities, speeds, routes, and communication capabilities
-- Drone-to-drone, drone-to-DTC, and DTC-to-drone communication
-- Low, medium, and high traffic densities, including merging and conflicting flows
-- Communication loss, faulty data, false intent, and rule violations
-- Resilient behavior when the DTC is unavailable or agents provide misleading information
+<img src="docs/images/live-airspace.png" alt="MASooda Live Airspace: drones on the IITH campus corridor network with a moving storm cell" width="900">
 
-## Scope
+</div>
 
-The core implementation uses a bounded 2.5D urban airspace with predefined corridors, intersections, entry and exit points, and obstacles. Drones are modeled primarily by position, velocity, destination, and priority. Detailed aircraft physics, full-city modeling, complex cyberattacks, and real-world certification are outside the core scope.
+## Overview
 
- The following sequence is the implementation plan for the project.
-## Timeline
-- Mid-September 2026 - Project proposal approved by the Instructor
-- Estimated Completion - Early November
+MASooda simulates hundreds of drones flying road-aligned corridors over the IIT Hyderabad campus and Hyderabad city streets.
+Each drone resolves conflicts with its neighbours through ADMM optimisation. A central **Drone Traffic Controller (DTC)** allocates airspace layers and priorities, and a resilient consensus layer filters spoofed position reports.
+The live demo streams the simulation to the browser, where you can watch every drone's safety, network and battery state and act as the air-traffic operator.
 
+## Key features
 
-## Individual Contributions
+- **Map-constrained flight:** corridor routes on the IITH campus and OpenStreetMap Hyderabad roads, layered airspace, vertiports, geofence.
+- **Distributed deconfliction:** ADMM conflict resolution with a live convergence timer (iterations, solve time, p95, fallbacks).
+- **Drone Traffic Controller:** priority-aware layer allocation per sector, a reserved emergency layer, and graceful degradation when the DTC link fails.
+- **Resilience:** GPS-spoofing attacks, trusted-range checks and W-MSR fusion, with reported vs. estimated positions shown on the map.
+- **Formal safety:** layer-aware STL robustness ρ(t), near-miss and crash detection, and a V2V network-theory panel.
+- **Drone health:** battery (equivalent-circuit) and BMS model with per-cell voltages, pack and motor temperatures, and weather effects, plus a battery matrix of the whole fleet.
+- **Operator console:** reroute, hold, return to base, ground stop, temporary flight restrictions drawn on the map, quarantine and battery swap, each checked against remaining energy.
+- **10 scripted scenarios:** medical emergency, pop-up TFR, DTC outage, weather cell, heat wave, 60-minute operations and more, with side-by-side variant comparison.
+- **Architecture comparison:** hierarchical, centralized, decentralized and undefended runs from identical initial conditions; runs export to JSON for replay.
 
-### Abdur Rehman and Dhadheechi
+## Tech stack
 
-- Build the live simulation world, including agent dynamics, the communication graph, rendering, and module integration
-- Formalize safety requirements as Signal Temporal Logic (STL) specifications
-- Implement STL robustness monitoring
-- Assemble the final dashboard and visualization
+| Layer | Tools |
+|---|---|
+| Simulation | Python 3.10+, NumPy, PyYAML |
+| Analysis & figures | Matplotlib, pytest |
+| Live server | Python standard library (`http.server`): streaming JSON API |
+| Front end | HTML, CSS, vanilla JavaScript, Canvas 2D (no frameworks) |
+| Map data | IITH campus map (traced corridors), OpenStreetMap (ODbL) |
+| Hosting | Render |
 
-### Lalith Vishnu
-
-- Design and implement the distributed optimization layer using Alternating Direction Method of Multipliers (ADMM)
-- Resolve yielding, merging, and rerouting conflicts between agents
-
-### Bhuvan
-
-- Implement Boids-style local rules for alignment, cohesion, and separation
-- Implement corridor and platoon merging logic
-- Support autonomous formation behavior
-
-### Tanmay
-
-- Develop the centralized DTC node
-- Implement corridor allocation and priority arbitration across drone types
-- Apply global traffic rules and priority ordering
-
-### Sampadram
-
-- Implement fault and attack injection
-- Implement W-MSR-style resilient consensus
-- Maintain resilient swarm behavior in the presence of malicious or faulty agents
-
-## Demonstration Plan
-
-The final demonstration will use a dual-screen dashboard:
-
-1. **Live simulation:** A top-down airspace view showing colored drone agents, corridor lanes, malicious-agent indicators, and DTC directives.
-2. **Live dashboard:** STL robustness, emergency-priority compliance, and an ADMM convergence timer.
-
-The demonstration will cover normal corridor formation, a malicious drone with a dropped DTC connection, and emergency-drone priority routing.
-
-## Evaluation Criteria
-
-- Minimum separation and collision avoidance
-- Successful destination arrival
-- Priority compliance for emergency drones
-- ADMM conflict-resolution convergence
-- STL robustness over time
-- Behavior under communication loss and faulty or malicious information
-
-## Repository Structure
-
-The repository is organized around the simulation, coordination algorithms, resilience mechanisms, safety monitoring, and visualization. Keep modules independently testable and document configuration or scenario changes alongside the relevant code.
-
-## Development Standards
-
-- Keep commits focused and use descriptive commit messages.
-- Use consistent formatting and meaningful names.
-- Document public interfaces, assumptions, and scenario configuration.
-- Add tests for coordination, safety, resilience, and communication-loss behavior.
-- Make experiments reproducible by recording parameters, traffic density, random seeds, and observed metrics.
-- Keep core simulation logic separate from rendering and dashboard code.
-
-## Status and how to run
-
-**Week 6 — provisional results.** All experiments E1–E6 run end to end (141 simulations); the
-safety metric, attack and compliance fixes are pending, so every number is marked provisional.
-
-### Architecture
-
-Two tiers: a global overseer (`simulation/overseer.py`) assigns corridors and altitude layers
-every 2 s; each agent runs boids-style local behaviour with corridor merging
-(`local_behavior/`) and ADMM conflict mitigation in the merge zone (`conflict_resolution/`),
-filters neighbour reports with W-MSR (`resilience/`), and is monitored against the STL
-specification G(d_ij ≥ d_min) (`verification/`). All parameters live in
-`configs/base_config.yaml`.
-
-Three architectures share one engine and one runner (`experiments/runner.py`):
-
-| Architecture | Overseer | Local behaviour + ADMM | Report filter |
-|---|---|---|---|
-| `hierarchical` | yes | yes | W-MSR + range check |
-| `centralized` | one controller commands every velocity | no | no |
-| `decentralized_undefended` | no | yes | no |
-
-### Run a scenario
+## Getting started
 
 ```bash
-python main.py --architecture hierarchical --scenario mvp --agents 60 --duration 180 --out outputs/mvp --telemetry
+git clone https://github.com/rlv-iith/MASooda.git
+cd MASooda
+pip install numpy pyyaml matplotlib pytest      # or: uv sync
+
+python -m web_sandbox.server                    # → http://127.0.0.1:8765
 ```
 
-Writes `metrics.json`, `run_row.csv`, `trajectory.csv`, `stl_robustness.csv`, `telemetry.csv`
-and `final_frame.png` (`--gif` adds an animation).
+Pick a **scenario preset** and press **Run this preset**, or set the fleet size and launch your own run.
 
-### Dashboard
-
-```bash
-python scripts/dashboard.py --live --scenario demo
-```
+Headless runs and tests:
 
 ```bash
-python scripts/dashboard.py --replay outputs/mvp --out outputs/mvp/dashboard.gif
-```
-
-Left: the airspace (agents by type, emergency highlighted, malicious agent with its falsified
-"ghost" report). Right: STL robustness, emergency progress and priority compliance, ADMM events
-and iterations, and an attack / link-down / violation strip. Demo script: `docs/DEMO_SCRIPT.md`.
-
-### Reproduce everything
-
-```bash
-scripts/run_all.sh
-```
-
-≈ 17 min on a 12-core laptop (`--quick`: under a minute; Windows: `scripts\run_all.ps1`).
-Details in `docs/REPRODUCIBILITY.md`; consolidated results in `outputs/week6/RESULTS.md`.
-
-| ID | Experiment | Results |
-|---|---|---|
-| E1 | ADMM scaling and convergence | `outputs/week6/e1_admm_scaling/README.md` |
-| E2 | Formation, merge success, throughput, utilisation | `outputs/week6/e2_formation/README.md` |
-| E3 | Emergency priority compliance | `outputs/week6/e3_priority/README.md` |
-| E4 | Resilience under attack, three architectures | `outputs/week6/e4_resilience/README.md` |
-| E5 | STL robustness across architectures | `outputs/week6/e5_stl/README.md` |
-| E6 | Graceful degradation (overseer link failure) | `outputs/week6/e6_degradation/README.md` |
-
-### Tests
-
-```bash
+python main.py --architecture hierarchical --scenario mvp --agents 60 --duration 180 --out outputs/mvp
 python -m pytest -q
 ```
 
-### Known limitations
+## Project structure
 
-- The separation metric uses planar distance over all pairs, including agents on different
-  altitude layers, so hierarchical runs show near-constant violations (fix pending).
-- The E2 merge-success definition is under review (success rate ≈ 0 at every N).
-- The E6 outage (90–120 s) changed no trajectory in these runs.
-- One adversary, constant offset; 3–5 seeds per point.
-- ADMM is conflict mitigation, not a safety guarantee.
+```
+web_sandbox/           Live demo: server, streaming API, browser UI
+simulation/            Route engine, road network, drone health, DTC console, presets
+conflict_resolution/   ADMM solver and conflict detection
+local_behavior/        Boids rules, merging and formation metrics
+resilience/            Attack injection, defence, W-MSR consensus
+verification/          STL monitors and safety metrics
+configs/               base_config.yaml: every model parameter and limit
+data/                  Maps (IITH, Hyderabad) and scenario presets
+docs/                  Design notes, health model, research gap, results
+```
+
+## Documentation
+
+- [Live demo guide](docs/LIVE_DEMO.md) · [Scenario presets](docs/SCENARIO_PRESETS.md) · [Drone health model](docs/DRONE_HEALTH_MODEL.md)
+- [Research gap: health-aware UTM](docs/RESEARCH_GAP_HEALTH_AWARE_UTM.md) · [Week 6 experiment results](outputs/week6/RESULTS.md)
+
+## Team
+
+Built at **IIT Hyderabad**: Mohammed Abdur Rehman · Dhadheechi · R Lalith Vishnu · Bhuvan · Tanmay Banjari · Sampadram
+
+Repository: [github.com/rlv-iith/MASooda](https://github.com/rlv-iith/MASooda)
+
+> Research simulation. Corridors are a planning backbone, not approved flight paths.
