@@ -84,7 +84,7 @@ docs/                  Design notes, health model, research gap, results
 
 ## Team
 
-Built at **IIT Hyderabad**: Mohammed Abdur Rehman · Dhadheechi · R Lalith Vishnu · Bhuvan · Tanmay Banjari · Sampadram
+Built at **IIT Hyderabad**: Mohammed Abdur Rehman · R Lalith Vishnu · Bhuvan · Tanmay Banjari · Sampadram · Dhadheechi
 
 Repository: [github.com/rlv-iith/MASooda](https://github.com/rlv-iith/MASooda)
 
