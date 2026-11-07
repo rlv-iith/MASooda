@@ -14,7 +14,12 @@ Compact frame v2 (what ``/api/runs/<id>/frames`` returns)::
      # Phase 2 (present when the engine produced them):
      "admm": {window stats, "run": {cumulative incl. p95}},  "neg": {drone id: last ADMM negotiation},
      "prio": {emergency compliance; only when changed, carry forward},  "merge": {junction merging + platoons},
-     "spoof": {spoofer id: reported / true / W-MSR estimate},  "trust": {receiver id: [[nbr, status]]}}
+     "spoof": {spoofer id: reported / true / W-MSR estimate},  "trust": {receiver id: [[nbr, status]]},
+     "new_flights": [flight manifest rows added mid-run; the frame width grows by these],
+     # Phase 3B health:
+     "h": {"soc": [int %], "bms": [0..3], "tmax": [int °C]}   # all drones, once per sim second (carry forward)
+     "hsel": {drone id: full health detail}                     # only drones the page selected (?sel=)
+     "reroutes": [{id, destination, route, reason}]}            # health diversions
 
 Thinning keeps every event: a dropped frame's events (and its stats, if the next
 kept frame has none) move into the next kept frame.
@@ -39,9 +44,12 @@ DEFAULT_WEB = {
     "poll_batch": 400,
     "spatial_index": True,
     "grid_cell_m": 40.0,
+    "interactive_lead_s": 5.0,
+    "watcher_timeout_s": 5.0,
 }
-PHASE2_KEYS = ("admm", "neg", "merge", "spoof", "trust")
-CARRY_KEYS = ("stats", "prio")   # sent only when changed; the client (and thinning) carries them forward
+PHASE2_KEYS = ("admm", "neg", "merge", "spoof", "trust", "new_flights", "h", "hsel", "reroutes")
+CARRY_KEYS = ("stats", "prio", "h")   # sent only when changed / once per second; carried forward
+LIST_KEYS = ("new_flights", "reroutes")  # must never be lost: concatenated into the next kept frame
 
 
 def web_limits(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -129,22 +137,28 @@ class FrameStore:
         half = len(self.frames) // 2
         kept: list[dict[str, Any]] = []
         carry_events: list = []
+        carry_lists: dict[str, list] = {}   # injected flights and reroutes must never be lost either
         carry: dict[str, Any] = {}
         for i, f in enumerate(self.frames):
             if i < half and i % 2 == 1:
                 carry_events.extend(f.get("events", []))
+                for key in LIST_KEYS:
+                    if f.get(key):
+                        carry_lists.setdefault(key, []).extend(f[key])
                 for key in CARRY_KEYS:
                     if key in f:
                         carry[key] = f[key]
                 self.thinned += 1
                 continue
-            if carry_events or carry:
+            if carry_events or carry or carry_lists:
                 f = dict(f)
                 f["events"] = carry_events + list(f.get("events", []))
+                for key, value in carry_lists.items():
+                    f[key] = value + list(f.get(key, []))
                 for key, value in carry.items():
                     if key not in f:
                         f[key] = value
-                carry_events, carry = [], {}
+                carry_events, carry_lists, carry = [], {}, {}
             kept.append(f)
         self.frames = kept
 

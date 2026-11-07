@@ -269,6 +269,75 @@ visualization:
 # Live web demo (web_sandbox/server.py + simulation/route_engine.py).
 # Server / browser limits and streaming settings. The spatial index never
 # changes a result (tests/test_route_spatial.py), it only makes large fleets faster.
+# Phase 3B drone health model (simulation/drone_health.py, docs/DRONE_HEALTH_MODEL.md).
+drone_health:
+  enabled: true
+  ambient_c: 35.0              # Hyderabad pre-monsoon; heat-wave preset 42
+  site_elevation_m: 542.0      # Hyderabad
+  wind_mps: [0.0, 0.0]
+  v_climb_mps: 3.0
+  soc_min_pct: 5.0             # usable energy is counted down to this SoC
+  random_fleet_soc_pct: [35.0, 100.0]   # seeded initial SoC of random-fleet drones
+  random_fleet_soh_pct: [80.0, 100.0]
+  alpha_r_per_k: 0.01          # internal resistance rise per K below 25 C
+  cell_soc_sigma_pct: 0.4
+  cell_r_sigma: 0.03
+  bms_period_s: 0.5
+  thresholds:
+    soc_warning_pct: 30.0
+    soc_critical_pct: 15.0
+    cell_fault_v: 3.0
+    pack_warning_c: 55.0
+    pack_critical_c: 65.0
+    pack_fault_c: 75.0
+    motor_warning_c: 90.0
+    motor_critical_c: 110.0
+    imbalance_warning_mv: 50.0
+    imbalance_critical_mv: 100.0
+    current_warning_frac: 0.8
+    hysteresis_soc_pct: 2.0
+    hysteresis_c: 3.0
+    hysteresis_mv: 10.0
+  responses:
+    check_period_s: 1.0
+    reserve_margin: 0.2
+    landing_time_s: 30.0
+    overheat_speed_frac: 0.6
+    overheat_critical_hold_s: 30.0
+    dtc_unhealthy_priority: true    # CRITICAL/FAULT drones get right of way to land (section 8)
+  link:
+    p_tx_dbm: 27.0
+    pl0_db: 40.0
+    path_loss_exponent: 2.7
+    shadowing_sigma_db: 4.0
+    rssi50_dbm: -95.0
+    loss_slope_db: 2.5
+  gnss:
+    hdop0: 0.9
+    spoof_radius_m: 150.0
+    spoof_hdop_gain: 3.0
+  faults:
+    capacity_loss_frac: 0.3
+    cell_failure_soc_drop_pct: 15.0
+    cell_failure_r_factor: 4.0
+    overheating_heat_frac_hover: 0.6   # cell-venting precursor; 0.15 never reached WARNING on a 2-3 min campus flight
+    motor_degradation_health: 0.8
+    gnss_degradation_hdop: 5.0
+  ocv_cell_v: [[0, 3.00], [5, 3.30], [10, 3.45], [20, 3.60], [40, 3.72], [60, 3.85], [80, 4.00], [100, 4.20]]
+  types:
+    DELIVERY:  {mass_kg: 6.0, payload_kg: 2.0, rotors: 4, rotor_diameter_m: 0.38, figure_of_merit: 0.65,
+                eta_prop: 0.80, cda_m2: 0.08, avionics_w: 25.0, cells_series: 6, v_nominal: 22.2,
+                capacity_wh: 500.0, r_pack_ohm: 0.020, c_max: 5.0, pack_c_j_per_k: 2500.0,
+                pack_ha0: 3.0, pack_ha1: 1.0, motor_c_j_per_k: 400.0, motor_ha0: 5.0, motor_ha1: 2.0}
+    EMERGENCY: {mass_kg: 10.0, payload_kg: 3.0, rotors: 6, rotor_diameter_m: 0.55, figure_of_merit: 0.65,
+                eta_prop: 0.80, cda_m2: 0.12, avionics_w: 40.0, cells_series: 12, v_nominal: 44.4,
+                capacity_wh: 800.0, r_pack_ohm: 0.040, c_max: 5.0, pack_c_j_per_k: 4000.0,
+                pack_ha0: 3.0, pack_ha1: 1.0, motor_c_j_per_k: 600.0, motor_ha0: 6.0, motor_ha1: 2.5}
+    EVTOL:     {mass_kg: 450.0, payload_kg: 100.0, rotors: 16, rotor_diameter_m: 1.5, figure_of_merit: 0.70,
+                eta_prop: 0.85, cda_m2: 1.2, avionics_w: 500.0, cells_series: 108, v_nominal: 400.0,
+                capacity_wh: 25000.0, r_pack_ohm: 0.050, c_max: 5.0, pack_c_j_per_k: 139000.0,
+                pack_ha0: 60.0, pack_ha1: 25.0, motor_c_j_per_k: 20000.0, motor_ha0: 200.0, motor_ha1: 80.0}
+
 web:
   max_fleet: 500                 # largest fleet a run may request (set from the Phase 1d benchmark)
   max_duration_s: 3600           # longest run a request may ask for
@@ -280,4 +349,7 @@ web:
   max_edges_per_frame: 600       # V2V edges streamed per frame (evenly sampled above this)
   poll_batch: 400                # frames returned per /frames request
   spatial_index: true            # uniform-grid neighbour queries in the route engine
-  grid_cell_m: 40.0              # grid cell size (comm radius is a good choice)
+  grid_cell_m: 40.0
+  interactive_lead_s: 5.0         # Phase 3: while a page is watching, the simulator stays at most this far
+                                  # ahead of playback so operator commands land near the time on screen
+  watcher_timeout_s: 5.0          # no poll for this long -> the simulator runs ahead freely              # grid cell size (comm radius is a good choice)

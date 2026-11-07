@@ -7,7 +7,8 @@
 const $ = (s) => document.querySelector(s);
 const COLORS = {EMERGENCY: '#ff5f72', EVTOL: '#37d7f2', DELIVERY: '#f6bd4b'};
 const TYPE_SHORT = {EMERGENCY: 'EMG', EVTOL: 'eVTOL', DELIVERY: 'DEL'};
-const STATUS = ['queued', 'airborne', 'landed', 'crashed'];
+const STATUS = ['queued', 'airborne', 'landed', 'crashed', 'forced landing'];
+const BMS = ['NORMAL', 'WARNING', 'CRITICAL', 'FAULT'], BMS_COL = ['#2fe0a0', '#f6bd4b', '#ff3b5c', '#ff3b5c'];
 const SECTOR_COLS = 3, SECTOR_ROWS = 2;
 
 const SCENES = {
@@ -52,7 +53,8 @@ let nextSeq = 0, lastStats = null, shownEvents = new WeakSet(), speedProbe = [];
 let scene = 'normal', simT = 0, playing = true, speed = 2, lastTs = 0, selected = null, layerFilter = 'all', follow = false;
 let view = {cx: 0, cy: 0, s: 0.2}, userMoved = false, dpr = 1, ctxPaths = null, backdropImg = null, logCursor = 0, logTotal = 0;
 let droneEvents = {}, eventsIndexed = 0, netPositions = null, lastDroneFeedKey = '';
-let negHist = {}, chosenSwitches = null, lastPrio = null;
+let negHist = {}, chosenSwitches = null, lastPrio = null, lastH = null, hselHist = {}, dTab = 'ov';
+const hCellsC = $('#hCells'), hcctx = hCellsC.getContext('2d'), hChartC = $('#hChart'), hchctx = hChartC.getContext('2d');
 const canvas = $('#map'), ctx = canvas.getContext('2d');
 const chart = $('#chart'), cctx = chart.getContext('2d');
 const v25 = $('#view25'), vctx = v25.getContext('2d');
@@ -72,7 +74,7 @@ async function api(path, body) {
   return data;
 }
 function sizeCanvas(c) { const r = c.getBoundingClientRect(); c.width = Math.max(1, Math.round(r.width * dpr)); c.height = Math.max(1, Math.round(r.height * dpr)); }
-function resize() { dpr = window.devicePixelRatio || 1; [canvas, chart, v25, netG, netC, admmC].forEach(sizeCanvas); if (!userMoved) fit(); }
+function resize() { dpr = window.devicePixelRatio || 1; [canvas, chart, v25, netG, netC, admmC, hCellsC, hChartC].forEach(sizeCanvas); if (!userMoved) fit(); }
 
 // ------------------------------------------------------------------ map transform
 function fit() {
@@ -113,14 +115,18 @@ function frameAt(t) {
 // compact v2 frame from the server -> the shape the renderer uses
 function decodeFrame(r) {
   const ls = r.ls;
+  if (r.new_flights?.length) appendFlights(r.new_flights);
   if (r.stats) lastStats = r.stats;
   if (r.prio) lastPrio = r.prio;
+  if (r.h) lastH = r.h;
+  if (r.hsel) for (const [id, d] of Object.entries(r.hsel)) (hselHist[id] ??= []).push({t: r.t, d});
+  if (r.reroutes?.length) applyReroutes(r.reroutes);
   return {
     v: r.v, n: r.n, k: r.k, t: r.t, rho: r.rho, link_up: r.link_up, attack: r.attack, net: r.net, dtc: r.dtc,
     events: r.events || [], edges: r.edges || [], edges_total: r.edges_total ?? (r.edges || []).length,
     x: r.x.map((v) => v / 10), y: r.y.map((v) => v / 10), speed: r.spd.map((v) => v / 10), progress: r.prog.map((v) => v / 1000),
     layer: ls.map((v) => v & 7), status: ls.map((v) => v >> 3), stats: lastStats,
-    admm: r.admm || null, prio: lastPrio, merge: r.merge || null, spoof: r.spoof || {}, trust: r.trust || {},
+    admm: r.admm || null, prio: lastPrio, h: lastH, merge: r.merge || null, spoof: r.spoof || {}, trust: r.trust || {},
   };
 }
 // last ADMM negotiation per drone, kept outside the frames so browser thinning never loses it
@@ -270,6 +276,11 @@ function drawDrones(s) {
   const size = Math.max(5, Math.min(10, 3.5 + view.s * 5));
   for (let k = 0; k < n; k++) {
     const st = f0.status[k];
+    if (st === 4) { // forced landing in place
+      const X = sx(f0.x[k]), Y = sy(f0.y[k]); ctx.strokeStyle = '#ff8a4c'; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(X, Y, 7, 0, 7); ctx.moveTo(X - 5, Y + 5); ctx.lineTo(X + 5, Y - 5); ctx.stroke();
+      ctx.fillStyle = '#ffb38a'; ctx.font = '700 10px system-ui'; ctx.fillText(`FORCED D-${RUN.flights[k].id}`, X + 9, Y - 6); continue;
+    }
     if (st === 3) { // crash marker
       const X = sx(f0.x[k]), Y = sy(f0.y[k]); ctx.strokeStyle = '#ff2f4a'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(X - 7, Y - 7); ctx.lineTo(X + 7, Y + 7); ctx.moveTo(X + 7, Y - 7); ctx.lineTo(X - 7, Y + 7); ctx.stroke();
@@ -283,6 +294,12 @@ function drawDrones(s) {
     ctx.beginPath(); ctx.moveTo(r * 1.35, 0); ctx.lineTo(-r * 0.8, r * 0.75); ctx.lineTo(-r * 0.35, 0); ctx.lineTo(-r * 0.8, -r * 0.75); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
     if (!dim && view.s > 0.45) { ctx.font = '9.5px ui-monospace,monospace'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(`L${L}`, X + r + 2, Y - r); ctx.fillStyle = '#e6f0fa'; ctx.fillText(`L${L}`, X + r + 2, Y - r); }
+    const hb = f0.h?.bms?.[k] ?? 0, hs = f0.h?.soc?.[k];
+    if (!dim && hb > 0) { ctx.strokeStyle = BMS_COL[hb]; ctx.lineWidth = hb >= 2 ? 2.4 : 1.6; ctx.beginPath(); ctx.arc(X, Y, r + 3.5, 0, 7); ctx.stroke(); }
+    if (!dim && hs !== undefined && hs < 30) { // low-battery glyph
+      ctx.fillStyle = '#050c17'; ctx.fillRect(X - r - 12, Y - 4, 9, 6); ctx.strokeStyle = hs < 15 ? '#ff3b5c' : '#f6bd4b'; ctx.lineWidth = 1; ctx.strokeRect(X - r - 12, Y - 4, 9, 6);
+      ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(X - r - 11, Y - 3, Math.max(1, 7 * hs / 100), 4); ctx.fillRect(X - r - 3, Y - 2, 1.5, 2);
+    }
     if (mal.has(f.id)) { ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 5 + 2 * Math.sin(performance.now() / 180), 0, 7); ctx.stroke(); }
     if (k === selected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 8, 0, 7); ctx.stroke();
       ctx.font = '700 11.5px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); ctx.fillStyle = '#fff'; ctx.fillText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); }
@@ -292,6 +309,7 @@ function drawDrones(s) {
 // ------------------------------------------------------------------ 2.5D view of the selected drone
 function draw25(s) {
   const w = v25.clientWidth, h = v25.clientHeight; screenTransform(vctx); vctx.clearRect(0, 0, w, h);
+  if (w < 40 || h < 40) return;   // Health tab open: the 2.5D view is hidden
   if (!RUN || !s || selected === null) { vctx.fillStyle = '#5c7088'; vctx.font = '12px system-ui'; vctx.fillText('Select a drone on the map or network graph.', 12, 24); return; }
   const f0 = s.f0, n = selected, L = RUN.limits.num_layers, H = RUN.limits.layer_height, st = f0.status[n];
   const c = st === 1 ? posOf(s, n) : [f0.x[n], f0.y[n]];
@@ -345,8 +363,15 @@ function draw25(s) {
 function updatePanels() {
   if (!RUN || !frames.length) return;
   const s = frameAt(simT), f = s.f0, st = f.stats;
-  const cnt = [0, 0, 0, 0]; f.status.forEach((x) => cnt[x]++);
-  $('#cntQueue').textContent = cnt[0]; $('#cntAir').textContent = cnt[1]; $('#cntLand').textContent = cnt[2]; $('#cntCrash').textContent = cnt[3];
+  const cnt = [0, 0, 0, 0, 0]; f.status.forEach((x) => cnt[x]++);
+  $('#cntQueue').textContent = cnt[0]; $('#cntAir').textContent = cnt[1]; $('#cntLand').textContent = cnt[2]; $('#cntCrash').textContent = cnt[3]; $('#cntForced').textContent = cnt[4];
+  if (st.delivered !== undefined) {
+    $('#kEnergy').textContent = st.energy_per_delivered_wh === null ? '—' : `${fmt(st.energy_per_delivered_wh, 0)} Wh`;
+    $('#kEnergySub').textContent = `${st.delivered} delivered · fleet ${fmt(st.energy_used_wh / 1000, 2)} kWh · max pack ${fmt(st.max_pack_c, 0)} °C`;
+    $('#kBatt').textContent = `${st.diversions} · ${st.forced_landings}`;
+    $('#kBattCard').classList.toggle('bad', st.energy_depleted > 0 || st.forced_landings > 0);
+    $('#kBattSub').textContent = `diversions · forced · ${st.energy_depleted} depleted · ${st.grounded_preflight} grounded pre-flight`;
+  }
   $('#clock').textContent = `${fmt(f.t)} s`; $('#tLabel').textContent = `t = ${fmt(simT)} s`;
   const scrub = $('#scrub'); scrub.max = String(RUN.duration_s); if (document.activeElement !== scrub) scrub.value = String(simT);
   const dtcOn = RUN.switches.use_overseer;
@@ -375,14 +400,16 @@ function updatePanels() {
   $('#kShift').textContent = st.tactical_layer_shifts;
   $('#kLayer').textContent = st.dtc_directives; $('#kLayerSub').textContent = dtcOn ? `${st.layer_changes} layer changes · ${st.layer_changes_deferred} gated` : 'DTC disabled';
   $('#kTube').textContent = st.tube_corrections; $('#kTubeSub').textContent = `max lateral ${fmt(st.max_lateral_error_m)} / ${RUN.limits.corridor_width / 2} m · geofence ${st.geofence_corrections}`;
-  const undefended = RUN.attack.enabled && !RUN.switches.defended;
+  const undefended = (RUN.attack.enabled || RUN.flights.some((x) => x.malicious)) && !RUN.switches.defended;
   $('#kRepLabel').textContent = undefended ? 'Spoofed reports accepted' : 'Spoofed reports filtered';
   $('#kRepCard').classList.toggle('bad', undefended && st.spoofed_reports_accepted > 0);
   $('#kRep').textContent = undefended ? st.spoofed_reports_accepted : st.reports_dropped;
-  $('#kRepSub').textContent = RUN.attack.enabled ? (undefended ? 'defence OFF — fed into separation' : `${RUN.attack.malicious_ids.map((i) => 'D-' + i).join(', ')} spoofing`) : 'no attack injected';
+  const spoofers = [...new Set([...(RUN.attack.enabled ? RUN.attack.malicious_ids : []), ...RUN.flights.filter((x) => x.malicious).map((x) => x.id)])];
+  $('#kRepSub').textContent = spoofers.length ? (undefended ? 'defence OFF — fed into separation' : `${spoofers.map((i) => 'D-' + i).join(', ')} spoofing`) : 'no attack injected';
   $('#kArr').textContent = st.arrivals; $('#kArrSub').textContent = `of ${RUN.flights.length} flights`;
   $('#runState').textContent = RUN.replay ? 'LOADED' : done && simT >= frames.at(-1).t - 1e-6 ? 'COMPLETE' : done ? 'REPLAY' : 'LIVE';
-  updateOccupancy(s); updateDrone(s); pumpLog();
+  updateOccupancy(s); updateDrone(s); pumpLog(); updateFleetHealth(s); if (dTab === 'hl') updateHealthTab(s);
+  const canInject = !RUN.replay && !done; if ($('#cdNow').disabled === canInject) $('#cdNow').disabled = !canInject;
 }
 function updateOccupancy(s) {
   const L = RUN.limits.num_layers, cap = RUN.limits.capacity, occ = Array.from({length: SECTOR_COLS * SECTOR_ROWS}, () => Array(L).fill(0));
@@ -393,11 +420,13 @@ function updateOccupancy(s) {
 }
 function updateDrone(s) {
   if (selected === null) return;
-  const f = RUN.flights[selected], n = selected, fr = s.f0, st = fr.status[n];
+  const f = RUN.flights[selected], n = selected, fr = s.f0, st = fr.status[n] ?? 0;
+  if (fr.status[n] === undefined) { $('#dName').textContent = `D-${f.id}`; $('#dStatus').textContent = 'NOT YET ADDED'; return; }
   if ($('#dronePick').value !== String(n)) $('#dronePick').value = String(n);
   $('#dBadge').textContent = f.type; $('#dBadge').style.color = COLORS[f.type];
   $('#dName').textContent = `D-${f.id}`;
-  const pill = $('#dStatus'); pill.textContent = STATUS[st].toUpperCase(); pill.className = `pill ${['', 'air', 'landed', 'crashed'][st]}`;
+  const hb = fr.h?.bms?.[n] ?? 0; $('#dHealthDot').className = `hdot s${hb}`;
+  const pill = $('#dStatus'); pill.textContent = STATUS[st].toUpperCase(); pill.className = `pill ${['', 'air', 'landed', 'crashed', 'crashed'][st]}`;
   $('#dTask').textContent = `${f.task} · P${f.priority} · departs ${f.depart_s}s`;
   $('#dProg').style.width = `${Math.round(fr.progress[n] * 100)}%`; $('#dProg').style.background = COLORS[f.type];
   $('#dRoute').textContent = `${f.origin_name || f.origin} → ${f.destination_name || f.destination}`;
@@ -432,7 +461,7 @@ function updateDrone(s) {
   if (key !== lastDroneFeedKey) {
     lastDroneFeedKey = key; const list = $('#dEvents'); list.replaceChildren();
     if (!ev.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'No events yet for this drone.'; list.append(li); }
-    for (const e of ev.slice(-60).reverse()) { const li = document.createElement('li'); li.className = e.kind; li.innerHTML = `<time>${fmt(e.t)}s</time><span></span>`; li.lastChild.textContent = e.text; list.append(li); }
+    for (const e of ev.slice(-60).reverse()) { const li = document.createElement('li'); li.className = `${e.kind}${e.severity ? ' sev-' + e.severity : ''}`; li.innerHTML = `<time>${fmt(e.t)}s</time><span></span>`; li.lastChild.textContent = e.text; list.append(li); }
     $('#dEvCount').textContent = `${ev.length} event${ev.length === 1 ? '' : 's'}`;
   }
 }
@@ -443,7 +472,7 @@ function pumpLog() {
       if (e.scope !== 'global' || shownEvents.has(e)) continue;
       shownEvents.add(e);
       if ((e.kind === 'depart' || e.kind === 'hold' || e.kind === 'land') && RUN.flights.length > 40 && RUN.flights[idxOf(e.id)]?.type !== 'EMERGENCY') continue;
-      const li = document.createElement('li'); li.className = e.kind;
+      const li = document.createElement('li'); li.className = `${e.kind}${e.severity ? ' sev-' + e.severity : ''}`;
       li.innerHTML = `<time>${fmt(e.t)}s</time><span></span>`; li.lastChild.textContent = e.text;
       if (e.ids?.length) { li.style.cursor = 'pointer'; li.onclick = () => select(idxOf(e.ids[0])); }
       list.prepend(li); logTotal++; added = true;
@@ -607,7 +636,9 @@ function readMix() { return {EMERGENCY: +$('#mixE').value || 0, EVTOL: +$('#mixV
 function buildRequest() {
   const fleet = +$('#fleet').value, duration = +$('#duration').value, seed = +$('#seed').value, win = +$('#window').value;
   const maxFleet = LIMITS?.max_fleet ?? 150, maxDur = LIMITS?.max_duration_s ?? 900;
-  if (!Number.isInteger(fleet) || fleet < 1 || fleet > maxFleet) throw Error(`Fleet size must be a whole number from 1 to ${maxFleet}.`);
+  const minFleet = customDrones.length ? 0 : 1;
+  if (!Number.isInteger(fleet) || fleet < minFleet || fleet > maxFleet) throw Error(`Fleet size must be a whole number from ${minFleet} to ${maxFleet}${minFleet ? ' (0 is allowed with custom drones)' : ''}.`);
+  if (fleet + customDrones.length > maxFleet) throw Error(`Random fleet ${fleet} + ${customDrones.length} custom drones exceeds the limit of ${maxFleet}.`);
   if (!(duration >= 5 && duration <= maxDur)) throw Error(`Duration must be 5–${maxDur} s.`);
   if (!Number.isInteger(seed) || seed < 0) throw Error('Seed must be a non-negative whole number.');
   const mix = readMix(); if (Object.values(mix).reduce((a, b) => a + b, 0) <= 0) throw Error('Vehicle mix must not be all zero.');
@@ -618,7 +649,7 @@ function buildRequest() {
     if (v !== base) set(config, input.dataset.path, Number.isInteger(base) ? Math.round(v) : v);
   }
   return {map: mapId, fleet, duration_s: duration, seed, departure_window_s: Math.min(win, duration), mix, config,
-    architecture: $('#arch').value, junction_merge: $('#swMerge').checked,
+    architecture: $('#arch').value, junction_merge: $('#swMerge').checked, drones: customDrones,
     use_overseer: $('#swOverseer').checked, use_admm: $('#swAdmm').checked, defended: $('#swDefense').checked,
     attack: {enabled: $('#swAttack').checked, count: 2, start_s: Math.round(duration * 0.2)},
     outage: {enabled: $('#swOutage').checked, start_s: Math.round(duration * 0.25), end_s: Math.round(duration * 0.6)}};
@@ -627,12 +658,11 @@ async function launch() {
   let req; try { req = buildRequest(); } catch (e) { status(e.message, 'err'); return; }
   $('#runBtn').disabled = true; status('Planning routes on the corridor graph…');
   try {
-    if (RUN && !done) api(`/api/runs/${RUN.run_id}/stop`, {}).catch(() => {});
-    const run = await api('/api/runs', req);
+    const run = await api('/api/runs', req);   // the server stops the previous run only once this one is accepted
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     run.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = run; frames = []; done = false; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
-    nextSeq = 0; lastStats = null; lastPrio = null; speedProbe = []; negHist = {};
+    nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; hselHist = {}; speedProbe = []; negHist = {};
     selected = Math.max(0, run.flights.findIndex((f) => f.type === 'EMERGENCY'));
     resetLog(); $('#playBtn').textContent = '❚❚'; $('#seedLabel').innerHTML = `seed ${run.seed} · ${ARCH[run.architecture]?.label ?? run.architecture} · <span class="ic" title="Initial-conditions hash: identical for the same seed, fleet and map in every architecture">IC ${run.ic_hash}</span>`; $('#tMax').textContent = `/ ${run.duration_s} s`;
     $('#sceneTitle').textContent = SCENES[scene].title; buildLayerSeg(); buildDronePick();
@@ -644,7 +674,8 @@ async function launch() {
 async function poll(id) {
   try {
     while (RUN && RUN.run_id === id) {
-      const r = await api(`/api/runs/${id}/frames?from=${nextSeq}`);
+      const selId = selected !== null && RUN.flights[selected] ? `&sel=${RUN.flights[selected].id}` : '';
+      const r = await api(`/api/runs/${id}/frames?from=${nextSeq}&view_t=${simT.toFixed(2)}${selId}`);
       if (!RUN || RUN.run_id !== id) break;
       nextSeq = r.next;
       if (r.frames.length) {
@@ -662,7 +693,7 @@ function buildLayerSeg() {
   seg.innerHTML = `<button data-layer="all" class="${layerFilter === 'all' ? 'on' : ''}">All</button>` + Array.from({length: n}, (_, l) => `<button data-layer="${l}" class="${layerFilter === String(l) ? 'on' : ''}">L${l}</button>`).join('');
 }
 function buildDronePick() {
-  $('#dronePick').innerHTML = RUN.flights.map((f, n) => `<option value="${n}">D-${f.id} · ${TYPE_SHORT[f.type]} · ${f.origin_name || f.origin}→${f.destination_name || f.destination}</option>`).join('');
+  $('#dronePick').innerHTML = RUN.flights.map((f, n) => `<option value="${n}">${f.custom ? '★ ' : ''}D-${f.id} · ${TYPE_SHORT[f.type]} · ${f.origin_name || f.origin}→${f.destination_name || f.destination}${f.cooperative === false ? ' · non-coop' : ''}${f.malicious ? ' · spoofer' : ''}</option>`).join('');
 }
 function buildMapSeg() { $('#mapSeg').innerHTML = MAPS.map((m) => `<button data-map="${m.id}" class="${m.id === mapId ? 'on' : ''}">${m.label}</button>`).join(''); }
 async function loadMap(id) {
@@ -672,7 +703,7 @@ async function loadMap(id) {
   if (MAP.backdrop) { backdropImg = new Image(); backdropImg.src = MAP.backdrop.url; }
   $('#attrib').textContent = `${MAP.source}${MAP.backdrop?.attribution ? ' · ' + MAP.backdrop.attribution : ''} · ${MAP.graph.nodes} junctions · ${MAP.vertiports.length} vertiports`;
   $('#mapEyebrow').textContent = `Live airspace · ${MAP.label}`;
-  buildMapSeg(); userMoved = false; fit();
+  buildMapSeg(); userMoved = false; fit(); cdFillSelects();
 }
 function selectScene(name) {
   scene = name; const sc = SCENES[name];
@@ -714,7 +745,7 @@ $('#loadRun').onchange = async (e) => {
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     m.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = {...m, run_id: `replay:${m.run_id}`, replay: true}; frames = []; done = true; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
-    nextSeq = 0; lastStats = null; lastPrio = null; speedProbe = []; negHist = {};
+    nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; hselHist = {}; speedProbe = []; negHist = {};
     frames = data.frames.map((x) => { indexNeg(x); return decodeFrame(x); }); indexEvents();
     selected = Math.max(0, m.flights.findIndex((f) => f.type === 'EMERGENCY'));
     resetLog(); $('#playBtn').textContent = '❚❚'; $('#tMax').textContent = `/ ${m.duration_s} s`;
@@ -779,7 +810,8 @@ canvas.addEventListener('pointermove', (e) => {
 });
 canvas.addEventListener('pointerup', (e) => {
   const r = canvas.getBoundingClientRect();
-  if (drag && !drag.moved) { const n = pick(e.clientX - r.left, e.clientY - r.top); if (n !== null) select(n); }
+  if (drag && !drag.moved && pickMode) { pickVertiport(e.clientX - r.left, e.clientY - r.top); }
+  else if (drag && !drag.moved) { const n = pick(e.clientX - r.left, e.clientY - r.top); if (n !== null) select(n); }
   drag = null; canvas.classList.remove('drag');
 });
 canvas.addEventListener('pointerleave', () => { $('#tip').hidden = true; });
@@ -804,6 +836,198 @@ window.addEventListener('keydown', (e) => { if (e.code === 'Space' && !['INPUT',
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(document.querySelector('.layout'));
 $('#netLegend').innerHTML = NET_SERIES.map((s) => `<span><i style="background:${s.color}"></i>${s.label}</span>`).join('');
+
+// ------------------------------------------------------------------ Phase 3: custom drones (scenario builder)
+let customDrones = [], editIndex = null, pickMode = null;
+function appendFlights(list) {  // drones injected mid-run arrive in frames as new_flights
+  if (!RUN) return;
+  const have = new Set(RUN.flights.map((f) => f.id)), names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
+  let added = 0;
+  for (const f of list) { if (have.has(f.id)) continue; f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; RUN.flights.push(f); added++; }
+  if (added) buildDronePick();
+}
+function cdFillSelects() {
+  if (!MAP) return;
+  const opts = MAP.vertiports.map((v) => `<option value="${v.id}">${v.id} · ${v.name} (${v.role})</option>`).join('');
+  for (const id of ['#cdOrigin', '#cdDest']) { const sel = $(id), keep = sel.value; sel.innerHTML = opts; if (keep && MAP.vertiports.some((v) => v.id === keep)) sel.value = keep; }
+  if ($('#cdOrigin').value === $('#cdDest').value && MAP.vertiports.length > 1) $('#cdDest').selectedIndex = 1;
+  const L = baseConfig?.airspace.num_layers ?? 3, em = baseConfig?.airspace.emergency_layer ?? L - 1;
+  $('#cdLayer').innerHTML = '<option value="">auto (semicircular rule)</option>' + Array.from({length: L}, (_, l) => `<option value="${l}">L${l}${l === em ? ' (emergency only)' : ''}</option>`).join('');
+  $('#cdSpeed').max = String(baseConfig?.safety.maximum_velocity_meters_per_second ?? 20);
+  // drones made for another map no longer have valid vertiports
+  const ok = new Set(MAP.vertiports.map((v) => v.id)), before = customDrones.length;
+  customDrones = customDrones.filter((d) => ok.has(d.origin) && ok.has(d.destination));
+  if (customDrones.length < before) cdMessage(`${before - customDrones.length} custom drone(s) removed: their vertiports are not on ${MAP.label}.`, 'err');
+  cdRender();
+}
+const numOrNull = (id) => { const v = $(id).value.trim(); return v === '' ? null : Number(v); };
+function cdReadForm() {
+  const d = {type: $('#cdType').value, origin: $('#cdOrigin').value, destination: $('#cdDest').value, depart_s: numOrNull('#cdDep') ?? 0,
+    cooperative: $('#cdCoop').checked, malicious: $('#cdMal').checked};
+  const opt = {priority: numOrNull('#cdPrio'), cruise_speed_mps: numOrNull('#cdSpeed'), preferred_layer: $('#cdLayer').value === '' ? null : +$('#cdLayer').value,
+    battery_wh: numOrNull('#cdWh'), soc_init_pct: numOrNull('#cdSoc'), soh_pct: numOrNull('#cdSoh'), payload_kg: numOrNull('#cdPay')};
+  for (const [k, v] of Object.entries(opt)) if (v !== null) d[k] = v;
+  if (d.malicious) d.spoof_offset_m = [numOrNull('#cdDx') ?? 25, numOrNull('#cdDy') ?? 0];
+  if ($('#cdFault').value) d.fault = {type: $('#cdFault').value, t_s: numOrNull('#cdFaultT')};
+  if (d.origin === d.destination) throw Error('Origin and destination must be different vertiports.');
+  if (d.fault && d.fault.t_s === null) throw Error('Give the time of the scheduled fault.');
+  return d;
+}
+function cdWriteForm(d) {
+  $('#cdType').value = d.type; $('#cdOrigin').value = d.origin; $('#cdDest').value = d.destination; $('#cdDep').value = d.depart_s ?? 0;
+  const put = (id, v) => { $(id).value = v ?? ''; };
+  put('#cdPrio', d.priority); put('#cdSpeed', d.cruise_speed_mps); put('#cdLayer', d.preferred_layer); put('#cdWh', d.battery_wh); put('#cdSoc', d.soc_init_pct);
+  put('#cdSoh', d.soh_pct); put('#cdPay', d.payload_kg); $('#cdCoop').checked = d.cooperative !== false; $('#cdMal').checked = !!d.malicious;
+  put('#cdDx', d.spoof_offset_m?.[0] ?? 25); put('#cdDy', d.spoof_offset_m?.[1] ?? 0); put('#cdFault', d.fault?.type ?? ''); put('#cdFaultT', d.fault?.t_s);
+}
+function cdMessage(msg, kind = '') { const n = $('#cdMsg'); n.textContent = msg; n.className = `status ${kind}`; }
+function cdRender() {
+  $('#cdCount').textContent = `${customDrones.length} in scenario`;
+  $('#cdFormTitle').textContent = editIndex === null ? 'New drone' : `Edit drone #${editIndex + 1}`;
+  $('#cdAdd').textContent = editIndex === null ? '＋ Add to scenario' : '✓ Save changes';
+  const list = $('#cdList'); list.replaceChildren();
+  customDrones.forEach((d, i) => {
+    const li = document.createElement('li'); if (i === editIndex) li.className = 'editing';
+    const tags = [d.cooperative === false ? '<span class="tag">non-coop</span>' : '', d.malicious ? '<span class="tag bad">spoofer</span>' : '', d.fault ? `<span class="tag">${d.fault.type} @${d.fault.t_s}s</span>` : ''].join('');
+    li.innerHTML = `<span class="t" style="color:${COLORS[d.type]}">${d.id !== undefined && d.id !== null ? 'D-' + d.id : '#' + (i + 1)} ${TYPE_SHORT[d.type]} ${d.origin}→${d.destination} @${d.depart_s ?? 0}s</span>${tags}<button data-edit="${i}" title="Edit">✎</button><button data-del="${i}" title="Delete">✕</button>`;
+    list.append(li);
+  });
+  $('#cdNow').disabled = !(RUN && !RUN.replay && !done);
+}
+$('#cdAdd').onclick = () => {
+  try {
+    const d = cdReadForm();
+    if (editIndex === null) customDrones.push(d); else { if (customDrones[editIndex].id !== undefined) d.id = customDrones[editIndex].id; customDrones[editIndex] = d; }
+    cdMessage(editIndex === null ? `Added — it flies in the next launched run (${customDrones.length} custom).` : 'Saved.', 'ok');
+    editIndex = null; cdRender();
+  } catch (e) { cdMessage(e.message, 'err'); }
+};
+$('#cdClear').onclick = () => { editIndex = null; cdWriteForm({type: 'DELIVERY', origin: $('#cdOrigin').value, destination: $('#cdDest').value, depart_s: 0}); cdRender(); cdMessage(''); };
+$('#cdList').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.del !== undefined) { customDrones.splice(+b.dataset.del, 1); editIndex = null; }
+  else { editIndex = +b.dataset.edit; cdWriteForm(customDrones[editIndex]); $('#cdForm').open = true; }
+  cdRender();
+};
+$('#cdRemoveAll').onclick = () => { customDrones = []; editIndex = null; cdRender(); cdMessage('All custom drones removed.'); };
+$('#cdNow').onclick = async () => {
+  if (!RUN || RUN.replay || done) { cdMessage('Start a run first — "Add drone now" injects into the running simulation.', 'err'); return; }
+  try {
+    const d = cdReadForm(); delete d.depart_s;
+    const r = await api(`/api/runs/${RUN.run_id}/commands`, {type: 'add_drone', drone: d, reason: 'operator: add drone now'});
+    const ahead = frames.length ? frames.at(-1).t : simT;
+    cdMessage(`Command ${r.command_id} sent: D-${r.drone_id} is added at the simulator's next tick (≈ t ${fmt(ahead, 0)} s; the simulator runs at most ${LIMITS?.interactive_lead_s ?? 5} s ahead of playback).`, 'ok');
+  } catch (e) { cdMessage(e.message, 'err'); }
+};
+$('#cdImport').onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  try {
+    const text = await file.text(), format = /\.csv$/i.test(file.name) || /^\s*[a-z_]+\s*,/i.test(text) ? 'csv' : 'json';
+    const r = await api('/api/drones/parse', {format, text, map: mapId, duration_s: +$('#duration').value || undefined});
+    customDrones = r.drones.map((d) => { for (const k of Object.keys(d)) if (d[k] === null) delete d[k]; return d; });
+    editIndex = null; cdRender(); cdMessage(`Imported ${customDrones.length} drone(s) from ${file.name}.`, 'ok');
+  } catch (err) { cdMessage(`Import failed — ${err.message}`, 'err'); }
+};
+async function cdExport(format) {
+  if (!customDrones.length) { cdMessage('No custom drones to export.', 'err'); return; }
+  try {
+    const r = await api('/api/drones/export', {format, drones: customDrones, map: mapId, duration_s: +$('#duration').value || undefined});
+    const blob = new Blob([r.text], {type: format === 'csv' ? 'text/csv' : 'application/json'}), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = r.filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    cdMessage(`Exported ${customDrones.length} drone(s) as ${format.toUpperCase()}.`, 'ok');
+  } catch (e) { cdMessage(`Export failed — ${e.message}`, 'err'); }
+}
+$('#cdExpJson').onclick = () => cdExport('json'); $('#cdExpCsv').onclick = () => cdExport('csv');
+document.querySelectorAll('.pick').forEach((b) => b.onclick = (e) => {
+  e.preventDefault(); pickMode = pickMode === b.dataset.pick ? null : b.dataset.pick;
+  document.querySelectorAll('.pick').forEach((x) => x.classList.toggle('on', x.dataset.pick === pickMode)); canvas.classList.toggle('picking', !!pickMode);
+  if (pickMode) cdMessage(`Click a vertiport on the map to set the ${pickMode === 'cdOrigin' ? 'origin' : 'destination'}.`);
+});
+function pickVertiport(px, py) {
+  let best = null, bd = 18;
+  for (const v of MAP.vertiports) { const d = Math.hypot(sx(v.x) - px, sy(v.y) - py); if (d < bd) { bd = d; best = v; } }
+  if (!best) { cdMessage('No vertiport there — click one of the square pad markers.', 'err'); return; }
+  $(`#${pickMode}`).value = best.id; cdMessage(`${pickMode === 'cdOrigin' ? 'Origin' : 'Destination'} set to ${best.id} · ${best.name}.`, 'ok');
+  pickMode = null; document.querySelectorAll('.pick').forEach((x) => x.classList.remove('on')); canvas.classList.remove('picking');
+}
+
+// ------------------------------------------------------------------ Phase 3B: health views
+function applyReroutes(list) {  // health diversions: the drone's route and destination change
+  if (!RUN) return;
+  const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
+  for (const r of list) { const n = idxOf(r.id); if (n < 0) continue; const f = RUN.flights[n];
+    f.route = r.route; f.route_length_m = r.route_length_m; f.destination = r.destination; f.destination_name = names[r.destination]; f.diverted = r.reason; }
+}
+function healthAt(id) { const h = hselHist[id]; if (!h) return null; for (let i = h.length - 1; i >= 0; i--) if (h[i].t <= simT + 1e-6) return h[i]; return h[0].t <= simT + 1e-6 ? h[0] : null; }
+function updateFleetHealth(s) {
+  const f = s.f0, h = f.h, card = $('#fleetHealth');
+  const on = RUN.limits.health?.enabled; card.hidden = !on; if (!on) return;
+  $('#fhAmb').textContent = `ambient ${RUN.limits.health.ambient_c} °C`;
+  const cnt = [0, 0, 0, 0], air = [];
+  if (h) f.status.forEach((st, k) => { if (st === 1 && h.bms[k] !== undefined) { cnt[h.bms[k]]++; air.push(k); } });
+  $('#fhCounts').innerHTML = BMS.map((b, i) => `<div><b style="color:${BMS_COL[i]}">${cnt[i]}</b><small>${b}</small></div>`).join('');
+  const key = `${frameAt(simT).i}:${selected}`; if (updateFleetHealth.key === key) return; updateFleetHealth.key = key;
+  const low = air.sort((a, b) => h.soc[a] - h.soc[b]).slice(0, 6), lowEl = $('#fhLow'); lowEl.replaceChildren();
+  for (const k of low) { const li = document.createElement('li'), soc = h.soc[k], col = soc < 15 ? '#ff3b5c' : soc < 30 ? '#f6bd4b' : '#2fe0a0';
+    li.innerHTML = `<span style="color:${COLORS[RUN.flights[k].type]}">D-${RUN.flights[k].id}</span><span class="bar"><i style="width:${soc}%;background:${col}"></i></span><span>${soc}%</span><span class="muted">${BMS[h.bms[k]]} · ${h.tmax[k]} °C</span>`;
+    li.onclick = () => select(k); lowEl.append(li); }
+  if (!low.length) lowEl.innerHTML = '<li class="empty">no drones airborne</li>';
+  const al = [], al$ = $('#fhAlerts'); al$.replaceChildren();
+  for (let i = frameAt(simT).i; i >= 0 && frames[i].t > simT - 60; i--) for (const e of frames[i].events) if (e.severity === 'critical' || (e.severity === 'warning' && e.kind !== 'bms')) al.push(e);
+  for (const e of al.slice(0, 8)) { const li = document.createElement('li'); li.className = `sev-${e.severity}`; li.innerHTML = `<time>${fmt(e.t)}s</time><span></span>`; li.lastChild.textContent = e.text; li.onclick = () => select(idxOf(e.ids[0])); al$.append(li); }
+  if (!al.length) al$.innerHTML = '<li class="empty">no active alerts</li>';
+}
+function updateHealthTab(s) {
+  if (selected === null) return;
+  const f = RUN.flights[selected], k = selected, h = s.f0.h, rec = healthAt(f.id), d = rec?.d, th = RUN.limits.health?.thresholds || {};
+  const soc = d?.soc ?? h?.soc?.[k], st = d ? BMS.indexOf(d.status) : h?.bms?.[k] ?? 0;
+  $('#hSoc').textContent = soc === undefined ? '—' : `SoC ${fmt(soc, 0)} %`; $('#hSocBar').style.width = `${soc ?? 0}%`;
+  $('#hSocBar').style.background = soc < (th.soc_critical_pct ?? 15) ? '#ff3b5c' : soc < (th.soc_warning_pct ?? 30) ? '#f6bd4b' : '#2fe0a0';
+  const pill = $('#hStatus'); pill.textContent = BMS[st] ?? '—'; pill.className = `pill s${st}`;
+  $('#hCodes').textContent = d?.codes?.join(' · ') || '';
+  $('#hNote').textContent = d ? (simT - rec.t > 2 ? `detail from t = ${fmt(rec.t)} s` : '') : 'full detail streams once the drone is selected (live runs)';
+  const set = (id, v) => { $(id).textContent = v; };
+  if (d) {
+    set('#hVip', `${fmt(d.v, 1)} V · ${fmt(d.i, 1)} A · ${fmt(d.p, 0)} W`);
+    set('#hLeft', `${fmt(d.e_rem_wh, 0)} Wh · ${d.time_left_s === null ? '—' : fmt(d.time_left_s / 60, 1) + ' min'} · ${d.range_left_m === null ? '—' : fmt(d.range_left_m / 1000, 1) + ' km'}`);
+    set('#hSoh', `${fmt(d.soh, 0)} % · ${fmt(d.capacity_wh, 0)} Wh`);
+    set('#hTp', `${fmt(d.t_pack, 1)} °C (max ${fmt(d.t_pack_max, 0)}) · warn ${th.pack_warning_c} / crit ${th.pack_critical_c}`);
+    set('#hTm', `${fmt(d.t_motor, 1)} °C (max ${fmt(d.t_motor_max, 0)}) · warn ${th.motor_warning_c} / crit ${th.motor_critical_c}`);
+    set('#hCellTxt', `${fmt(d.min_cell_v, 3)} V · ${fmt(d.imbalance_mv, 0)} mV`);
+    set('#hLink', d.rssi_dbm === null ? (d.packet_loss === 1 ? 'no link (outage)' : 'no DTC') : `${fmt(d.rssi_dbm, 0)} dBm · ${fmt(d.packet_loss * 100, 1)} %`);
+    set('#hGnss', `${d.fix} · ${fmt(d.hdop, 2)}`);
+    set('#hMotor', `${fmt(d.motor_health * 100, 0)} % · ${fmt(d.energy_used_wh, 1)} Wh`);
+    set('#hFaults', [...(d.faults || []), d.pending_fault ? `${d.pending_fault.type} @ ${d.pending_fault.t_s} s (scheduled)` : ''].filter(Boolean).join(' · ') || (f.diverted ? '' : 'none') + (f.diverted ? `diverted: ${f.diverted}` : ''));
+  } else for (const id of ['#hVip', '#hLeft', '#hSoh', '#hTp', '#hTm', '#hCellTxt', '#hLink', '#hGnss', '#hMotor', '#hFaults']) set(id, '—');
+  drawCells(d); drawHealthChart(k);
+}
+function drawCells(d) {
+  const w = hCellsC.clientWidth, h = hCellsC.clientHeight; screenTransform(hcctx); hcctx.clearRect(0, 0, w, h);
+  if (!d?.cells_mv?.length) return;
+  const c = d.cells_mv, lo = Math.min(3000, ...c) - 50, hi = 4250, n = c.length, bw = Math.max(1, (w - 34) / n);
+  hcctx.fillStyle = '#5c7088'; hcctx.font = '9.5px system-ui'; hcctx.fillText('4.2 V', 0, 10); hcctx.fillText('3.0 V', 0, h - 4);
+  const Y = (v) => h - 2 - (v - lo) / (hi - lo) * (h - 6);
+  hcctx.strokeStyle = '#ff5f7288'; hcctx.setLineDash([3, 3]); hcctx.beginPath(); hcctx.moveTo(30, Y(3000)); hcctx.lineTo(w, Y(3000)); hcctx.stroke(); hcctx.setLineDash([]);
+  const mn = Math.min(...c);
+  c.forEach((v, i) => { hcctx.fillStyle = v === mn ? '#f6bd4b' : '#37d7f2'; const y = Y(v); hcctx.fillRect(32 + i * bw, y, Math.max(1, bw - (n > 30 ? 0 : 2)), h - 2 - y); });
+}
+function drawHealthChart(k) {
+  const w = hChartC.clientWidth, h = hChartC.clientHeight; screenTransform(hchctx); hchctx.clearRect(0, 0, w, h);
+  if (!frames.length) return;
+  const L = 26, R = w - 30, T = 6, B = h - 14, X = (t) => L + t / RUN.duration_s * (R - L);
+  hchctx.strokeStyle = '#16283e'; hchctx.fillStyle = '#5c7088'; hchctx.font = '9.5px system-ui';
+  for (const v of [0, 50, 100]) { const y = B - v / 100 * (B - T); hchctx.beginPath(); hchctx.moveTo(L, y); hchctx.lineTo(R, y); hchctx.stroke(); hchctx.fillText(`${v}%`, 0, y + 3); }
+  const tMax = 100; hchctx.textAlign = 'left'; for (const v of [20, 60, 100]) hchctx.fillText(`${v}°`, R + 3, B - (v / tMax) * (B - T) + 3);
+  const step = Math.max(1, Math.floor(frames.length / 500));
+  const line = (get, scale, col) => { hchctx.strokeStyle = col; hchctx.lineWidth = 1.5; hchctx.beginPath(); let pen = false;
+    for (let i = 0; i < frames.length; i += step) { const f = frames[i]; const v = f.h ? get(f.h) : undefined; if (v === undefined || f.status[k] === undefined || f.status[k] === 0 && v === undefined) { pen = false; continue; }
+      const y = B - Math.min(1, v / scale) * (B - T); pen ? hchctx.lineTo(X(f.t), y) : hchctx.moveTo(X(f.t), y); pen = true; } hchctx.stroke(); };
+  line((h) => h.soc[k], 100, '#2fe0a0'); line((h) => h.tmax[k], tMax, '#ff8a4c');
+  hchctx.strokeStyle = '#e6f0fa'; hchctx.lineWidth = 1; hchctx.beginPath(); hchctx.moveTo(X(simT), T); hchctx.lineTo(X(simT), B); hchctx.stroke();
+}
+$('#dTabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; dTab = b.dataset.tab;
+  document.querySelectorAll('#dTabs button').forEach((x) => x.classList.toggle('on', x === b));
+  $('#tabOv').hidden = dTab !== 'ov'; $('#tabHl').hidden = dTab !== 'hl'; resize(); };
 
 // ------------------------------------------------------------------ boot
 async function boot() {

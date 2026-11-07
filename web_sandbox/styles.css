@@ -165,3 +165,56 @@ ol.dev li.empty{display:block;color:var(--dim)}
 .legend .sw.junction{background:transparent;border:2px solid #f6bd4b;border-radius:50%}
 .ic{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
 .kv dt.note{grid-column:1 / -1;font-size:10px;color:var(--dim);font-weight:400}
+
+/* Phase 3: scenario builder */
+.hint{font-size:11.5px;color:var(--dim);margin:0 0 8px}
+.cd label{display:grid;gap:3px;font-size:11.5px;color:var(--mute)}
+.cd select,.cd input[type=number]{background:#06101d;border:1px solid var(--line2);border-radius:6px;color:var(--ink);padding:5px 6px;font-size:12px;width:100%;min-width:0}
+.cd label.chk{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.cd .pair{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.pick{font-size:10.5px;padding:1px 6px;border:1px solid var(--line2);border-radius:5px;background:transparent;color:var(--cyan);margin-left:4px}
+.pick.on{background:#123352}
+.sub-h{font-size:11.5px;color:var(--ink);margin:10px 0 6px}
+.cd-btns{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.cd-btns .ghost{font-size:12px;padding:5px 9px}
+.cd-list{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;max-height:180px;overflow:auto}
+.cd-list li{display:flex;gap:6px;align-items:center;font-size:11.5px;background:#071423;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.cd-list li .t{font-family:var(--mono);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd-list li button{border:0;background:transparent;color:var(--mute);padding:0 4px;cursor:pointer}
+.cd-list li button:hover{color:var(--cyan)}
+.cd-list li.editing{border-color:var(--cyan)}
+.cd-list .tag{font-size:10px;padding:0 5px;border-radius:4px;background:#1a2a3d;color:var(--mute)}
+.cd-list .tag.bad{background:#3a1a4a;color:#d8b4fe}
+canvas#map.picking{cursor:crosshair}
+
+/* Phase 3B: health */
+.kpis{grid-template-columns:repeat(7,minmax(0,1fr))}
+.tabs{margin:6px 0 8px}
+.hdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:transparent;margin-left:4px;vertical-align:middle}
+.hdot.s1{background:#f6bd4b}.hdot.s2,.hdot.s3{background:#ff5f72}
+.hl-top{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.gauge{position:relative;flex:1;height:26px;border:1px solid var(--line2);border-radius:6px;background:#06101d;overflow:hidden}
+.gauge .gfill{position:absolute;left:0;top:0;bottom:0;width:0;background:#2fe0a0;transition:width .2s}
+.gauge span{position:relative;display:block;text-align:center;line-height:26px;font-family:var(--mono);font-size:13px;color:#fff;text-shadow:0 0 3px #000}
+.codes{font-size:10.5px;color:var(--mute);font-family:var(--mono)}
+.pill.s0{color:var(--green)}.pill.s1{color:#f6bd4b}.pill.s2,.pill.s3{color:var(--red)}
+#hCells{width:100%;height:70px;display:block;margin-top:8px}
+#hChart{width:100%;height:110px;display:block;margin-top:6px}
+.fh-counts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fh-counts div{background:#071423;border:1px solid var(--line);border-radius:6px;padding:6px;text-align:center}
+.fh-counts b{display:block;font-family:var(--mono);font-size:17px}
+.fh-counts small{font-size:10.5px;color:var(--mute)}
+.fh-list{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:3px;max-height:150px;overflow:auto}
+.fh-list li{display:flex;gap:6px;align-items:center;font-size:11.5px;padding:3px 6px;border-radius:5px;background:#071423;cursor:pointer}
+.fh-list li .bar{flex:0 0 60px;height:6px;margin:0;border-radius:3px;background:#0e1d30;overflow:hidden}
+.fh-list li .bar i{display:block;height:100%}
+.fh-list li.empty{cursor:default;color:var(--dim)}
+.fh-list.alerts li{cursor:pointer;align-items:flex-start}
+.fh-list.alerts time{font-family:var(--mono);color:var(--dim);flex:0 0 42px}
+.sev-warning{color:#f6bd4b}.sev-critical{color:#ff8a8a}
+.glog li.sev-critical span,.dev li.sev-critical span{color:#ff8a8a}
+.glog li.sev-warning span,.dev li.sev-warning span{color:#f6bd4b}
+.legend .sw.bmsw{background:transparent;border:2px solid #f6bd4b;border-radius:50%}
+.legend .sw.bmsc{background:transparent;border:2px solid #ff3b5c;border-radius:50%}
+@media (max-width:1450px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}

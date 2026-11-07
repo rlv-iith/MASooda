@@ -232,3 +232,47 @@ Cost (worker, frames included): 250 × 300 s 54.4 ticks/s (5.4×; Phase 1 63.4),
 32.8 ticks/s (3.3×; Phase 1 34.4). Frames grew to 8.5 KB (250) and 16.5 KB (500); the stream at 500
 is 55 KB per sim-second, above `web.max_kb_per_sim_s = 40` because `est_bytes_per_drone_frame`
 (22 B) no longer includes the Phase 2 fields.
+
+## 10. Phase 3 results (custom drone input)
+
+- **Rows**: `simulation/scenario_manifest.py` gains `validate_route_drones` (all rows checked, one
+  error lists every problem as `row n (D-id): …`), JSON (`masooda-drones` v1) and CSV import/export.
+  Fields: type, priority, origin/destination vertiport, departure, cruise speed (≤ v_max), preferred
+  layer (emergency layer only for EMERGENCY), cooperative, malicious + offset [dx, dy] + start, and
+  the health inputs (battery Wh, initial SoC %, SoH %, payload kg, scheduled fault type + time).
+  Health inputs are validated and carried on the flight; the Phase 3B model will use them.
+- **Engine**: custom drones run with the random fleet. A non-cooperative drone sends no reports: it is
+  invisible to other drones' boids/CPA, to the DTC and to ADMM (it still listens and avoids). A custom
+  spoofer broadcasts its own offset vector (applied after `inject_attack`; `attack.py` unchanged).
+- **Command channel** (first type of the Phase 4 API): `POST /api/runs/<id>/commands
+  {type: "add_drone", drone}` → validated, queued, applied by the engine at the start of the next
+  tick; the log records `tick_applied`, and `scripted_commands(log)` replays it exactly (test).
+  New drones reach the page as `new_flights` in frames (kept through thinning).
+- **Pacing**: while a page is watching, the simulator stays at most `web.interactive_lead_s` (5 s)
+  ahead of playback, so "Add drone now" lands near the time on screen. Without a watcher (tests,
+  closed tab after `web.watcher_timeout_s`) it runs ahead freely. Pacing changes only when ticks are
+  computed, not their content.
+
+## 11. Phase 3B results (drone health)
+
+Model as approved in `docs/DRONE_HEALTH_MODEL.md` (momentum-theory power with hot-air density, Rint
+battery, per-cell BMS, lumped temperatures, path-loss link, GNSS HDOP), in
+`simulation/drone_health.py`, parameters in `drone_health:`. Changes made during implementation
+(also recorded in the model document):
+
+- eVTOL `c_max` 4C → 5C: at 4C every eVTOL hover raised OVER_CURRENT warnings.
+- `overheating_heat_frac_hover` 0.15 → 0.6: with 0.15 the fault never reached WARNING on a 2–3 min
+  campus flight.
+- Pre-flight check: a drone already CRITICAL, or unable to reach its destination with the reserve,
+  stays on its pad (event + `grounded_preflight`).
+- A pad within one approach leg (40 m) is reached by a straight leg: the corridor-graph route
+  from the pad just left was an out-and-back that the drone circled until its battery failed.
+
+Finding: with the approved 30 s hold at overheating CRITICAL, the faulted delivery drone's pack goes
+from 65 °C to the 75 °C FAULT limit about 8 s after it starts diverting, and it lands in place.
+Diverting at the first overheating CRITICAL would reach the pad.
+
+Measured (IITH, seed 42, 300 s, worker incl. frames): 250 drones 48.4 ticks/s (4.8×, Phase 2
+54.4), 500 drones 26.5 ticks/s (2.6×, Phase 2 32.8); frames 9.2 / 17.7 KB. Random fleets
+(SoC 35–100 %) on campus routes: 0 diversions, 0 forced landings, 0 depleted, max pack 39 °C,
+energy per delivered drone 768 Wh (250) and 960 Wh (500, more eVTOLs delivered).

@@ -33,18 +33,23 @@ class EmergencyTracker:
         self.capacity = int(capacity)
         self.dt = float(dt)
         self.per: dict[int, dict[str, Any]] = {}
+        self.cruise_speed = cruise_speed
         for f in flights:
-            if getattr(f.type, "value", f.type) != "EMERGENCY":
-                continue
-            speed = float(cruise_speed(f))
-            self.per[f.agent_id] = {
-                "depart_s": float(f.depart_s), "nominal_s": round(f.route.length / speed, 2),
-                "took_off_s": None, "landed_s": None, "travel_s": None, "delay_s": None,
-                "holds": 0, "shifts": 0, "gated": 0, "off_layer_ticks": 0, "airborne_ticks": 0,
-                "checks": 0, "compliant": 0,
-            }
+            self.add(f)
         self.checks = 0
         self.compliant = 0
+
+    def add(self, f: Any) -> None:
+        """Track a flight if it is an emergency (initial fleet or injected mid-run)."""
+        if getattr(f.type, "value", f.type) != "EMERGENCY":
+            return
+        speed = float(self.cruise_speed(f))
+        self.per[f.agent_id] = {
+            "depart_s": float(f.depart_s), "nominal_s": round(f.route.length / speed, 2),
+            "took_off_s": None, "landed_s": None, "travel_s": None, "delay_s": None,
+            "holds": 0, "shifts": 0, "gated": 0, "off_layer_ticks": 0, "airborne_ticks": 0,
+            "checks": 0, "compliant": 0,
+        }
 
     def __contains__(self, aid: int) -> bool:
         return aid in self.per

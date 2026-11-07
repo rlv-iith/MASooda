@@ -20,7 +20,7 @@
       <span class="chip"><i id="sysDot" class="dot"></i>System <b id="sysStatus">CONNECTING</b></span>
       <span class="chip">Run <b id="runState">—</b></span>
       <span class="chip">Sim time <b id="clock">0.0 s</b></span>
-      <span class="chip">Airborne <b id="cntAir">0</b> · Queued <b id="cntQueue">0</b> · Landed <b id="cntLand">0</b> · Crashed <b id="cntCrash">0</b></span>
+      <span class="chip">Airborne <b id="cntAir">0</b> · Queued <b id="cntQueue">0</b> · Landed <b id="cntLand">0</b> · Forced <b id="cntForced">0</b> · Crashed <b id="cntCrash">0</b></span>
       <span class="chip" id="linkChip">DTC link <b id="linkState">—</b></span>
     </div>
     <div class="transport">
@@ -49,7 +49,7 @@
         <canvas id="map" aria-label="Map of the corridor network with live drone positions — click a drone to select it"></canvas>
         <div class="legend">
           <span><i class="sw emergency"></i>Emergency</span><span><i class="sw evtol"></i>eVTOL</span><span><i class="sw delivery"></i>Delivery</span>
-          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span><span><i class="sw spoof"></i>Spoofed report → W-MSR estimate</span><span><i class="sw junction"></i>Junction merge (amber = gap blocked)</span>
+          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span><span><i class="sw spoof"></i>Spoofed report → W-MSR estimate</span><span><i class="sw junction"></i>Junction merge (amber = gap blocked)</span><span><i class="sw bmsw"></i>BMS warning</span><span><i class="sw bmsc"></i>BMS critical / fault</span><span>⊘ Forced landing</span>
         </div>
         <div class="zoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit map">⤢</button><button id="zFollow" aria-label="Follow selected drone" title="Follow selected drone">◎</button></div>
         <div id="buffer" class="buffer" hidden>computing ahead…</div>
@@ -63,6 +63,8 @@
       <section class="card" id="droneCard">
         <div class="card-head"><h2>Selected drone · 2.5D view</h2><select id="dronePick" aria-label="Select drone"></select></div>
         <div class="dhead"><span id="dName" class="dname">—</span><span id="dBadge" class="badge">—</span><span id="dStatus" class="pill">—</span></div>
+        <div class="seg tabs" id="dTabs"><button data-tab="ov" class="on">Overview</button><button data-tab="hl">Health <i id="dHealthDot" class="hdot"></i></button></div>
+        <div id="tabOv">
         <canvas id="view25" aria-label="2.5D view around the selected drone"></canvas>
         <div class="bar"><i id="dProg"></i></div>
         <dl class="kv">
@@ -79,6 +81,28 @@
           <dt id="dPrioLbl">Emergency priority</dt><dd id="dPrio">—</dd>
           <dt>Neighbour reports</dt><dd id="dTrust">—</dd>
         </dl>
+        </div>
+        <div id="tabHl" hidden>
+          <div class="hl-top">
+            <div class="gauge"><div class="gfill" id="hSocBar"></div><span id="hSoc">—</span></div>
+            <div><span class="pill" id="hStatus">—</span> <span class="codes" id="hCodes"></span></div>
+          </div>
+          <dl class="kv">
+            <dt>Voltage · current · power</dt><dd id="hVip">—</dd>
+            <dt>Energy left · time · range</dt><dd id="hLeft">—</dd>
+            <dt>State of health · capacity</dt><dd id="hSoh">—</dd>
+            <dt>Pack temperature</dt><dd id="hTp">—</dd>
+            <dt>Motor / ESC temperature</dt><dd id="hTm">—</dd>
+            <dt>Cells (min · imbalance)</dt><dd id="hCellTxt">—</dd>
+            <dt>DTC link RSSI · loss</dt><dd id="hLink">—</dd>
+            <dt>GNSS fix · HDOP</dt><dd id="hGnss">—</dd>
+            <dt>Motor health · energy used</dt><dd id="hMotor">—</dd>
+            <dt>Faults</dt><dd id="hFaults">—</dd>
+          </dl>
+          <canvas id="hCells" aria-label="Per-cell voltages"></canvas>
+          <canvas id="hChart" aria-label="SoC and temperature over time"></canvas>
+          <div class="net-legend"><span><i style="background:#2fe0a0"></i>SoC %</span><span><i style="background:#ff8a4c"></i>Max temp °C</span><span class="muted" id="hNote"></span></div>
+        </div>
         <div class="card-head sub"><h3>Events for this drone</h3><span class="muted" id="dEvCount">0</span></div>
         <ol id="dEvents" class="dev"></ol>
       </section>
@@ -125,6 +149,56 @@
         <p id="status" class="status" aria-live="polite">Connecting to the local simulator…</p>
       </section>
 
+      <section class="card" id="fleetHealth">
+        <div class="card-head"><h2>Fleet health · BMS</h2><span class="muted" id="fhAmb"></span></div>
+        <div class="fh-counts" id="fhCounts"></div>
+        <div class="sub-h">Lowest charge (airborne) <span class="muted">click to select</span></div>
+        <ol class="fh-list" id="fhLow"></ol>
+        <div class="sub-h">Active alerts <span class="muted">last 60 s</span></div>
+        <ol class="fh-list alerts" id="fhAlerts"></ol>
+      </section>
+
+      <section class="card" id="builderCard">
+        <div class="card-head"><h2>Custom drones</h2><span class="muted" id="cdCount">0 in scenario</span></div>
+        <p class="hint">Add your own drones next to the random fleet (set fleet size to 0 for custom drones only).</p>
+        <details id="cdForm" class="adv" open><summary id="cdFormTitle">New drone</summary>
+          <div class="grid2 cd">
+            <label>Type<select id="cdType"><option>DELIVERY</option><option>EVTOL</option><option>EMERGENCY</option></select></label>
+            <label>Priority<input id="cdPrio" type="number" min="0" max="9" placeholder="type default"></label>
+            <label>Origin <button type="button" class="pick" data-pick="cdOrigin" title="Click a vertiport on the map">◎ map</button><select id="cdOrigin"></select></label>
+            <label>Destination <button type="button" class="pick" data-pick="cdDest" title="Click a vertiport on the map">◎ map</button><select id="cdDest"></select></label>
+            <label>Departure (s)<input id="cdDep" type="number" min="0" step="0.1" value="0"></label>
+            <label>Cruise speed (m/s)<input id="cdSpeed" type="number" min="0.1" step="0.1" placeholder="type default"></label>
+            <label>Preferred layer<select id="cdLayer"></select></label>
+            <label class="chk"><input type="checkbox" id="cdCoop" checked> Cooperative (broadcasts Remote ID)</label>
+            <label class="chk"><input type="checkbox" id="cdMal"> Malicious (spoofer)</label>
+            <label>Spoof offset dx, dy (m)<span class="pair"><input id="cdDx" type="number" step="1" value="25"><input id="cdDy" type="number" step="1" value="0"></span></label>
+          </div>
+          <div class="sub-h">Health inputs <span class="muted">(used by the battery model in Phase 3B)</span></div>
+          <div class="grid2 cd">
+            <label>Battery (Wh)<input id="cdWh" type="number" min="1" step="1" placeholder="type default"></label>
+            <label>Initial SoC (%)<input id="cdSoc" type="number" min="1" max="100" placeholder="100"></label>
+            <label>State of health (%)<input id="cdSoh" type="number" min="1" max="100" placeholder="100"></label>
+            <label>Payload (kg)<input id="cdPay" type="number" min="0" step="0.1" placeholder="type default"></label>
+            <label>Scheduled fault<select id="cdFault"><option value="">none</option><option value="capacity_loss">capacity loss</option><option value="cell_failure">cell failure / imbalance</option><option value="overheating">overheating</option><option value="motor_degradation">motor degradation</option><option value="gnss_degradation">GNSS degradation</option></select></label>
+            <label>Fault time (s)<input id="cdFaultT" type="number" min="0" step="1" placeholder="—"></label>
+          </div>
+          <div class="cd-btns">
+            <button id="cdAdd" class="ghost">＋ Add to scenario</button>
+            <button id="cdNow" class="ghost" title="Inject into the running simulation; departs at the current sim time">⚡ Add drone now</button>
+            <button id="cdClear" class="ghost">Clear</button>
+          </div>
+        </details>
+        <ol id="cdList" class="cd-list"></ol>
+        <div class="cd-btns">
+          <label class="ghost filebtn" title="Import a drone list (JSON or CSV)">⤒ Import<input type="file" id="cdImport" accept=".json,.csv,application/json,text/csv" hidden></label>
+          <button id="cdExpJson" class="ghost">⤓ JSON</button>
+          <button id="cdExpCsv" class="ghost">⤓ CSV</button>
+          <button id="cdRemoveAll" class="ghost">Remove all</button>
+        </div>
+        <p id="cdMsg" class="status" aria-live="polite"></p>
+      </section>
+
       <section class="card">
         <div class="card-head"><h2>DTC · sector × layer load</h2><span class="muted" id="capLabel"></span></div>
         <table class="occ" id="occ"></table>
@@ -144,6 +218,8 @@
       <article><small>Corridor boundary holds</small><b id="kTube">—</b><span id="kTubeSub">tube wall projections</span></article>
       <article id="kRepCard"><small id="kRepLabel">Spoofed reports filtered</small><b id="kRep">—</b><span id="kRepSub">trusted range check</span></article>
       <article><small>Arrivals</small><b id="kArr">—</b><span id="kArrSub">of fleet</span></article>
+      <article id="kEnergyCard"><small>Energy per delivery</small><b id="kEnergy">—</b><span id="kEnergySub">Wh drawn per delivered drone</span></article>
+      <article id="kBattCard"><small>Battery responses</small><b id="kBatt">—</b><span id="kBattSub">diversions · forced landings</span></article>
     </section>
 
     <div class="bottom">

@@ -25,7 +25,7 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, field
 import math
-from typing import Any, Callable, Iterator, Sequence
+from typing import Any, Callable, Iterable, Iterator, Sequence
 
 import numpy as np
 
@@ -36,6 +36,7 @@ from resilience.defense import defend_neighbor_reports
 from resilience.spoofer_estimate import estimate_spoofer_position, report_status
 from simulation.admm_probe import ADMMProbe
 from simulation.comm_graph import build_knn_graph, build_radius_graph
+from simulation.drone_health import CRITICAL, FAULT, STATUS_NAMES, WARNING, HealthModel
 from simulation.dynamics import step_dynamics
 from simulation.overseer import GlobalOverseer
 from simulation.overseer_link import OverseerLink
@@ -43,12 +44,12 @@ from simulation.road_network import RoadNetwork, RoutePath
 from simulation.route_centralized import centralized_commands
 from simulation.route_formation import MergeTracker, platoon_stats
 from simulation.route_priority import EmergencyTracker
-from simulation.schema import AgentState, AgentType, GlobalStateSnapshot
+from simulation.schema import AgentState, AgentType, AttackState, GlobalStateSnapshot
 from simulation.spatial_grid import (
     UniformGrid, close_same_layer_pairs, layered_min_separation_grid, radius_adjacency,
 )
 
-QUEUED, AIRBORNE, LANDED, CRASHED = 0, 1, 2, 3
+QUEUED, AIRBORNE, LANDED, CRASHED, FORCED = 0, 1, 2, 3, 4   # FORCED: landed in place (health)
 MERGE_CLEARANCE_M = 45.0  # departure needs this gap at the corridor junction on its layer
 CRASH_RADIUS_M = 2.0  # physical contact between ~1 m-class airframes on the same layer
 TYPE_PRIORITY = {AgentType.EMERGENCY: 0, AgentType.EVTOL: 1, AgentType.DELIVERY: 2}
@@ -72,6 +73,39 @@ class Flight:
     route: RoutePath
     depart_s: float
     task: str = ""
+    # custom drone input (Phase 3); None = the type default
+    priority: int | None = None
+    cruise_speed: float | None = None
+    preferred_layer: int | None = None
+    cooperative: bool = True              # broadcasts Remote-ID-style position reports
+    spoof_offset: tuple[float, float] | None = None   # malicious: false-position offset (m)
+    spoof_start_s: float | None = None
+    health: dict[str, Any] | None = None  # Phase 3B inputs (battery_wh, soc_init_pct, soh_pct, payload_kg, fault)
+    custom: bool = False
+
+    @property
+    def eff_priority(self) -> int:
+        return TYPE_PRIORITY[self.type] if self.priority is None else int(self.priority)
+
+
+TASKS = {AgentType.EMERGENCY: "medical response", AgentType.EVTOL: "passenger transport",
+         AgentType.DELIVERY: "parcel delivery"}
+
+
+def flight_from_row(network: RoadNetwork, row: dict[str, Any], depart_s: float | None = None) -> Flight:
+    """Flight from one validated custom-drone row (``scenario_manifest.validate_route_drones``)."""
+    o, d = network.vertiport(row["origin"]), network.vertiport(row["destination"])
+    typ = AgentType(row["type"])
+    return Flight(
+        agent_id=int(row["id"]), type=typ, origin=o.id, destination=d.id,
+        route=RoutePath(network.vertiport_route(o, d)),
+        depart_s=round(float(row["depart_s"] if depart_s is None else depart_s), 1), task=TASKS[typ] + " (custom)",
+        priority=row.get("priority"), cruise_speed=row.get("cruise_speed_mps"),
+        preferred_layer=row.get("preferred_layer"), cooperative=bool(row.get("cooperative", True)),
+        spoof_offset=tuple(row["spoof_offset_m"]) if row.get("malicious") else None,
+        spoof_start_s=row.get("spoof_start_s"),
+        health={k: row.get(k) for k in ("battery_wh", "soc_init_pct", "soh_pct", "payload_kg", "fault")},
+        custom=True)
 
 
 def _route_mode_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -106,8 +140,7 @@ def plan_flights(
 
     vps = network.vertiports
     by_role = {r: [v for v in vps if v.role == r] for r in ("hub", "hospital", "depot")}
-    tasks = {AgentType.EMERGENCY: "medical response", AgentType.EVTOL: "passenger transport",
-             AgentType.DELIVERY: "parcel delivery"}
+    tasks = TASKS
     routes: dict[tuple[str, str], RoutePath] = {}
     flights: list[Flight] = []
     for i, t in enumerate(types):
@@ -160,6 +193,18 @@ class RouteRunStats:
     near_misses: int = 0
     tactical_layer_shifts: int = 0
     dtc_directives: int = 0
+    # Phase 3B health
+    delivered: int = 0                 # landed at the planned destination
+    diversions: int = 0
+    forced_landings: int = 0
+    energy_depleted: int = 0           # must stay 0 in a correct run
+    grounded_preflight: int = 0        # failed the pre-flight BMS / energy check, never took off
+    energy_used_wh: float = 0.0        # all drones, drawn from the cells
+    energy_per_delivered_wh: float | None = None
+    max_pack_c: float | None = None
+    max_motor_c: float | None = None
+    bms_alerts: int = 0                # status rises to WARNING or worse
+    bms_by_status: list[int] = field(default_factory=lambda: [0, 0, 0, 0])   # airborne drones now
     malicious_ids: list[int] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -221,6 +266,9 @@ def simulate_routes(
     exact_positions: bool = False,
     architecture: str = "hierarchical",
     junction_merge: bool = True,
+    command_source: Callable[[int, float], list[dict[str, Any]]] | None = None,
+    seed: int | None = None,
+    health_detail_ids: Callable[[], Iterable[int]] | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Yield one item per tick.
 
@@ -239,6 +287,16 @@ def simulate_routes(
     switches as given; the others fix them. ``junction_merge`` turns on the P3
     junction merge rule, platoon metrics and route-mode cohesion
     (``simulation.route_formation``); off reproduces the Phase 1 behaviour.
+
+    ``command_source(k, t)`` is called at the start of every tick and returns the
+    operator commands to apply at tick ``k`` (Phase 3: ``add_drone``). Each command
+    dict is updated in place with ``tick_applied``, ``t_applied``, ``status`` and
+    ``outcome``; replaying the same commands at the same ticks reproduces the run.
+
+    Phase 3B: with ``drone_health.enabled`` every drone carries the health model of
+    ``simulation.drone_health`` (seeded by ``seed``); frames gain ``h`` (compact health
+    for all drones, once per simulated second), ``hsel`` (full detail for the ids
+    returned by ``health_detail_ids()``) and ``reroutes`` (diversions).
     """
     if architecture not in ARCHITECTURES:
         raise ValueError(f"Unknown architecture '{architecture}'. Choose one of: {', '.join(ARCHITECTURES)}")
@@ -253,7 +311,9 @@ def simulate_routes(
         yield from _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defended,
                              attack_config, overseer_link_config, should_stop,
                              max(1, int(frame_every)), bool(spatial_index), bool(exact_positions),
-                             centralized, bool(junction_merge) and not centralized)
+                             centralized, bool(junction_merge) and not centralized, command_source,
+                             int(cfg["simulation"].get("random_seed", 42) if seed is None else seed),
+                             health_detail_ids)
 
 
 def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any]:
@@ -307,7 +367,8 @@ def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any
 
 def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defended,
               attack_config, overseer_link_config, should_stop, frame_every=1, spatial=True,
-              exact_positions=False, centralized=False, junction_merge=False):
+              exact_positions=False, centralized=False, junction_merge=False, command_source=None,
+              seed=42, health_detail_ids=None):
     dt = float(cfg["simulation"]["timestep_seconds"])
     tau_v = float(cfg["control"]["velocity_time_constant_seconds"])
     lb = cfg["local_behavior"]
@@ -336,34 +397,67 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     link = OverseerLink(overseer_link_config if overseer_link_config is not None
                         else cfg["overseer"].get("link_failure", {}))
 
-    by_id = {f.agent_id: f for f in flights}
-    ids = [f.agent_id for f in flights]
-    index_of = {i: k for k, i in enumerate(ids)}
-    status = {i: QUEUED for i in ids}
-    progress = {i: 0.0 for i in ids}
+    flights = [copy.copy(f) for f in flights]   # diversions replace a flight's route: never touch the caller's
+    by_id: dict[int, Flight] = {}
+    ids: list[int] = []
+    index_of: dict[int, int] = {}
+    status: dict[int, int] = {}
+    progress: dict[int, float] = {}
     agents: dict[int, AgentState] = {}
-    # Semicircular rule: the requested cruise layer follows the overall course
-    # (eastbound -> layer 0, westbound -> layer 1). The DTC may override it for
-    # capacity; emergencies always get the reserved layer.
     preferred_layer: dict[int, int] = {}
-    for f in flights:
-        if f.type == AgentType.EMERGENCY:
-            preferred_layer[f.agent_id] = emergency_layer
+    noncoop: set[int] = set()              # drones that do not broadcast position reports
+    spoof_custom: dict[int, tuple[np.ndarray, float]] = {}   # custom spoofer -> (offset, start s)
+
+    def register(f: Flight) -> None:
+        """Add one flight to the run state (initial fleet and mid-run injections)."""
+        i = f.agent_id
+        by_id[i] = f
+        index_of[i] = len(ids)
+        ids.append(i)
+        status[i] = QUEUED
+        progress[i] = 0.0
+        # Semicircular rule: the requested cruise layer follows the overall course
+        # (eastbound -> layer 0, westbound -> layer 1). The DTC may override it for
+        # capacity; emergencies always get the reserved layer. A custom drone may request a layer.
+        if f.preferred_layer is not None:
+            preferred_layer[i] = int(f.preferred_layer)
+        elif f.type == AgentType.EMERGENCY:
+            preferred_layer[i] = emergency_layer
         else:
             course = f.route.point_at(f.route.length) - f.route.point_at(0.0)
-            preferred_layer[f.agent_id] = 0 if course[0] >= 0 else 1
-    for f in flights:
+            preferred_layer[i] = 0 if course[0] >= 0 else 1
         start = f.route.point_at(0.0)
-        layer = preferred_layer[f.agent_id]
-        agents[f.agent_id] = AgentState(
-            id=f.agent_id, type=f.type, position=np.array([start[0], start[1], float(layer)]),
+        layer = preferred_layer[i]
+        agents[i] = AgentState(
+            id=i, type=f.type, position=np.array([start[0], start[1], float(layer)]),
             destination=np.array([*f.route.point_at(f.route.length), float(layer)]),
-            priority=TYPE_PRIORITY[f.type], corridor_assignment=None, altitude_layer=layer)
+            priority=f.eff_priority, corridor_assignment=None, altitude_layer=layer)
+        if not f.cooperative:
+            noncoop.add(i)
+        if f.spoof_offset is not None:
+            spoof_custom[i] = (np.array([f.spoof_offset[0], f.spoof_offset[1], 0.0]),
+                               float(f.depart_s if f.spoof_start_s is None else f.spoof_start_s))
+        if health is not None:
+            health.add(i, f.type.value, f.health, f.custom)
+        planned_dest[i] = f.destination
+
+    hcfg = cfg.get("drone_health", {}) or {}
+    health = None
+    if hcfg.get("enabled", False):
+        xmin, ymin, xmax, ymax = network.bounds
+        health = HealthModel(cfg, seed, ((xmin + xmax) / 2.0, (ymin + ymax) / 2.0))
+        hresp = hcfg["responses"]
+        bms_every = max(1, int(round(float(hcfg["bms_period_s"]) / dt)))
+        resp_every = max(1, int(round(float(hresp["check_period_s"]) / dt)))
+    planned_dest: dict[int, str] = {}
+
+    for f in flights:
+        register(f)
     cached_layers: dict[int, int] = {}
     stats = RouteRunStats()
     held: set[int] = set()
     link_was_up = True
-    attack_announced = False
+    announced_spoofers: set[int] = set()
     last_directive_t: float | None = None
     # episode trackers (events fire on rising/falling edges, not every tick)
     admm_open: dict[int, dict[str, Any]] = {}
@@ -377,13 +471,189 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     probe = ADMMProbe(int(cfg["admm"].get("maximum_iterations", 50)))
     w_coh, r_sep, r_plat = float(lb["w_coh"]), float(lb["r_sep"]), float(lb.get("r_plat", 40.0))
 
-    def cruise_of(f_or_a) -> float:
-        return min(v_max, v_cruise * TYPE_SPEED_FACTOR[f_or_a.type])
+    def cruise_of(f_or_a) -> float:  # flight or agent; a custom drone may set its own cruise speed
+        f = by_id[getattr(f_or_a, "agent_id", getattr(f_or_a, "id", None))]
+        return min(v_max, f.cruise_speed if f.cruise_speed is not None else v_cruise * TYPE_SPEED_FACTOR[f.type])
 
     etrack = EmergencyTracker(flights, cruise_of, emergency_layer, int(cfg["corridors"]["capacity"]), dt)
     mtrack = MergeTracker(network, flights, cfg) if junction_merge else None
     wmsr_f = int(cfg.get("resilience", {}).get("f", 1))
     last_cmd: dict[int, np.ndarray] = {}   # centralized: last DTC velocity command per drone
+    new_flights: list[Flight] = []          # injected since the last full frame
+    # Phase 3B state
+    diverting: dict[int, str] = {}          # drone -> pad it is now flying to because of health
+    reserved_pads: dict[str, int] = {}      # pad -> unhealthy drone landing there (departures held)
+    pad_res_seen: set[tuple[int, str]] = set()
+    preflight_ok: set[int] = set()
+    preflight_fail: set[int] = set()
+    unhealthy: set[int] = set()             # cooperative drones at BMS CRITICAL/FAULT (DTC right of way)
+    overheat_s: dict[int, float] = {}
+    reroutes: list[dict[str, Any]] = []
+    delivered_energy: list[float] = []
+    last_layer: dict[int, int] = {}
+    last_h_step = -1
+    h_every = max(1, int(round(1.0 / dt)))
+
+    def _rank(x) -> tuple:
+        """Who yields in a tactical shift (larger rank moves): priority, then a medical emergency keeps
+        its order, then between unhealthy drones the lower SoC goes first, then id."""
+        soc = health.soc(x.id) if (health is not None and x.id in unhealthy) else 1.0
+        return (x.priority, 0 if x.type == AgentType.EMERGENCY else 1, soc, x.id)
+
+    def _land_in_place(i: int, why: str, emit) -> None:
+        status[i] = FORCED
+        agents[i].velocity[:] = 0.0
+        stats.forced_landings += 1
+        diverting.pop(i, None)
+        if mtrack is not None:
+            mtrack.drop(i)
+        emit("forced", [i], f"D-{i} FORCED LANDING in place: {why}", "global", "critical")
+
+    def _divert(i: int, why: str, emit, severity: str) -> bool:
+        """Fly to the nearest pad (by corridor route) that the remaining energy can reach."""
+        f = by_id[i]
+        pos = agents[i].position[:2].copy()
+        node = int(np.argmin(np.einsum("ij,ij->i", network.nodes - pos, network.nodes - pos)))
+        e_rem, cruise = health.e_rem_wh(i), cruise_of(f)
+        options = []
+        for v in network.vertiports:
+            pad_xy = np.asarray(v.position, dtype=float)
+            if float(np.linalg.norm(pad_xy - pos)) <= look_ahead:   # pad within an approach leg: fly straight to it
+                pts = np.vstack([pos[None, :], pad_xy[None, :]])
+            else:
+                core = network.route_polyline(node, v.node)
+                if len(core) == 0 and node != v.node:
+                    continue
+                pts = np.vstack([pos[None, :], core if len(core) else network.nodes[[node]], pad_xy[None, :]])
+            route = RoutePath(pts)
+            options.append((route.length, v.id, route))
+        options.sort(key=lambda o: (o[0], o[1]))
+        for length, vid, route in options:
+            if health.energy_needed_wh(i, length, cruise) <= e_rem:
+                if vid == f.destination and length <= f.route.length - progress[i] + 1.0:
+                    diverting[i] = vid
+                    emit("divert", [i], f"D-{i} {why}: continuing to {vid} (nearest reachable pad, "
+                         f"{length:.0f} m, {e_rem:.0f} Wh left)", "global", severity)
+                    return True
+                f.route, f.destination = route, vid
+                progress[i] = 0.0
+                agents[i].destination = np.array([*route.point_at(route.length), agents[i].position[2]])
+                if mtrack is not None:
+                    mtrack.drop(i)
+                    mtrack.add(network, f)
+                diverting[i] = vid
+                stats.diversions += 1
+                reroutes.append({"id": i, "destination": vid, "reason": why, "route_length_m": round(route.length, 1),
+                                 "route": [[round(float(x), 2), round(float(y), 2)] for x, y in route.points]})
+                emit("divert", [i], f"D-{i} {why}: DIVERTING to {vid} ({length:.0f} m, needs "
+                     f"{health.energy_needed_wh(i, length, cruise):.0f} of {e_rem:.0f} Wh)", "global", severity)
+                return True
+        _land_in_place(i, f"{why}; no pad reachable with {e_rem:.0f} Wh", emit)
+        return False
+
+    def _health_tick(step: int, t: float, air_ids: list[int], attack_state, emit) -> None:
+        idx = health.index
+        pad_ids = [i for i in ids if status[i] == QUEUED and t >= by_id[i].depart_s]
+        busy = set(air_ids) | set(pad_ids)
+        k_air = np.array([idx[i] for i in air_ids], dtype=int)
+        vel = np.array([agents[i].velocity[:2] for i in air_ids]).reshape(-1, 2)
+        for i in air_ids:   # climbs cost energy (layer changes are instantaneous in the engine)
+            up = int(agents[i].altitude_layer) - last_layer.get(i, int(agents[i].altitude_layer))
+            if up > 0:
+                health.start_climb(i, t, up, layer_h)
+            last_layer[i] = int(agents[i].altitude_layer)
+        health.step(t, dt, k_air, vel, np.array([idx[i] for i in pad_ids], dtype=int),
+                    np.array([idx[i] for i in ids if i not in busy], dtype=int))
+        if step % bms_every == 0:
+            sp = [agents[m].position[:2] for m in attack_state.malicious if status.get(m) == AIRBORNE]
+            health.link_gnss(k_air, np.array([agents[i].position[:2] for i in air_ids]).reshape(-1, 2),
+                             bool(link.is_up(t)), bool(use_overseer), np.array(sp).reshape(-1, 2), t)
+            for aid, old, new, codes in health.bms(np.array([idx[i] for i in air_ids + pad_ids], dtype=int)):
+                if new > old:
+                    stats.bms_alerts += 1
+                sev = ("info", "warning", "critical", "critical")[new]
+                what = ", ".join(codes) if codes else "all clear"
+                d = health.detail(aid, 0.0, 1.0)
+                emit("bms", [aid], f"BMS {STATUS_NAMES[old]} → {STATUS_NAMES[new]} ({what}) · SoC {d['soc']:.0f}% · "
+                     f"pack {d['t_pack']:.0f} °C · motor {d['t_motor']:.0f} °C",
+                     "global" if new >= CRITICAL else "drone", sev)
+        for i in air_ids:   # out of energy (must not happen when the responses work)
+            if status[i] == AIRBORNE and health.soc(i) <= 0.0:
+                stats.energy_depleted += 1
+                _land_in_place(i, "battery DEPLETED", emit)
+        if step % resp_every == 0:
+            for i in air_ids:
+                if status[i] != AIRBORNE:
+                    continue
+                st = health.status(i)
+                if st == FAULT:
+                    _land_in_place(i, f"BMS FAULT ({', '.join(health.codes(idx[i]))})", emit)
+                    continue
+                if st == CRITICAL:
+                    temp_only = all(health.cat_level(i, c) < CRITICAL for c in ("charge", "imbalance", "current"))
+                    if temp_only:
+                        overheat_s[i] = overheat_s.get(i, 0.0) + float(hresp["check_period_s"])
+                        if overheat_s[i] >= float(hresp["overheat_critical_hold_s"]) and i not in diverting:
+                            _divert(i, f"overheating CRITICAL for {overheat_s[i]:.0f} s", emit, "critical")
+                    elif i not in diverting:
+                        _divert(i, f"BMS CRITICAL ({', '.join(health.codes(idx[i]))})", emit, "critical")
+                    continue
+                overheat_s.pop(i, None)
+                if i in diverting:
+                    continue
+                f = by_id[i]
+                need = health.energy_needed_wh(i, max(0.0, f.route.length - progress[i]), cruise_of(f))
+                if health.e_rem_wh(i) < need:
+                    _divert(i, f"low reserve ({health.e_rem_wh(i):.0f} Wh left, {need:.0f} Wh needed to reach "
+                            f"{f.destination})", emit, "warning")
+            # DTC rule (docs/DRONE_HEALTH_MODEL.md section 8)
+            rule = bool(hresp.get("dtc_unhealthy_priority", True)) and use_overseer
+            now = {i for i in air_ids if status[i] == AIRBORNE and i not in noncoop
+                   and health.status(i) >= CRITICAL} if rule else set()
+            for i in now - unhealthy:
+                emit("dtc", [i], f"DTC: D-{i} BMS {STATUS_NAMES[health.status(i)]} → right of way to land "
+                     f"(priority 0, stays on L{int(agents[i].altitude_layer)}, pad {diverting.get(i, by_id[i].destination)} reserved)",
+                     "global", "critical")
+            unhealthy.clear()
+            unhealthy.update(now)
+            for i in air_ids:
+                agents[i].priority = 0 if i in unhealthy else by_id[i].eff_priority
+            reserved_pads.clear()
+            for i in sorted(unhealthy):
+                reserved_pads.setdefault(diverting.get(i, by_id[i].destination), i)
+        stats.energy_used_wh = round(float(health.a["e_out"].sum()), 1)
+        stats.energy_per_delivered_wh = (round(sum(delivered_energy) / len(delivered_energy), 1)
+                                         if delivered_energy else None)
+        mp, mm = health.max_temps()
+        stats.max_pack_c = None if mp is None else round(mp, 1)
+        stats.max_motor_c = None if mm is None else round(mm, 1)
+        counts = [0, 0, 0, 0]
+        for i in air_ids:
+            if status[i] == AIRBORNE:
+                counts[health.status(i)] += 1
+        stats.bms_by_status = counts
+
+    def _apply_command(cmd: dict[str, Any]) -> None:
+        cmd["tick_applied"], cmd["t_applied"] = step, t
+        if cmd.get("type") != "add_drone":
+            cmd["status"], cmd["outcome"] = "failed", f"unknown command type {cmd.get('type')!r}"
+            emit("command", [], f"Command {cmd.get('command_id', '?')} rejected: {cmd['outcome']}", "global")
+            return
+        row = cmd["drone"]
+        if row["id"] in by_id:
+            cmd["status"], cmd["outcome"] = "failed", f"id {row['id']} already in use"
+            emit("command", [], f"Add drone rejected: D-{row['id']} already exists", "global")
+            return
+        f = flight_from_row(network, row, depart_s=max(t, float(row.get("depart_s") or 0.0)))
+        flights.append(f)
+        register(f)
+        etrack.add(f)
+        if mtrack is not None:
+            mtrack.add(network, f)
+        new_flights.append(f)
+        cmd["status"], cmd["outcome"] = "applied", f"D-{f.agent_id} scheduled at {f.origin}"
+        emit("command", [f.agent_id], f"Operator added D-{f.agent_id} {f.type.value} {f.origin} → {f.destination} "
+             f"(departs at t = {f.depart_s:.1f} s)", "global")
 
     for step in range(n_steps + 1):
         if should_stop and should_stop():
@@ -391,10 +661,17 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         t = round(step * dt, 6)
         events: list[dict[str, Any]] = []
 
-        def emit(kind: str, who: Sequence[int], text: str, scope: str = "drone") -> None:
+        def emit(kind: str, who: Sequence[int], text: str, scope: str = "drone", severity: str | None = None) -> None:
             who = [int(w) for w in who]
-            events.append({"t": t, "kind": kind, "id": who[0] if who else None, "ids": who,
-                           "scope": scope, "text": text})
+            ev = {"t": t, "kind": kind, "id": who[0] if who else None, "ids": who, "scope": scope, "text": text}
+            if severity:
+                ev["severity"] = severity
+            events.append(ev)
+
+        # --- operator commands, applied at the start of the tick (deterministic replay by tick index)
+        if command_source is not None:
+            for cmd in command_source(step, t):
+                _apply_command(cmd)
 
         # --- departures (pad must be clear: ground holding otherwise)
         dep_grid = None
@@ -402,6 +679,29 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         for f in flights:
             i = f.agent_id
             if status[i] != QUEUED or t < f.depart_s:
+                continue
+            if health is not None and i not in preflight_ok:   # onboard pre-flight check (BMS + energy reserve)
+                why = None
+                if health.status(i) >= CRITICAL:
+                    why = f"BMS {STATUS_NAMES[health.status(i)]} ({', '.join(health.codes(health.index[i]))})"
+                else:
+                    need = health.energy_needed_wh(i, f.route.length, cruise_of(f))
+                    if health.e_rem_wh(i) < need:
+                        why = f"energy {health.e_rem_wh(i):.0f} Wh < {need:.0f} Wh needed for {f.destination}"
+                if why:
+                    if i not in preflight_fail:
+                        preflight_fail.add(i)
+                        stats.grounded_preflight += 1
+                        emit("preflight", [i], f"D-{i} stays on {f.origin}: pre-flight check failed — {why}", "global", "warning")
+                    continue
+                preflight_ok.add(i)
+            if f.origin in reserved_pads:   # DTC: pad kept clear for an unhealthy drone coming in to land
+                if (i, f.origin) not in pad_res_seen:
+                    pad_res_seen.add((i, f.origin))
+                    stats.pad_holds += 1
+                    etrack.on_hold(i)
+                    emit("hold", [i], f"D-{i} ground hold at {f.origin}: pad reserved for D-{reserved_pads[f.origin]} "
+                         f"(BMS {STATUS_NAMES[health.status(reserved_pads[f.origin])]}) landing", "global", "warning")
                 continue
             pad = agents[i].position[:2]
             join = f.route.points[1] if len(f.route.points) > 2 else pad
@@ -462,7 +762,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 last_directive_t = t
                 stats.dtc_directives += 1
                 sectors: dict[int, list[AgentState]] = {}
-                for a in airborne:
+                visible = [a for a in airborne if a.id not in noncoop]   # no Remote ID -> unseen by the DTC
+                for a in visible:
                     sid = _sector(network, a.position[0], a.position[1])
                     a.corridor_assignment = sid
                     sectors.setdefault(sid, []).append(a)
@@ -470,7 +771,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 prev_corr = dict(overseer.last_corridor_map)
                 prev_layer = dict(overseer.last_layer_map)
                 merged_c, merged_l = {}, {}
-                for a in airborne:  # first request = previous layer, else semicircular preference
+                for a in visible:  # first request = previous layer, else semicircular preference
                     prev_layer.setdefault(a.id, preferred_layer[a.id])
                     prev_corr[a.id] = a.corridor_assignment
                 for sid, members in sectors.items():
@@ -483,6 +784,9 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     merged_c.update(directive.corridor_map)
                     merged_l.update(directive.altitude_map)
                 overseer.last_corridor_map, overseer.last_layer_map = merged_c, merged_l
+                for aid in unhealthy:   # right of way, but no energy-costly layer change
+                    if aid in merged_l:
+                        merged_l[aid] = int(agents[aid].altitude_layer)
                 dtc_assigned = len(merged_l)
                 deferred = 0
                 for aid, layer in merged_l.items():
@@ -529,6 +833,13 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
 
         # --- P5 attack injection on reported positions
         attack_state = inject_attack(airborne, attack_cfg, t)
+        custom_spoof = [i for i, (_, t0) in spoof_custom.items() if i in by_air and t >= t0
+                        and i not in attack_state.malicious]
+        if custom_spoof:  # custom malicious drones: their own offset vector (route-mode extension of attack.py)
+            fals = dict(attack_state.falsified)
+            for i in custom_spoof:
+                fals[i] = by_air[i].position + spoof_custom[i][0]
+            attack_state = AttackState(malicious=list(attack_state.malicious) + custom_spoof, falsified=fals)
         if attack_state.falsified:
             reported = {a.id: a for a in apply_attack(airborne, attack_state)}
         else:  # no falsified report this tick: reports equal the true states (read-only below)
@@ -538,10 +849,11 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             for m in attack_state.malicious:
                 if m not in stats.malicious_ids:
                     stats.malicious_ids.append(m)
-            if not attack_announced:
-                attack_announced = True
-                emit("attack", list(attack_state.malicious),
-                     f"Spoofing attack: {', '.join('D-%d' % m for m in attack_state.malicious)} broadcast false positions", "global")
+            new_m = [m for m in attack_state.malicious if m not in announced_spoofers]
+            if new_m:
+                announced_spoofers.update(new_m)
+                emit("attack", new_m,
+                     f"Spoofing attack: {', '.join('D-%d' % m for m in new_m)} broadcast false positions", "global")
 
         # --- P3 route following + boids -> desired velocity
         desired: dict[int, np.ndarray] = {}
@@ -552,15 +864,23 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
 
         def ref_speed(a, remaining: float) -> float:
             # reference speed: cruise by mission type, brake to stop at the pad
-            return min(cruise_of(a), math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - 1.0, 0.0))) + 0.3)
+            v = min(cruise_of(a), math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - 1.0, 0.0))) + 0.3)
+            if health is not None and health.overheating(a.id):   # onboard response: limit power until it cools
+                v = min(v, float(hresp["overheat_speed_frac"]) * cruise_of(a))
+            return v
 
         if centralized and airborne:  # the DTC computes every drone's velocity from reported states
             for a in airborne:
                 s_c, _, _ = by_id[a.id].route.project(a.position[:2], progress[a.id])
                 progress[a.id] = max(progress[a.id], s_c)
+            routes_now = {a.id: by_id[a.id].route for a in airborne}
             if link.is_up(t):
                 last_cmd.update(centralized_commands(
-                    reported, {a.id: by_id[a.id].route for a in airborne}, progress, ref_speed, cfg, lane, grid_cell))
+                    {i: r for i, r in reported.items() if i not in noncoop}, routes_now, progress, ref_speed, cfg,
+                    lane, grid_cell))
+            for a in airborne:   # non-cooperative: unseen by the DTC, follows its route on its own
+                if a.id in noncoop:
+                    last_cmd.update(centralized_commands({a.id: a}, routes_now, progress, ref_speed, cfg, lane, grid_cell))
             for a in airborne:
                 desired[a.id] = last_cmd.get(a.id, np.zeros(3)).copy()
         for a in ([] if centralized else airborne):
@@ -574,7 +894,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
 
             nbr_ids = adj.get(a.id, [])
             true_n = [by_air[j] for j in nbr_ids if j in by_air and by_air[j].altitude_layer == a.altitude_layer]
-            rep_n = [reported[j] for j in nbr_ids if j in reported and reported[j].altitude_layer == a.altitude_layer]
+            rep_n = [reported[j] for j in nbr_ids if j in reported and j not in noncoop
+                     and reported[j].altitude_layer == a.altitude_layer]
             if a.id in attack_state.malicious or not defended:
                 nbrs = true_n if a.id in attack_state.malicious else rep_n
                 if a.id not in attack_state.malicious:
@@ -685,10 +1006,12 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         if use_admm and airborne:
             intents = []
             for a in airborne:
+                if a.id in noncoop:   # cannot negotiate without broadcasting
+                    continue
                 it = copy.copy(a)
                 it.velocity = desired[a.id].copy()
                 intents.append(it)
-            for ev in probe.resolve(intents, {a.id: a.priority for a in airborne}, t):
+            for ev in probe.resolve(intents, {a.id: a.priority for a in intents}, t):
                 stats.admm_events += 1
                 if ev.converged:
                     for aid, vel in ev.resolution.items():
@@ -722,7 +1045,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 continue
             a, b = by_air[aid], by_air[other]
             # the lower-priority drone yields (larger number = lower priority); tie -> larger id
-            mover = a if (a.priority, a.id) > (b.priority, b.id) else b
+            mover = a if _rank(a) > _rank(b) else b
             if shift_cooldown.get(mover.id, -1e9) > t:
                 mover = b if mover is a else a
                 if shift_cooldown.get(mover.id, -1e9) > t:
@@ -789,6 +1112,11 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 status[a.id] = LANDED
                 nxt.velocity[:] = 0.0
                 stats.arrivals += 1
+                if f.destination == planned_dest[a.id]:
+                    stats.delivered += 1
+                    if health is not None:
+                        delivered_energy.append(health.energy_used_wh(a.id))
+                diverting.pop(a.id, None)
                 etrack.on_land(a.id, t)
                 if mtrack is not None:
                     mtrack.drop(a.id)
@@ -839,6 +1167,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             stats.safety_violation_ticks += 1
         stats.min_separation_m = min(stats.min_separation_m, dmin_now)
         etrack.on_tick(agents[i] for i in air_ids)
+        if health is not None:
+            _health_tick(step, t, air_ids, attack_state, emit)
 
         if step % frame_every and step != n_steps:
             yield {"t": t, "k": step, "partial": True, "events": events, "stats": stats.to_dict()}
@@ -882,6 +1212,20 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             "spoof": _spoof_view(attack_state.malicious, by_air, reported, corrections, wmsr_f),
             "trust": {str(k): v for k, v in trust_tick.items()},
         }
+        if health is not None:
+            if step - last_h_step >= h_every or step == n_steps or last_h_step < 0:
+                frame["h"] = health.compact(ids)
+                last_h_step = step
+            sel = [i for i in (health_detail_ids() if health_detail_ids else []) if i in by_id]
+            if sel:
+                frame["hsel"] = {str(i): health.detail(i, float(np.linalg.norm(agents[i].velocity[:2])),
+                                                       cruise_of(by_id[i])) for i in sel[:4]}
+        if reroutes:
+            frame["reroutes"] = list(reroutes)
+            reroutes.clear()
+        if new_flights:  # injected mid-run: the client appends these to its flight list (frame width grows)
+            frame["new_flights"] = flight_manifest(new_flights)
+            new_flights.clear()
         if exact_positions:
             frame["pos"] = [[float(agents[i].position[0]), float(agents[i].position[1]),
                              float(agents[i].position[2])] for i in ids]
@@ -919,8 +1263,12 @@ def initial_conditions_hash(flights: Sequence[Flight], seed: int | None = None) 
 
 def flight_manifest(flights: Sequence[Flight]) -> list[dict[str, Any]]:
     return [{
-        "id": f.agent_id, "type": f.type.value, "task": f.task, "priority": TYPE_PRIORITY[f.type],
+        "id": f.agent_id, "type": f.type.value, "task": f.task, "priority": f.eff_priority,
         "origin": f.origin, "destination": f.destination, "depart_s": f.depart_s,
         "route_length_m": round(f.route.length, 1),
+        "custom": f.custom, "cooperative": f.cooperative, "malicious": f.spoof_offset is not None,
+        "cruise_speed_mps": f.cruise_speed, "preferred_layer": f.preferred_layer,
+        **({"spoof_offset_m": list(f.spoof_offset), "spoof_start_s": f.spoof_start_s} if f.spoof_offset else {}),
+        **({"health": f.health} if f.health else {}),
         "route": [[round(float(x), 2), round(float(y), 2)] for x, y in f.route.points],
     } for f in flights]

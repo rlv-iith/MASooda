@@ -32,9 +32,10 @@ import numpy as np
 
 from config.load_config import get_config
 from simulation.road_network import load_road_network
-from simulation.route_engine import (ARCHITECTURES, flight_manifest, initial_conditions_hash, plan_flights,
-                                     simulate_routes)
-from simulation.scenario_manifest import _merge_config, prepare_scenario_manifest
+from simulation.route_engine import (ARCHITECTURES, flight_from_row, flight_manifest, initial_conditions_hash,
+                                     plan_flights, simulate_routes)
+from simulation.scenario_manifest import (_merge_config, drones_from_csv, drones_from_json, drones_to_csv,
+                                          drones_to_json, prepare_scenario_manifest, validate_route_drones)
 from simulation.engine import run_simulation
 from web_sandbox.run_export import build_export
 from web_sandbox.streaming import FrameStore, choose_stride, compact_frame, web_limits
@@ -113,7 +114,41 @@ class LiveRun:
         self.thread: threading.Thread | None = None
         self.manifest: dict[str, Any] = {}       # the start response (flights, switches, ...)
         self.config: dict[str, Any] = {}
-        self.commands: list[dict[str, Any]] = []  # operator command log (Phase 4)
+        self.commands: list[dict[str, Any]] = []  # operator command log: every command with its applied tick
+        self.pending: list[dict[str, Any]] = []   # submitted, not yet picked up by the engine
+        self.network = None
+        self.duration = 0.0
+        self.ids: set[int] = set()
+        self.view_t: float | None = None     # playback time reported by the page (pacing)
+        self.sel: list[int] = []             # drones whose full health detail goes into frames
+        self.view_seen = 0.0                 # wall time of the last report
+        self.lead_s = 5.0
+        self.watch_timeout_s = 5.0
+
+    def watch(self, view_t: float) -> None:
+        self.view_t, self.view_seen = float(view_t), time.time()
+
+    def pace(self, t: float) -> None:
+        """Hold the engine at most ``lead_s`` ahead of the page's playback while a page is watching.
+
+        Pacing only changes *when* ticks are computed, never what they compute; commands
+        are still applied at a logged tick, so replays stay exact.
+        """
+        while (not self.stop_flag and self.view_t is not None and t > self.view_t + self.lead_s
+               and time.time() - self.view_seen < self.watch_timeout_s):
+            time.sleep(0.02)
+
+    def submit(self, cmd: dict[str, Any]) -> None:
+        with self.lock:
+            self.commands.append(cmd)
+            self.pending.append(cmd)
+
+    def drain(self, k: int, t: float) -> list[dict[str, Any]]:
+        """Engine side: commands to apply at the start of tick k (all submitted so far)."""
+        self.pace(t)
+        with self.lock:
+            out, self.pending = self.pending, []
+        return out
 
     def stop(self) -> None:
         self.stop_flag = True
@@ -151,7 +186,8 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
     config = _merge_config(get_config(), overrides)
     web = web_limits(config)
     max_fleet, max_duration = int(web["max_fleet"]), float(web["max_duration_s"])
-    fleet = _int(body.get("fleet", 60), "fleet", 1, max_fleet)
+    custom_rows = body.get("drones") or []
+    fleet = _int(body.get("fleet", 60), "fleet", 0 if custom_rows else 1, max_fleet)
     duration = _float(body.get("duration_s", 180), "duration_s", 5.0, max_duration)
     seed = _int(body.get("seed", config["simulation"]["random_seed"]), "seed", 0, 2**31 - 1)
     window = _float(body.get("departure_window_s", min(90.0, duration * 0.5)), "departure_window_s", 0.0, max_duration)
@@ -167,7 +203,13 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("airspace.num_layers must be between 1 and 6")
 
     map_id, network = _network(body.get("map"))
-    flights = plan_flights(network, fleet, mix, seed, window)
+    flights = plan_flights(network, fleet, mix, seed, window) if fleet else []
+    if custom_rows:  # custom drones (scenario builder / import) next to the random fleet
+        rows = validate_route_drones(custom_rows, [v.id for v in network.vertiports], config, duration,
+                                     taken_ids={f.agent_id for f in flights})
+        if len(flights) + len(rows) > max_fleet:
+            raise ValueError(f"random fleet {len(flights)} + {len(rows)} custom drones exceeds web.max_fleet = {max_fleet}")
+        flights = sorted(flights + [flight_from_row(network, r) for r in rows], key=lambda f: f.depart_s)
 
     attack_cfg = dict(config.get("attack", {}))
     attack = body.get("attack", {}) or {}
@@ -175,7 +217,7 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
     if attack_cfg["enabled"]:
         start_s = _float(attack.get("start_s", duration * 0.2), "attack.start_s", 0.0, duration)
         cruise = float(config["local_behavior"]["v_cruise"]) * 0.9
-        delivery = [f for f in flights if f.type.value == "DELIVERY"] or list(flights)
+        delivery = [f for f in flights if f.type.value == "DELIVERY" and not f.custom] or [f for f in flights if not f.custom] or list(flights)
         count = _int(attack.get("count", 2), "attack.count", 1, max(1, len(delivery)))
         # spoofers should be in the air while the attack runs: prefer flights that
         # departed before the attack and still have the longest time left aloft
@@ -226,7 +268,9 @@ def _run_worker(run: LiveRun, prepared: dict[str, Any]) -> None:
             should_stop=lambda: run.stop_flag, frame_every=prepared["stride"],
             spatial_index=bool(prepared["web"]["spatial_index"]),
             architecture=prepared.get("architecture", "hierarchical"),
-            junction_merge=prepared.get("junction_merge", True))
+            junction_merge=prepared.get("junction_merge", True),
+            command_source=run.drain, seed=prepared["seed"],
+            health_detail_ids=lambda: run.sel)
         seq, prev_stats, prev_prio = 0, None, None
         for item in gen:
             pending_events.extend(item["events"])
@@ -283,13 +327,93 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
             "emergency_layer": int(cfg["airspace"].get("emergency_layer", 2)),
             "capacity": int(cfg["corridors"]["capacity"]),
             "merge_gap": float(cfg["local_behavior"]["merge_gap"]),
+            "health": ({"enabled": True, "ambient_c": float(cfg["drone_health"]["ambient_c"]),
+                        "thresholds": cfg["drone_health"]["thresholds"]}
+                       if cfg.get("drone_health", {}).get("enabled") else {"enabled": False}),
             "max_iterations": int(cfg["admm"]["maximum_iterations"]),
         },
     })
     run.manifest, run.config = manifest, _json_safe(cfg)
+    run.network, run.duration = prepared["network"], prepared["duration"]
+    run.lead_s = float(prepared["web"]["interactive_lead_s"])
+    run.watch_timeout_s = float(prepared["web"]["watcher_timeout_s"])
+    run.ids = {f.agent_id for f in prepared["flights"]}
     run.thread = threading.Thread(target=_run_worker, args=(run, prepared), daemon=True)
     run.thread.start()
     return manifest
+
+
+def submit_command(run: LiveRun, body: dict[str, Any]) -> dict[str, Any]:
+    """Validate an operator command and queue it; the engine applies it at the start of the next tick.
+
+    Phase 3 supports ``add_drone`` (the scenario-builder form; it departs at the current sim time).
+    """
+    if not isinstance(body, dict) or body.get("type") != "add_drone":
+        raise ValueError("command type must be 'add_drone' (more command types arrive with the DTC console)")
+    with run.lock:
+        taken = set(run.ids)
+        row = dict(body.get("drone") or {})
+        row.pop("depart_s", None)   # "Add drone now": departs at the current sim time
+        [valid] = validate_route_drones([row], [v.id for v in run.network.vertiports], run.config,
+                                        run.duration, taken_ids=taken)
+        run.ids.add(valid["id"])
+        cmd = {"command_id": f"c{len(run.commands) + 1}", "type": "add_drone", "drone": valid,
+               "reason": str(body.get("reason", ""))[:200], "status": "sent",
+               "tick_applied": None, "t_applied": None, "outcome": None}
+    run.submit(cmd)
+    return {"command_id": cmd["command_id"], "status": "sent", "drone_id": valid["id"]}
+
+
+def scripted_commands(log: list[dict[str, Any]]):
+    """Command source for replay: re-applies each logged command at its logged tick."""
+    by_tick: dict[int, list[dict[str, Any]]] = {}
+    for c in log:
+        if c.get("tick_applied") is not None:
+            fresh = {k: v for k, v in c.items() if k not in ("tick_applied", "t_applied", "status", "outcome")}
+            by_tick.setdefault(int(c["tick_applied"]), []).append(fresh)
+    return lambda k, t: by_tick.pop(k, [])
+
+
+def _drone_context(body: dict[str, Any]):
+    config = get_config()
+    _, network = _network(body.get("map"))
+    duration = float(body.get("duration_s") or web_limits(config)["max_duration_s"])
+    return config, network, duration
+
+
+def parse_drones(body: dict[str, Any]) -> dict[str, Any]:
+    """Import: CSV or JSON text -> validated drone rows (per-row error messages on failure)."""
+    config, network, duration = _drone_context(body)
+    fmt, text = body.get("format"), body.get("text", "")
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("the file is empty")
+    if fmt == "csv":
+        rows = drones_from_csv(text)
+    elif fmt == "json":
+        try:
+            rows = drones_from_json(json.loads(text))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"not valid JSON: {exc}") from None
+    else:
+        raise ValueError("format must be 'csv' or 'json'")
+    taken = set(range(int(body.get("random_fleet", 0) or 0)))
+    valid = validate_route_drones(rows, [v.id for v in network.vertiports], config, duration, taken)
+    for r, src in zip(valid, rows):   # ids the file did not set are assigned at launch, after the random fleet
+        if isinstance(src, dict) and src.get("id") in (None, ""):
+            r["id"] = None
+    return {"drones": valid}
+
+
+def export_drones(body: dict[str, Any]) -> dict[str, Any]:
+    config, network, duration = _drone_context(body)
+    raw = body.get("drones") or []
+    rows = validate_route_drones(raw, [v.id for v in network.vertiports], config, duration)
+    for r, src in zip(rows, raw):   # keep ids the user set; auto-assigned ids would clash with the random fleet
+        if isinstance(src, dict) and src.get("id") in (None, ""):
+            r["id"] = None
+    if body.get("format") == "csv":
+        return {"text": drones_to_csv(rows), "filename": "masooda_drones.csv"}
+    return {"text": json.dumps(drones_to_json(rows), indent=1), "filename": "masooda_drones.json"}
 
 
 # --------------------------------------------------------------------------- handler
@@ -332,7 +456,7 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 self._send_json(200, {"max_agent_ticks": MAX_AGENT_TICKS,
                                       **{k: web[k] for k in ("max_fleet", "max_duration_s", "realtime_max_fleet",
                                                              "max_frames_in_memory", "poll_batch",
-                                                             "target_frames_per_sim_s")}})
+                                                             "target_frames_per_sim_s", "interactive_lead_s")}})
             elif route == "/api/architectures":
                 self._send_json(200, {"default": "hierarchical", "architectures": list(ARCHITECTURES)})
             elif route == "/api/maps":
@@ -366,12 +490,24 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(payload)
+            elif route.startswith("/api/runs/") and route.endswith("/commands"):
+                run = RUNS.get(route.split("/")[3])
+                if run is None:
+                    self._send_json(404, {"error": "run_not_found"})
+                    return
+                with run.lock:
+                    self._send_json(200, {"commands": [dict(c) for c in run.commands]})
             elif route.startswith("/api/runs/") and route.endswith("/frames"):
                 run = RUNS.get(route.split("/")[3])
                 if run is None:
                     self._send_json(404, {"error": "run_not_found"})
                     return
-                start = int(parse_qs(url.query).get("from", ["0"])[0])
+                query = parse_qs(url.query)
+                start = int(query.get("from", ["0"])[0])
+                if "view_t" in query:   # the page's playback time paces the simulator
+                    run.watch(float(query["view_t"][0]))
+                if "sel" in query:      # selected drone: full health detail in the next frames
+                    run.sel = [int(x) for x in query["sel"][0].split(",") if x.strip().lstrip("-").isdigit()][:4]
                 finished = run.done  # read before the store so no frame can arrive unseen
                 frames, stored = run.store.since(start, int(web_limits(get_config())["poll_batch"]))
                 nxt = frames[-1]["n"] + 1 if frames else start
@@ -397,6 +533,19 @@ class ScenarioHandler(BaseHTTPRequestHandler):
         try:
             if route == "/api/runs":
                 self._send_json(200, start_live_run(self._read_json()))
+            elif route.startswith("/api/runs/") and route.endswith("/commands"):
+                run = RUNS.get(route.split("/")[3])
+                if run is None:
+                    self._send_json(404, {"error": "run_not_found"})
+                    return
+                if run.done:
+                    self._send_json(409, {"error": "run_finished", "message": "The run has finished; launch a new one."})
+                    return
+                self._send_json(202, submit_command(run, self._read_json()))
+            elif route == "/api/drones/parse":
+                self._send_json(200, parse_drones(self._read_json()))
+            elif route == "/api/drones/export":
+                self._send_json(200, export_drones(self._read_json()))
             elif route.startswith("/api/runs/") and route.endswith("/stop"):
                 run = RUNS.get(route.split("/")[3])
                 if run:

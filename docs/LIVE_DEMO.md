@@ -47,6 +47,29 @@ Pick the map with the selector on the map header, or open `/?map=hyderabad`.
 - **⤓ Run / ⤒ Load** (top bar): download the run as JSON (manifest, resolved config, command log,
   per-frame KPIs, events, frames) and replay it later without re-simulating.
 
+## Custom drones (Phase 3)
+
+The **Custom drones** card builds drones before launch: type, priority, origin/destination
+(dropdown or ◎ then click a vertiport on the map), departure, cruise speed, preferred layer,
+cooperative / malicious (+ spoof offset) and health inputs with an optional scheduled fault. They fly
+together with the random fleet (fleet size 0 = custom drones only). **Import** reads JSON or CSV
+(every bad row is listed), **⤓ JSON / CSV** export the list. During a run, **⚡ Add drone now**
+injects the form as a command; the drone departs at the simulator's next tick (the simulator stays
+at most 5 s ahead of playback while the page is open).
+
+## Drone health (Phase 3B)
+
+Every drone carries a battery/BMS/thermal model (`docs/DRONE_HEALTH_MODEL.md`). The map rings
+drones by BMS status (amber warning, red critical/fault), draws a battery glyph below 30 % SoC and
+⊘ where a drone landed in place. The drone card's **Health** tab shows SoC, voltage, current and power,
+energy/time/range left, SoH, per-cell voltages, pack and motor temperatures against their limits,
+BMS status and fault codes, DTC link RSSI and packet loss, GNSS fix/HDOP, and SoC/temperature over
+time. Full detail streams for the selected drone (a few seconds behind selection while live).
+**Fleet health** lists counts by BMS status, the lowest-charge airborne drones and alerts from the
+last 60 s. Onboard responses (pre-flight check, divert on low reserve or CRITICAL, land in place on
+FAULT, speed limit when hot) and the DTC right-of-way rule appear in the governance log with
+severity. Schedule faults from the Custom drones form.
+
 ## What changed and why
 
 Before: the Hyderabad map was only a picture behind the simulation. The engine

@@ -53,14 +53,11 @@ class MergeTracker:
         self.merge_gap = float(lb["merge_gap"])
         self.k_v = float(lb["k_v"])
         self.half_w = float(cfg["corridors"]["width_meters"]) / 2.0
-        cache: dict[int, list] = {}
+        self._cache: dict[int, list] = {}
         self.junctions: dict[int, list] = {}
+        self.next_j: dict[int, int] = {}
         for f in flights:
-            rid = id(f.route)
-            if rid not in cache:
-                cache[rid] = route_junctions(network, f.route)
-            self.junctions[f.agent_id] = cache[rid]
-        self.next_j = {f.agent_id: 0 for f in flights}
+            self.add(network, f)
         self.open: dict[int, dict[str, Any]] = {}   # drone -> current attempt
         self.success = 0
         self.failed = 0
@@ -68,6 +65,13 @@ class MergeTracker:
         self.yield_ticks = 0
         self.blocked_now: dict[int, tuple[float, float]] = {}   # drone -> junction xy (this tick)
         self.active_now: dict[int, tuple[float, float]] = {}
+
+    def add(self, network: Any, f: Any) -> None:
+        rid = id(f.route)
+        if rid not in self._cache:
+            self._cache[rid] = route_junctions(network, f.route)
+        self.junctions[f.agent_id] = self._cache[rid]
+        self.next_j[f.agent_id] = 0
 
     def factor(self, aid: int, s: float, layer: int, nbrs: Iterable[Any]) -> tuple[float, str | None]:
         """Speed factor for drone ``aid`` at arc length ``s`` (1.0 or 1 - k_v) and an event text."""

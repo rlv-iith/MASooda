@@ -200,3 +200,223 @@ def prepare_scenario_manifest(
         "overseer_link_config": deepcopy(manifest.get("overseer_link_config")),
         "attack_config": deepcopy(manifest.get("attack_config", config.get("attack", {}))),
     }
+
+
+# ============================================================================ route mode
+# Custom drones for the map-constrained live demo (Phase 3). One row per drone;
+# the same rows come from the scenario builder form, JSON and CSV import, and
+# the mid-run "Add drone now" command.
+
+FAULT_TYPES = ("capacity_loss", "cell_failure", "overheating", "motor_degradation", "gnss_degradation")
+DRONE_FIELDS = (
+    "id", "type", "priority", "origin", "destination", "depart_s", "cruise_speed_mps", "preferred_layer",
+    "cooperative", "malicious", "spoof_offset_m", "spoof_start_s",
+    "battery_wh", "soc_init_pct", "soh_pct", "payload_kg", "fault",
+)
+CSV_COLUMNS = (
+    "id", "type", "priority", "origin", "destination", "depart_s", "cruise_speed_mps", "preferred_layer",
+    "cooperative", "malicious", "spoof_dx_m", "spoof_dy_m", "spoof_start_s",
+    "battery_wh", "soc_init_pct", "soh_pct", "payload_kg", "fault_type", "fault_t_s",
+)
+DRONES_FORMAT = "masooda-drones"
+
+
+def _num(row: dict, key: str, errs: list[str], lo: float | None = None, hi: float | None = None,
+         lo_open: bool = False, default: Any = None, integer: bool = False) -> Any:
+    value = row.get(key, default)
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value):
+        errs.append(f"{key} must be a number")
+        return default
+    if integer and int(value) != value:
+        errs.append(f"{key} must be a whole number")
+        return default
+    value = int(value) if integer else float(value)
+    if lo is not None and (value <= lo if lo_open else value < lo):
+        errs.append(f"{key} must be {'>' if lo_open else '≥'} {lo:g}")
+    if hi is not None and value > hi:
+        errs.append(f"{key} must be ≤ {hi:g}")
+    return value
+
+
+def validate_route_drones(rows: Any, vertiports: list[str], config: dict[str, Any], duration_s: float,
+                          taken_ids: set[int] | None = None, depart_floor_s: float = 0.0) -> list[dict[str, Any]]:
+    """Validate custom drone rows and return normalized rows.
+
+    All rows are checked; one ``ValueError`` lists every problem as
+    ``row <n> (D-<id>): <field> ...`` so the user can fix a whole file at once.
+    Missing ids are assigned after ``taken_ids`` (the random fleet) in row order.
+    Health inputs are validated and stored; ``simulation/drone_health.py``
+    (Phase 3B) fills type defaults for the ones left empty.
+    """
+    if not isinstance(rows, list):
+        raise ValueError("drones must be a list of objects")
+    num_layers = int(config["airspace"]["num_layers"])
+    emergency_layer = int(config["airspace"].get("emergency_layer", num_layers - 1))
+    v_max = float(config["safety"]["maximum_velocity_meters_per_second"])
+    default_offset = float(config.get("attack", {}).get("offset_magnitude_meters", 25.0))
+    vp = set(vertiports)
+    taken = set(taken_ids or set())
+    problems: list[str] = []
+    out: list[dict[str, Any]] = []
+    explicit = [r.get("id") for r in rows if isinstance(r, dict) and isinstance(r.get("id"), int)
+                and not isinstance(r.get("id"), bool)]
+    next_id = max([*taken, *explicit, -1]) + 1
+    for n, row in enumerate(rows, start=1):
+        errs: list[str] = []
+        if not isinstance(row, dict):
+            problems.append(f"row {n}: must be an object")
+            continue
+        extra = set(row) - set(DRONE_FIELDS)
+        if extra:
+            errs.append(f"unknown field(s) {', '.join(sorted(extra))}")
+        did = row.get("id")
+        if did is None or did == "":
+            did = next_id
+            next_id += 1
+        elif isinstance(did, bool) or not isinstance(did, int) or did < 0:
+            errs.append("id must be a non-negative whole number")
+            did = None
+        elif did in taken:
+            errs.append(f"id {did} is already used")
+        if did is not None:
+            taken.add(did)
+        try:
+            typ = AgentType(str(row.get("type", "DELIVERY")).strip().upper())
+        except ValueError:
+            errs.append("type must be EMERGENCY, EVTOL or DELIVERY")
+            typ = AgentType.DELIVERY
+        priority = _num(row, "priority", errs, 0, 9, default=_PRIORITY_BY_TYPE[typ], integer=True)
+        origin, dest = row.get("origin"), row.get("destination")
+        if origin not in vp:
+            errs.append(f"origin '{origin}' is not a vertiport on this map ({', '.join(sorted(vp))})")
+        if dest not in vp:
+            errs.append(f"destination '{dest}' is not a vertiport on this map")
+        if origin == dest and origin in vp:
+            errs.append("origin and destination must differ")
+        depart = _num(row, "depart_s", errs, depart_floor_s, duration_s, default=depart_floor_s)
+        speed = _num(row, "cruise_speed_mps", errs, 0.0, v_max, lo_open=True)
+        layer = _num(row, "preferred_layer", errs, 0, num_layers - 1, integer=True)
+        if layer is not None and layer == emergency_layer and typ != AgentType.EMERGENCY:
+            errs.append(f"preferred_layer {layer} is reserved for EMERGENCY drones")
+        flags = {}
+        for key, default in (("cooperative", True), ("malicious", False)):
+            value = row.get(key, default)
+            if isinstance(value, str) and value.strip().lower() in ("true", "false", "1", "0", "yes", "no", ""):
+                value = value.strip().lower() in ("true", "1", "yes") if value.strip() else default
+            if not isinstance(value, bool):
+                errs.append(f"{key} must be true or false")
+                value = default
+            flags[key] = value
+        offset = row.get("spoof_offset_m")
+        if flags["malicious"]:
+            if offset in (None, ""):
+                offset = [default_offset, 0.0]
+            if (not isinstance(offset, (list, tuple)) or len(offset) != 2
+                    or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and np.isfinite(v) for v in offset)):
+                errs.append("spoof_offset_m must be [dx, dy] in metres")
+                offset = [default_offset, 0.0]
+            elif float(np.hypot(*offset)) <= 0.0 or float(np.hypot(*offset)) > 500.0:
+                errs.append("spoof_offset_m length must be in (0, 500] m")
+            offset = [float(offset[0]), float(offset[1])]
+        else:
+            offset = None
+        spoof_start = _num(row, "spoof_start_s", errs, 0.0, duration_s) if flags["malicious"] else None
+        health = {
+            "battery_wh": _num(row, "battery_wh", errs, 0.0, 100000.0, lo_open=True),
+            "soc_init_pct": _num(row, "soc_init_pct", errs, 0.0, 100.0, lo_open=True),
+            "soh_pct": _num(row, "soh_pct", errs, 0.0, 100.0, lo_open=True),
+            "payload_kg": _num(row, "payload_kg", errs, 0.0, 1000.0),
+        }
+        fault = row.get("fault")
+        if fault not in (None, "", {}):
+            if not isinstance(fault, dict) or set(fault) - {"type", "t_s"}:
+                errs.append("fault must be {type, t_s}")
+                fault = None
+            else:
+                if fault.get("type") not in FAULT_TYPES:
+                    errs.append(f"fault.type must be one of {', '.join(FAULT_TYPES)}")
+                t_s = _num(fault, "t_s", errs, 0.0, duration_s, default=None)
+                if t_s is None:
+                    errs.append("fault.t_s (time of the fault) is required")
+                fault = {"type": fault.get("type"), "t_s": t_s}
+        else:
+            fault = None
+        if errs:
+            problems.append(f"row {n} (D-{did if did is not None else '?'}): " + "; ".join(errs))
+            continue
+        out.append({"id": did, "type": typ.value, "priority": priority, "origin": origin, "destination": dest,
+                    "depart_s": depart, "cruise_speed_mps": speed, "preferred_layer": layer,
+                    "cooperative": flags["cooperative"], "malicious": flags["malicious"],
+                    "spoof_offset_m": offset, "spoof_start_s": spoof_start, **health, "fault": fault})
+    if problems:
+        raise ValueError(f"{len(problems)} invalid drone row(s):\n" + "\n".join(problems))
+    return out
+
+
+def drones_to_json(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    return {"format": DRONES_FORMAT, "version": 1, "drones": rows}
+
+
+def drones_from_json(data: Any) -> list[dict[str, Any]]:
+    """Accept ``{"format": "masooda-drones", "drones": [...]}`` or a bare list."""
+    if isinstance(data, dict):
+        if data.get("format") not in (None, DRONES_FORMAT):
+            raise ValueError(f"not a drone list (format '{data.get('format')}')")
+        data = data.get("drones")
+    if not isinstance(data, list):
+        raise ValueError("drone list JSON must be a list or {\"drones\": [...]}")
+    return data
+
+
+def drones_to_csv(rows: list[dict[str, Any]]) -> str:
+    import csv
+    import io
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    w.writeheader()
+    for r in rows:
+        off = r.get("spoof_offset_m") or [None, None]
+        fault = r.get("fault") or {}
+        flat = {k: r.get(k) for k in CSV_COLUMNS if k in r}
+        flat.update({"spoof_dx_m": off[0], "spoof_dy_m": off[1], "fault_type": fault.get("type"),
+                     "fault_t_s": fault.get("t_s")})
+        w.writerow({k: ("" if flat.get(k) is None else str(flat[k]).lower() if isinstance(flat.get(k), bool)
+                        else flat[k]) for k in CSV_COLUMNS})
+    return buf.getvalue()
+
+
+def drones_from_csv(text: str) -> list[dict[str, Any]]:
+    """CSV with a header row (``CSV_COLUMNS``; unknown columns are reported per row by validation)."""
+    import csv
+    import io
+    reader = csv.DictReader(io.StringIO(text.strip()))
+    if not reader.fieldnames:
+        raise ValueError("CSV is empty")
+    unknown = set(reader.fieldnames) - set(CSV_COLUMNS)
+    if unknown:
+        raise ValueError(f"unknown CSV column(s): {', '.join(sorted(unknown))}")
+    numeric = {"id", "priority", "depart_s", "cruise_speed_mps", "preferred_layer", "spoof_dx_m", "spoof_dy_m",
+               "spoof_start_s", "battery_wh", "soc_init_pct", "soh_pct", "payload_kg", "fault_t_s"}
+    rows: list[dict[str, Any]] = []
+    for n, rec in enumerate(reader, start=2):
+        row: dict[str, Any] = {}
+        for k, v in rec.items():
+            v = (v or "").strip()
+            if v == "":
+                continue
+            if k in numeric:
+                try:
+                    num = float(v)
+                except ValueError:
+                    raise ValueError(f"CSV line {n}: {k} = '{v}' is not a number") from None
+                row[k] = int(num) if k in ("id", "priority", "preferred_layer") and num.is_integer() else num
+            else:
+                row[k] = v
+        if "spoof_dx_m" in row or "spoof_dy_m" in row:
+            row["spoof_offset_m"] = [row.pop("spoof_dx_m", 0.0), row.pop("spoof_dy_m", 0.0)]
+        if "fault_type" in row or "fault_t_s" in row:
+            row["fault"] = {"type": row.pop("fault_type", None), "t_s": row.pop("fault_t_s", None)}
+        rows.append(row)
+    return rows

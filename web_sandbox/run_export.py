@@ -24,7 +24,9 @@ EXPORT_FORMAT = "masooda-run"
 EXPORT_VERSION = 1
 KPI_STATS = ("arrivals", "crashes", "near_misses", "safety_violation_ticks", "min_separation_m", "admm_events",
              "admm_nonconverged", "tactical_layer_shifts", "dtc_directives", "layer_changes", "pad_holds",
-             "reports_dropped", "spoofed_reports_accepted", "tube_corrections")
+             "reports_dropped", "spoofed_reports_accepted", "tube_corrections",
+             "delivered", "diversions", "forced_landings", "energy_depleted", "grounded_preflight",
+             "energy_used_wh", "energy_per_delivered_wh", "max_pack_c", "max_motor_c", "bms_alerts")
 
 
 def config_hash(config: dict[str, Any]) -> str:
