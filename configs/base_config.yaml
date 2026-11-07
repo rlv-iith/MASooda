@@ -66,7 +66,6 @@ admm:
   priority_weights: {0: 10.0, 1: 3.0, 2: 1.0}
   detection_radius_meters: 20.0
   merge_zone_only: true
-  max_group_size: 5
 
 overseer:
   update_period_seconds: 2.0

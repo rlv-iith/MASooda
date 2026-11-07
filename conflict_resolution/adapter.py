@@ -71,6 +71,15 @@ def resolve_conflict_event(
         z = np.array([float(getattr(a, "altitude_layer", 0)) for a in agent_states], dtype=float)
         result = solver.solve(positions, targets, weights=w, z=z)
 
+        if not result.converged:
+            # Lalith (P2): never expose an unverified ADMM iterate as a resolved
+            # command. Callers receive the original intent and a failed status.
+            return ConflictEvent(
+                agents_involved=agent_ids,
+                resolution={a.id: a.velocity.copy() for a in agent_states},
+                converged=False,
+            )
+
         resolution: dict[int, np.ndarray] = {}
         for k, agent in enumerate(agent_states):
             vel = agent.velocity.copy()

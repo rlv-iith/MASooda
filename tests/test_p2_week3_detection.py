@@ -49,8 +49,8 @@ def test_two_agents_outside_merge_zone():
     assert groups == []
 
 
-def test_seven_agents_in_merge_zone_chunked():
-    """7 agents all within 15 m in the merge zone -> groups of size 5 and 2."""
+def test_seven_agent_conflict_component_stays_intact():
+    """Lalith (P2): a connected seven-agent conflict remains one solve group."""
     agents = [
         AgentState(
             id=i + 1,
@@ -62,11 +62,7 @@ def test_seven_agents_in_merge_zone_chunked():
     ]
 
     groups = detect_conflicts(agents)
-    assert len(groups) == 2
-    assert len(groups[0]) == 5
-    assert len(groups[1]) == 2
-    assert groups[0] == [1, 2, 3, 4, 5]
-    assert groups[1] == [6, 7]
+    assert groups == [[1, 2, 3, 4, 5, 6, 7]]
 
 
 def test_resolve_all_conflicts_returns_one_event_per_group():
@@ -82,22 +78,17 @@ def test_resolve_all_conflicts_returns_one_event_per_group():
     ]
 
     events = resolve_all_conflicts(agents, priorities={1: 0, 2: 2})
-    assert len(events) == 2
+    assert len(events) == 1
 
     for event in events:
         assert isinstance(event, ConflictEvent)
         assert event.converged
 
-    assert set(events[0].agents_involved) == {1, 2, 3, 4, 5}
-    assert set(events[1].agents_involved) == {6, 7}
+    assert set(events[0].agents_involved) == {1, 2, 3, 4, 5, 6, 7}
 
-    for aid in [1, 2, 3, 4, 5]:
+    for aid in range(1, 8):
         assert aid in events[0].resolution
         assert isinstance(events[0].resolution[aid], np.ndarray)
-
-    for aid in [6, 7]:
-        assert aid in events[1].resolution
-        assert isinstance(events[1].resolution[aid], np.ndarray)
 
     # Empty list when no conflicts exist
     outside_agents = [

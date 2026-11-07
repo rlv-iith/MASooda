@@ -1,0 +1,1266 @@
+{
+ "type": "FeatureCollection",
+ "name": "IITH campus corridor map",
+ "junction_snap_m": 16.0,
+ "bbox": [
+  78.1120689,
+  17.5861526,
+  78.1351311,
+  17.6018474
+ ],
+ "backdrop": {
+  "image": "iith_campus_map.jpg",
+  "bbox": [
+   78.1120689,
+   17.5861526,
+   78.1351311,
+   17.6018474
+  ],
+  "attribution": "Campus map \u00a9 Indian Institute of Technology Hyderabad"
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "id": "primary/0",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1120689,
+      17.5952908
+     ],
+     [
+      78.1131432,
+      17.5952908
+     ],
+     [
+      78.1143071,
+      17.595949
+     ],
+     [
+      78.1177986,
+      17.5960174
+     ],
+     [
+      78.118112,
+      17.5958635
+     ],
+     [
+      78.1182731,
+      17.5953335
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/1",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1182731,
+      17.5953335
+     ],
+     [
+      78.1185148,
+      17.5950087
+     ],
+     [
+      78.1192311,
+      17.5941111
+     ],
+     [
+      78.1199473,
+      17.5929571
+     ],
+     [
+      78.1203054,
+      17.5920168
+     ],
+     [
+      78.1206635,
+      17.5914868
+     ],
+     [
+      78.1234389,
+      17.5914611
+     ],
+     [
+      78.123797,
+      17.5916321
+     ],
+     [
+      78.1266797,
+      17.5916919
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/2",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1182731,
+      17.5953335
+     ],
+     [
+      78.1177986,
+      17.5950087
+     ],
+     [
+      78.1176643,
+      17.5947523
+     ],
+     [
+      78.1176375,
+      17.5915466
+     ],
+     [
+      78.1189625,
+      17.5915466
+     ],
+     [
+      78.1189804,
+      17.5903498
+     ],
+     [
+      78.1192311,
+      17.5902387
+     ],
+     [
+      78.122275,
+      17.5909055
+     ],
+     [
+      78.1267245,
+      17.5909482
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/3",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1166348,
+      17.5975732
+     ],
+     [
+      78.1166348,
+      17.5960174
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/4",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1159185,
+      17.5960174
+     ],
+     [
+      78.1159185,
+      17.5945984
+     ],
+     [
+      78.1154709,
+      17.5945129
+     ],
+     [
+      78.1154709,
+      17.5912047
+     ],
+     [
+      78.1175748,
+      17.5912047
+     ],
+     [
+      78.1176375,
+      17.5915466
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/5",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1233672,
+      17.5977442
+     ],
+     [
+      78.1234209,
+      17.5982998
+     ],
+     [
+      78.1267245,
+      17.5982742
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/6",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1234209,
+      17.5982998
+     ],
+     [
+      78.1237074,
+      17.5991119
+     ],
+     [
+      78.1256323,
+      17.5991547
+     ],
+     [
+      78.1254085,
+      17.5983255
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/7",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1233672,
+      17.5977442
+     ],
+     [
+      78.1237074,
+      17.5971031
+     ],
+     [
+      78.1266797,
+      17.5970774
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/8",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1267245,
+      17.5982742
+     ],
+     [
+      78.1266797,
+      17.5970774
+     ],
+     [
+      78.1267245,
+      17.5956327
+     ],
+     [
+      78.1267245,
+      17.5945385
+     ],
+     [
+      78.1267245,
+      17.5928289
+     ],
+     [
+      78.1266797,
+      17.5916919
+     ],
+     [
+      78.1267245,
+      17.5909482
+     ],
+     [
+      78.1267514,
+      17.5899652
+     ],
+     [
+      78.1263037,
+      17.5897942
+     ],
+     [
+      78.125498,
+      17.5880845
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/9",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1267514,
+      17.5899652
+     ],
+     [
+      78.128139,
+      17.5899224
+     ],
+     [
+      78.128139,
+      17.5885974
+     ],
+     [
+      78.1276466,
+      17.5879563
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/10",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1267245,
+      17.5982742
+     ],
+     [
+      78.1281838,
+      17.5982998
+     ],
+     [
+      78.1284524,
+      17.5980861
+     ],
+     [
+      78.1285867,
+      17.595949
+     ],
+     [
+      78.1296162,
+      17.5959918
+     ],
+     [
+      78.1297505,
+      17.5953506
+     ],
+     [
+      78.1313173,
+      17.5953335
+     ],
+     [
+      78.1339136,
+      17.5953677
+     ],
+     [
+      78.1341821,
+      17.5951369
+     ],
+     [
+      78.1342538,
+      17.593299
+     ],
+     [
+      78.1340926,
+      17.5926152
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/11",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1267245,
+      17.5956327
+     ],
+     [
+      78.1282733,
+      17.5956071
+     ],
+     [
+      78.1290791,
+      17.5946668
+     ],
+     [
+      78.1316754,
+      17.5945385
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/12",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1316754,
+      17.5945385
+     ],
+     [
+      78.1323021,
+      17.5953079
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/13",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1316754,
+      17.5945385
+     ],
+     [
+      78.1310487,
+      17.5938119
+     ],
+     [
+      78.1309592,
+      17.5924442
+     ],
+     [
+      78.1309592,
+      17.5900506
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "primary/14",
+   "properties": {
+    "highway": "primary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.128139,
+      17.5900079
+     ],
+     [
+      78.1309592,
+      17.5900335
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/0",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.118873,
+      17.5982571
+     ],
+     [
+      78.1219169,
+      17.5982571
+     ],
+     [
+      78.1223645,
+      17.5978297
+     ],
+     [
+      78.1233672,
+      17.5977442
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/1",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.118873,
+      17.5982571
+     ],
+     [
+      78.118873,
+      17.5954532
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/2",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1203502,
+      17.5982571
+     ],
+     [
+      78.1203502,
+      17.5954532
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/3",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1183358,
+      17.5954532
+     ],
+     [
+      78.1223198,
+      17.5954532
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/4",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1223198,
+      17.5978297
+     ],
+     [
+      78.1223198,
+      17.5954532
+     ],
+     [
+      78.1223198,
+      17.5928289
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/5",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1223198,
+      17.5961371
+     ],
+     [
+      78.1266618,
+      17.5961371
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/6",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1231703,
+      17.5948805
+     ],
+     [
+      78.1240655,
+      17.5949061
+     ],
+     [
+      78.125498,
+      17.5948377
+     ],
+     [
+      78.1266618,
+      17.5950087
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/7",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1231703,
+      17.5954532
+     ],
+     [
+      78.1231703,
+      17.5948805
+     ],
+     [
+      78.1231703,
+      17.5928289
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/8",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1199473,
+      17.5928289
+     ],
+     [
+      78.1223198,
+      17.5928289
+     ],
+     [
+      78.1231703,
+      17.5928289
+     ],
+     [
+      78.1267245,
+      17.5928289
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/9",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1267245,
+      17.5945385
+     ],
+     [
+      78.1274676,
+      17.5945385
+     ],
+     [
+      78.1274676,
+      17.5929144
+     ],
+     [
+      78.1298401,
+      17.5929144
+     ],
+     [
+      78.1309592,
+      17.5929144
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/10",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1298401,
+      17.5944958
+     ],
+     [
+      78.1298401,
+      17.5929144
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/11",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1274676,
+      17.5936837
+     ],
+     [
+      78.1281838,
+      17.5936837
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "tertiary/12",
+   "properties": {
+    "highway": "tertiary",
+    "source": "traced from IITH campus map"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      78.1266797,
+      17.5916919
+     ],
+     [
+      78.1274676,
+      17.5916748
+     ],
+     [
+      78.1309592,
+      17.5916748
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "geofence",
+   "properties": {
+    "geofence": true,
+    "name": "IITH campus boundary"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       78.1120689,
+       17.5955644
+      ],
+      [
+       78.1124717,
+       17.5955644
+      ],
+      [
+       78.1125165,
+       17.5977442
+      ],
+      [
+       78.114889,
+       17.5979579
+      ],
+      [
+       78.1153366,
+       17.597616
+      ],
+      [
+       78.1166795,
+       17.597616
+      ],
+      [
+       78.1167243,
+       17.5980006
+      ],
+      [
+       78.1186939,
+       17.5980006
+      ],
+      [
+       78.1187834,
+       17.5984281
+      ],
+      [
+       78.1217378,
+       17.5984281
+      ],
+      [
+       78.122275,
+       17.5979579
+      ],
+      [
+       78.1231703,
+       17.5978297
+      ],
+      [
+       78.1235731,
+       17.5992402
+      ],
+      [
+       78.1257218,
+       17.5992829
+      ],
+      [
+       78.125498,
+       17.5983853
+      ],
+      [
+       78.1283629,
+       17.5984281
+      ],
+      [
+       78.1286314,
+       17.5981289
+      ],
+      [
+       78.1287657,
+       17.5960345
+      ],
+      [
+       78.129661,
+       17.5960773
+      ],
+      [
+       78.1298401,
+       17.5954789
+      ],
+      [
+       78.1340479,
+       17.5954789
+      ],
+      [
+       78.1343164,
+       17.5952224
+      ],
+      [
+       78.134406,
+       17.5932135
+      ],
+      [
+       78.1341821,
+       17.5924442
+      ],
+      [
+       78.1348536,
+       17.5910764
+      ],
+      [
+       78.1348536,
+       17.5889394
+      ],
+      [
+       78.1314068,
+       17.5897087
+      ],
+      [
+       78.1282733,
+       17.5901361
+      ],
+      [
+       78.1282733,
+       17.5885119
+      ],
+      [
+       78.1276914,
+       17.5878281
+      ],
+      [
+       78.1253189,
+       17.5879563
+      ],
+      [
+       78.1261694,
+       17.5899224
+      ],
+      [
+       78.1266618,
+       17.5899652
+      ],
+      [
+       78.1266171,
+       17.59082
+      ],
+      [
+       78.122275,
+       17.5907773
+      ],
+      [
+       78.1192311,
+       17.5900934
+      ],
+      [
+       78.118873,
+       17.5902216
+      ],
+      [
+       78.1188282,
+       17.5914184
+      ],
+      [
+       78.1177986,
+       17.5914184
+      ],
+      [
+       78.1177091,
+       17.5910337
+      ],
+      [
+       78.1152919,
+       17.5910337
+      ],
+      [
+       78.1152919,
+       17.5944103
+      ],
+      [
+       78.1129641,
+       17.593641
+      ],
+      [
+       78.1125165,
+       17.5944103
+      ],
+      [
+       78.1124717,
+       17.5950087
+      ],
+      [
+       78.1120689,
+       17.5950087
+      ],
+      [
+       78.1120689,
+       17.5955644
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V1",
+   "properties": {
+    "vertiport": "hospital",
+    "name": "Hospital",
+    "ref": "V1"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1180493,
+     17.5929998
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V2",
+   "properties": {
+    "vertiport": "hub",
+    "name": "Main Gate",
+    "ref": "V2"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1134118,
+     17.5964619
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V3",
+   "properties": {
+    "vertiport": "hub",
+    "name": "Guest House",
+    "ref": "V3"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.117351,
+     17.5970603
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V4",
+   "properties": {
+    "vertiport": "hub",
+    "name": "Convention Centre",
+    "ref": "V4"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1194996,
+     17.59612
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V5",
+   "properties": {
+    "vertiport": "hub",
+    "name": "LHC",
+    "ref": "V5"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1228569,
+     17.5939402
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V6",
+   "properties": {
+    "vertiport": "hub",
+    "name": "Admin Block",
+    "ref": "V6"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1220064,
+     17.5922732
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V7",
+   "properties": {
+    "vertiport": "hub",
+    "name": "Academic Area",
+    "ref": "V7"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1248713,
+     17.5925297
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V8",
+   "properties": {
+    "vertiport": "depot",
+    "name": "Mess B",
+    "ref": "V8"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1276914,
+     17.5940256
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V9",
+   "properties": {
+    "vertiport": "hub",
+    "name": "New Hostels",
+    "ref": "V9"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1289,
+     17.5935127
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V10",
+   "properties": {
+    "vertiport": "depot",
+    "name": "Mess A",
+    "ref": "V10"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1284524,
+     17.5912047
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V11",
+   "properties": {
+    "vertiport": "hub",
+    "name": "Old Hostels",
+    "ref": "V11"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1272885,
+     17.5905635
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V12",
+   "properties": {
+    "vertiport": "hub",
+    "name": "SNCC",
+    "ref": "V12"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1317649,
+     17.5926152
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "V13",
+   "properties": {
+    "vertiport": "depot",
+    "name": "Sampoorna",
+    "ref": "V13"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     78.1150233,
+     17.5969748
+    ]
+   }
+  }
+ ]
+}

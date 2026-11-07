@@ -60,11 +60,13 @@ class GlobalOverseer:
         self,
         corridors: list[int] | None = None,
         policy: str | None = None,
+        config: dict | None = None,
     ) -> None:
-        self.corridors = list(corridors) if corridors is not None else list(DEFAULT_CORRIDOR_IDS)
-        config = get_config()
+        config = config if config is not None else get_config()
         overseer_config = config.get("overseer", {})
         corridor_config = config.get("corridors", {})
+        configured_count = int(corridor_config.get("count", len(DEFAULT_CORRIDOR_IDS)))
+        self.corridors = list(corridors) if corridors is not None else list(range(configured_count))
         self.policy = policy or overseer_config.get("default_policy", "least_loaded")
         self.capacity = int(corridor_config.get("capacity", 15))
         self.last_corridor_map: dict[int, int] = {}
@@ -185,9 +187,14 @@ class GlobalOverseer:
 _default_overseer = GlobalOverseer()
 
 
-def reset_default_overseer() -> None:
-    """Reset state retained by the module-level default overseer."""
-    _default_overseer.reset()
+def reset_default_overseer(config: dict | None = None) -> None:
+    """Reset state, optionally rebuilding the overseer from a run's config."""
+    global _default_overseer
+    if config is not None:
+        corridor_count = int(config.get("corridors", {}).get("count", len(DEFAULT_CORRIDOR_IDS)))
+        _default_overseer = GlobalOverseer(corridors=list(range(corridor_count)), config=config)
+    else:
+        _default_overseer.reset()
 
 
 def real_overseer_update(

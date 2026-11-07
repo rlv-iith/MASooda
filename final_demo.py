@@ -10,7 +10,7 @@ Airspace Hierarchy:
   - 2.5D Multi-Layer Airspace: Discrete vertical layers (e.g., 5 to 7 layers) with continuous (x, y) motion.
   - P4 Global Overseer: Coordinates dynamic corridor assignment and strategic altitude layer management.
   - P3 Local Behavior: Reynolds Boids navigation toward designated mission targets.
-  - P2 Consensus ADMM: Resolves conflicting flight paths in real-time when trajectories intersect.
+  - P2 Consensus ADMM: Negotiates one-tick adjustments for detected conflict components; convergence and separation are measured, not assumed.
   - P2 Week 5 Profiling (ADMMRecorder): Measures iterations, solve times, and convergence metrics.
   - P5 Resilience: Detects and mitigates Byzantine cyberattacks using W-MSR consensus filtering.
   - P6 Formal Verification: Signal Temporal Logic (STL) continuously verifies the G(separation >= d_safe) safety contract.

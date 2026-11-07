@@ -13,7 +13,7 @@ def detect_conflicts(
     agent_states: Sequence[AgentState],
     config: dict | None = None,
 ) -> list[list[int]]:
-    """Find which agents are in conflict and partition them into groups of up to max_group_size.
+    """Find connected components of agents that may conflict this tick.
 
     - Two agents are "in conflict" if their x,y distance < admm.detection_radius_meters
       AND they are on the same altitude layer
@@ -21,8 +21,7 @@ def detect_conflicts(
       Read merge_zone_x_meters directly from the config.
     - Build groups = connected components of the conflict pairs (only agents with at least
       one conflict). Each group is a sorted list of agent ids. Groups sorted by first id.
-    - If a group is bigger than max_group_size, split it into chunks of max_group_size after
-      sorting the agents by x position.
+    - Keep each connected component intact so interactions remain visible to the same solve.
     """
     if not agent_states:
         return []
@@ -35,13 +34,11 @@ def detect_conflicts(
 
     detection_radius = float(admm_cfg.get("detection_radius_meters", 20.0))
     merge_zone_only = bool(admm_cfg.get("merge_zone_only", True))
-    max_group_size = int(admm_cfg.get("max_group_size", 5))
 
     merge_zone = corridors_cfg.get("merge_zone_x_meters", [700.0, 800.0])
     merge_x_min = float(merge_zone[0])
     merge_x_max = float(merge_zone[1])
 
-    agent_map: dict[int, AgentState] = {a.id: a for a in agent_states}
     agent_list = list(agent_states)
     n = len(agent_list)
 
@@ -91,16 +88,6 @@ def detect_conflicts(
     # Sort components by first (minimum) id
     components.sort(key=lambda c: min(c))
 
-    # Process components and split if bigger than max_group_size
-    groups: list[list[int]] = []
-    for comp in components:
-        if len(comp) <= max_group_size:
-            groups.append(sorted(comp))
-        else:
-            comp_agents = [agent_map[aid] for aid in comp]
-            comp_agents.sort(key=lambda a: (float(a.position[0]), a.id))
-            for k in range(0, len(comp_agents), max_group_size):
-                chunk = comp_agents[k : k + max_group_size]
-                groups.append(sorted([a.id for a in chunk]))
-
-    return groups
+    # Lalith (P2): preserve the complete conflict component. Fixed-size chunks
+    # could separate a conflicting pair at a cut, omitting their joint constraint.
+    return [sorted(comp) for comp in components]
