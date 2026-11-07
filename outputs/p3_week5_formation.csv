@@ -1,2 +1,0 @@
-N,seed,merge_attempts,merge_success,merge_failed,not_reached,merge_success_rate,throughput_per_s,arrivals,mean_utilization,util_c0,util_c1,util_c2,peak_c0,peak_c1,peak_c2,ticks_over_capacity,safety_violation_ticks
-30,42,0,0,0,30,NaN,0.0,0,0.6666666666666666,0.6666666666666666,0.6666666666666666,0.6666666666666666,0.6666666666666666,0.6666666666666666,0.6666666666666666,0,265

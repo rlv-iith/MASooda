@@ -5,3 +5,10 @@ __pycache__/
 workflow.pdf
 _incoming/
 outputs/mvp/
+
+# generated results: keep only the Week 6 results the README links to
+outputs/*
+!outputs/week6/
+
+# local Claude working files
+Claude outputs/

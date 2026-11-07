@@ -1,1 +1,0 @@
-PASS: All groups with matching (seed, num_agents) have identical initial conditions.
