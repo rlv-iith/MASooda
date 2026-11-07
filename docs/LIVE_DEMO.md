@@ -26,6 +26,27 @@ Pick the map with the selector on the map header, or open `/?map=hyderabad`.
 - **Merge-gap departure:** a drone stays on its pad until the junction where its approach leg joins the corridor is clear on its layer.
 - **Polygon geofence** (IITH campus boundary): positions outside are projected back inside.
 
+## Phase 2 panels and controls
+
+- **Architecture** selector: hierarchical (MASooda), centralized (the DTC computes every velocity,
+  no ADMM, trusts reports), decentralized (no DTC, ADMM + defence), decentralized undefended. The
+  scenario header shows the initial-conditions hash, identical across architectures for the same
+  seed, fleet and map.
+- **P2 · ADMM convergence timer** (bottom): iterations (mean/max) and solve time per frame,
+  run totals with p95, fallback (non-converged) ticks; the drone card shows the drone's last
+  negotiation. Solve time is wall-clock and is the only non-deterministic number.
+- **Emergency compliance** KPI and a per-emergency line in the drone card: delay vs nominal free-flow
+  time, yields (ground hold / altitude shift / gated directive), time on the reserved layer.
+- **Junction merges** KPI and map rings at junctions with a merge in progress (amber: the gap rule
+  is slowing the merging drone by `1 - k_v`); platoon count and time headway.
+- **Spoofing view**: for each spoofer the map shows its broadcast position (dashed purple) and the
+  W-MSR estimate fused from the receivers' corrections (green ×); the drone card lists each
+  neighbour report as kept / corrected / unverified (or accepted, when the defence is off).
+- **Safety definition**: min separation and ρ(t) are layer-aware 3D (route engine);
+  `verification/metrics.py` is horizontal-only, so experiment numbers differ.
+- **⤓ Run / ⤒ Load** (top bar): download the run as JSON (manifest, resolved config, command log,
+  per-frame KPIs, events, frames) and replay it later without re-simulating.
+
 ## What changed and why
 
 Before: the Hyderabad map was only a picture behind the simulation. The engine

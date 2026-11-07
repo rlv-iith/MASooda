@@ -8,8 +8,10 @@ The browser UI (``web_sandbox/live_demo.html``) starts a run with
 ``POST /api/runs``. The run executes in a background thread using the
 map-constrained route engine and streams frames that the page polls with
 ``GET /api/runs/<id>/frames?from=<k>``, so playback starts immediately while
-the simulation is still computing. ``POST /api/simulate`` (abstract corridor
-engine) is kept for compatibility. Binds to loopback only.
+the simulation is still computing. ``GET /api/runs/<id>/export`` returns the
+run as one replayable JSON document (``web_sandbox.run_export``).
+``POST /api/simulate`` (abstract corridor engine) is LEGACY: kept for the
+earlier API contract, not used by the page. Binds to loopback only.
 """
 
 from __future__ import annotations
@@ -30,9 +32,11 @@ import numpy as np
 
 from config.load_config import get_config
 from simulation.road_network import load_road_network
-from simulation.route_engine import flight_manifest, plan_flights, simulate_routes
+from simulation.route_engine import (ARCHITECTURES, flight_manifest, initial_conditions_hash, plan_flights,
+                                     simulate_routes)
 from simulation.scenario_manifest import _merge_config, prepare_scenario_manifest
 from simulation.engine import run_simulation
+from web_sandbox.run_export import build_export
 from web_sandbox.streaming import FrameStore, choose_stride, compact_frame, web_limits
 import local_behavior.boids as boids
 import simulation.overseer as overseer
@@ -68,7 +72,6 @@ STATIC = {
     "/live": ("live_demo.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/styles.css": ("styles.css", "text/css; charset=utf-8"),
-    "/prototype": ("index.html", "text/html; charset=utf-8"),
 }
 
 
@@ -108,6 +111,9 @@ class LiveRun:
         self.started = time.time()
         self.request = request
         self.thread: threading.Thread | None = None
+        self.manifest: dict[str, Any] = {}       # the start response (flights, switches, ...)
+        self.config: dict[str, Any] = {}
+        self.commands: list[dict[str, Any]] = []  # operator command log (Phase 4)
 
     def stop(self) -> None:
         self.stop_flag = True
@@ -188,14 +194,23 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
         link_cfg["down_end_seconds"] = _float(outage.get("end_s", duration * 0.6), "outage.end_s",
                                               link_cfg["down_start_seconds"], duration)
     switches = {}
-    for key in ("use_overseer", "use_admm", "defended"):
+    for key in ("use_overseer", "use_admm", "defended", "junction_merge"):
         value = body.get(key, True)
         if not isinstance(value, bool):
             raise ValueError(f"{key} must be true or false")
         switches[key] = value
+    architecture = body.get("architecture", "hierarchical")
+    if architecture not in ARCHITECTURES:
+        raise ValueError(f"architecture must be one of: {', '.join(ARCHITECTURES)}")
+    fixed = ARCHITECTURES[architecture]
+    if fixed is not None:  # the architecture decides DTC / ADMM / defence
+        switches["use_overseer"], switches["use_admm"], switches["defended"] = fixed[:3]
+        if fixed[3]:
+            switches["junction_merge"] = False   # centralized: the DTC computes every velocity
 
     return {"map": map_id, "network": network, "flights": flights, "duration": duration, "config": config,
-            "attack": attack_cfg, "link": link_cfg, "seed": seed, "fleet": fleet,
+            "attack": attack_cfg, "link": link_cfg, "seed": seed, "fleet": fleet, "architecture": architecture,
+            "ic_hash": initial_conditions_hash(flights, seed),
             "stride": choose_stride(config, fleet), "web": web, **switches}
 
 
@@ -209,14 +224,18 @@ def _run_worker(run: LiveRun, prepared: dict[str, Any]) -> None:
             use_admm=prepared["use_admm"], defended=prepared["defended"],
             attack_config=prepared["attack"], overseer_link_config=prepared["link"],
             should_stop=lambda: run.stop_flag, frame_every=prepared["stride"],
-            spatial_index=bool(prepared["web"]["spatial_index"]))
-        seq, prev_stats = 0, None
+            spatial_index=bool(prepared["web"]["spatial_index"]),
+            architecture=prepared.get("architecture", "hierarchical"),
+            junction_merge=prepared.get("junction_merge", True))
+        seq, prev_stats, prev_prio = 0, None, None
         for item in gen:
             pending_events.extend(item["events"])
             if item.get("partial"):
                 continue  # light tick: its events ride on the next full frame
-            frame = compact_frame(_json_safe(dict(item, events=pending_events)), seq, prev_stats, max_edges)
-            prev_stats = item["stats"] if "stats" in frame else prev_stats
+            frame = compact_frame(_json_safe(dict(item, events=pending_events)), seq, prev_stats, max_edges,
+                                  prev_prio)
+            prev_stats = frame["stats"] if "stats" in frame else prev_stats
+            prev_prio = frame["prio"] if "prio" in frame else prev_prio
             pending_events = []
             run.store.append(frame)
             seq += 1
@@ -237,12 +256,14 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
         run_id = uuid.uuid4().hex[:12]
         run = LiveRun(run_id, body, int(prepared["web"]["max_frames_in_memory"]))
         RUNS[run_id] = run
-    run.thread = threading.Thread(target=_run_worker, args=(run, prepared), daemon=True)
-    run.thread.start()
     cfg = prepared["config"]
-    return _json_safe({
+    manifest = _json_safe({
         "run_id": run_id,
         "map": prepared["map"],
+        "architecture": prepared["architecture"],
+        "ic_hash": prepared["ic_hash"],
+        "safety_definition": "layer-aware 3D: min over pairs of |(dx, dy, Δlayer·layer height)| (route engine); "
+                             "verification/metrics.py robustness_series is horizontal-only",
         "dt": float(cfg["simulation"]["timestep_seconds"]) * prepared["stride"],
         "stride_ticks": prepared["stride"],
         "frame_version": 2,
@@ -253,7 +274,7 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
                    "start_s": prepared["attack"].get("start_time_seconds")},
         "outage": {"enabled": prepared["link"]["enabled"], "start_s": prepared["link"].get("down_start_seconds"),
                    "end_s": prepared["link"].get("down_end_seconds")},
-        "switches": {k: prepared[k] for k in ("use_overseer", "use_admm", "defended")},
+        "switches": {k: prepared[k] for k in ("use_overseer", "use_admm", "defended", "junction_merge")},
         "limits": {
             "d_min": float(cfg["safety"]["minimum_separation_meters"]),
             "corridor_width": float(cfg["corridors"]["width_meters"]),
@@ -261,8 +282,14 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
             "layer_height": float(cfg["airspace"]["layer_height_meters"]),
             "emergency_layer": int(cfg["airspace"].get("emergency_layer", 2)),
             "capacity": int(cfg["corridors"]["capacity"]),
+            "merge_gap": float(cfg["local_behavior"]["merge_gap"]),
+            "max_iterations": int(cfg["admm"]["maximum_iterations"]),
         },
     })
+    run.manifest, run.config = manifest, _json_safe(cfg)
+    run.thread = threading.Thread(target=_run_worker, args=(run, prepared), daemon=True)
+    run.thread.start()
+    return manifest
 
 
 # --------------------------------------------------------------------------- handler
@@ -306,6 +333,8 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                                       **{k: web[k] for k in ("max_fleet", "max_duration_s", "realtime_max_fleet",
                                                              "max_frames_in_memory", "poll_batch",
                                                              "target_frames_per_sim_s")}})
+            elif route == "/api/architectures":
+                self._send_json(200, {"default": "hierarchical", "architectures": list(ARCHITECTURES)})
             elif route == "/api/maps":
                 self._send_json(200, {"default": DEFAULT_MAP,
                                       "maps": [{"id": k, "label": v["label"]} for k, v in MAPS.items()]})
@@ -321,6 +350,22 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 payload["label"] = MAPS[map_id]["label"]
                 payload["source"] = MAPS[map_id]["source"]
                 self._send_json(200, payload)
+            elif route.startswith("/api/runs/") and route.endswith("/export"):
+                run = RUNS.get(route.split("/")[3])
+                if run is None:
+                    self._send_json(404, {"error": "run_not_found"})
+                    return
+                frames, _ = run.store.since(0, 10**9)
+                export = build_export(run.manifest, run.request, run.config, frames, run.commands,
+                                      complete=run.done and run.error is None, thinned=run.store.thinned)
+                payload = json.dumps(_json_safe(export), allow_nan=False, separators=(",", ":")).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Content-Disposition", f'attachment; filename="masooda_run_{run.id}.json"')
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(payload)
             elif route.startswith("/api/runs/") and route.endswith("/frames"):
                 run = RUNS.get(route.split("/")[3])
                 if run is None:
@@ -357,7 +402,7 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 if run:
                     run.stop()
                 self._send_json(200, {"stopped": bool(run)})
-            elif route == "/api/simulate":  # legacy: abstract three-corridor engine, not used by the page
+            elif route == "/api/simulate":  # LEGACY: abstract three-corridor engine, not used by the page
                 self._legacy_simulate()
             else:
                 self._send_json(404, {"error": "route_not_found"})

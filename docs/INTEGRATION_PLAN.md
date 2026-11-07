@@ -196,3 +196,39 @@ streams (compact v2 frames at the adaptive stride, JSON serialisation included).
   177 airborne. At 250 and 500 the runs show 2–3 near misses (25–26 violation ticks), whether the
   grid is on or off. This is a traffic-density finding for later phases, not a Phase 1 regression.
 - Remaining cost at 500 (ms/tick): defence 2.5, ADMM 2.3, dynamics 1.4, boids 1.0, grid queries ≈ 1.2.
+
+## 9. Phase 2 results (every workflow component in the live demo)
+
+Decisions taken before coding (answers to §7): safety keeps the route engine's layer-aware 3D
+definition and is labelled in the UI; the P5 view adds a spoofer-position estimate in a new module;
+emergency nominal time uses the type's own cruise speed.
+
+| Step | Module (new unless noted) | Shared code reused | Route-mode deviation |
+|---|---|---|---|
+| 2a ADMM timer | `simulation/admm_probe.py` | `ADMMRecorder`, `resolve_all_conflicts` (serialised by a lock: the recorder patches the class) | ms p95 from a log histogram (±1 bin ≈ 12 %); iteration p95 exact |
+| 2b P4 compliance | `simulation/route_priority.py` | definitions of `priority_metrics.py` | cell = (sector, layer) instead of corridor; nominal = route length / type cruise speed; travel from scheduled departure (holds count) |
+| 2c P3 merging | `simulation/route_formation.py` | `merge_gap`, `k_v`, `d_0`, `h`, `r_sep`, `w_coh`, `r_plat`; `boids.separation/alignment` | target corridor = outgoing road after a degree ≥ 3 junction; cohesion along the road and off inside `max(r_sep, d_0 + h·v)` (with plain `r_sep` it pulled drones inside their headway: ADMM groups ×4); platoon definition is new (none in `formation_metrics.py`) |
+| 2d P6 safety | — | — | kept 3D layer-aware; UI and run manifest state that `metrics.py` is horizontal-only |
+| 2e P5 W-MSR | `resilience/spoofer_estimate.py` | `defend_neighbor_reports` (unchanged), `wmsr_vector` | estimate = W-MSR over the receivers' range-corrected positions, anchored at their median |
+| 2f architectures | `simulation/route_centralized.py`, `ARCHITECTURES` in `route_engine.py` | control law of `centralized.py`; switch sets of `decentralized_undefended.py` | lane-following replaces corridor centreline |
+| 2g export/replay | `web_sandbox/run_export.py`, `GET /api/runs/<id>/export` | — | `/prototype` removed; `/api/simulate` marked legacy |
+
+Architectures (IITH, 60 drones, 180 s, seed 42, spoofing attack, same IC hash `6f591df49df4`):
+
+| Architecture | Arrivals | Crashes | Near misses | Violation ticks | Min sep (m) |
+|---|---|---|---|---|---|
+| hierarchical (merging off / on) | 46 / 46 | 0 / 0 | 0 / 0 | 0 / 0 | 12.87 / 12.90 |
+| centralized | 42 | 1 | 6 | 93 | 1.42 |
+| decentralized | 46 | 0 | 0 | 0 | 12.90 |
+| decentralized, undefended | 46 | 0 | 0 | 0 | 11.12 |
+
+W-MSR spoofer estimate (25 m spoof offset, hierarchical, 180 s): at 150 drones the estimate is
+closer to the truth than the broadcast in 88 % of ticks with one receiver (10.5 m vs 25 m), 100 %
+with two (16.4 m) and 100 % with three or more (7.0 m). At 60 drones there is usually one receiver
+and the estimate is no better than the broadcast (25.7 m): `defense.py` corrects only the range,
+along the false bearing, so one receiver cannot remove a sideways offset.
+
+Cost (worker, frames included): 250 × 300 s 54.4 ticks/s (5.4×; Phase 1 63.4), 500 × 300 s
+32.8 ticks/s (3.3×; Phase 1 34.4). Frames grew to 8.5 KB (250) and 16.5 KB (500); the stream at 500
+is 55 KB per sim-second, above `web.max_kb_per_sim_s = 40` because `est_bytes_per_drone_frame`
+(22 B) no longer includes the Phase 2 fields.

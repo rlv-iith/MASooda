@@ -10,7 +10,11 @@ Compact frame v2 (what ``/api/runs/<id>/frames`` returns)::
      "spd": [dm/s], "prog": [per-mille],
      "rho", "link_up", "attack", "net", "dtc", "events",
      "edges": [[i, j], ...], "edges_total": int,   # evenly sampled above web.max_edges_per_frame
-     "stats": {...}}                  # only when changed since the previous frame (carry forward)
+     "stats": {...},                  # only when changed since the previous frame (carry forward)
+     # Phase 2 (present when the engine produced them):
+     "admm": {window stats, "run": {cumulative incl. p95}},  "neg": {drone id: last ADMM negotiation},
+     "prio": {emergency compliance; only when changed, carry forward},  "merge": {junction merging + platoons},
+     "spoof": {spoofer id: reported / true / W-MSR estimate},  "trust": {receiver id: [[nbr, status]]}}
 
 Thinning keeps every event: a dropped frame's events (and its stats, if the next
 kept frame has none) move into the next kept frame.
@@ -36,6 +40,8 @@ DEFAULT_WEB = {
     "spatial_index": True,
     "grid_cell_m": 40.0,
 }
+PHASE2_KEYS = ("admm", "neg", "merge", "spoof", "trust")
+CARRY_KEYS = ("stats", "prio")   # sent only when changed; the client (and thinning) carries them forward
 
 
 def web_limits(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -70,7 +76,8 @@ def _sample_edges(edges: list, cap: int) -> list:
     return [edges[int(i * step)] for i in range(cap)]
 
 
-def compact_frame(frame: dict[str, Any], seq: int, prev_stats: dict | None, max_edges: int) -> dict[str, Any]:
+def compact_frame(frame: dict[str, Any], seq: int, prev_stats: dict | None, max_edges: int,
+                  prev_prio: dict | None = None) -> dict[str, Any]:
     """Engine frame (floats, verbose) -> compact v2 frame (small ints)."""
     status, layer = frame["status"], frame["layer"]
     edges = [list(e) for e in frame.get("edges", [])]
@@ -90,9 +97,15 @@ def compact_frame(frame: dict[str, Any], seq: int, prev_stats: dict | None, max_
         "edges": _sample_edges(edges, max_edges),
         "edges_total": len(edges),
     }
+    for key in PHASE2_KEYS:  # Phase 2 instruments, passed through when present
+        if frame.get(key) is not None:
+            out[key] = frame[key]
     stats = frame.get("stats")
     if stats is not None and stats != prev_stats:
         out["stats"] = stats
+    prio = frame.get("prio")
+    if prio is not None and prio != prev_prio:
+        out["prio"] = prio
     return out
 
 
@@ -116,20 +129,22 @@ class FrameStore:
         half = len(self.frames) // 2
         kept: list[dict[str, Any]] = []
         carry_events: list = []
-        carry_stats = None
+        carry: dict[str, Any] = {}
         for i, f in enumerate(self.frames):
             if i < half and i % 2 == 1:
                 carry_events.extend(f.get("events", []))
-                if "stats" in f:
-                    carry_stats = f["stats"]
+                for key in CARRY_KEYS:
+                    if key in f:
+                        carry[key] = f[key]
                 self.thinned += 1
                 continue
-            if carry_events or carry_stats is not None:
+            if carry_events or carry:
                 f = dict(f)
                 f["events"] = carry_events + list(f.get("events", []))
-                if "stats" not in f and carry_stats is not None:
-                    f["stats"] = carry_stats
-                carry_events, carry_stats = [], None
+                for key, value in carry.items():
+                    if key not in f:
+                        f[key] = value
+                carry_events, carry = [], {}
             kept.append(f)
         self.frames = kept
 

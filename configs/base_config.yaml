@@ -55,6 +55,7 @@ local_behavior:
   beta: 0.5
   merge_lateral_speed: 2.0 # m/s, max sideways speed while merging
   merge_gap: 15.0          # m, needed free gap along x in the target corridor
+  junction_merge_zone_m: 40.0  # m, route mode: merge rule applies this far before a road junction
 
 admm:
   tolerance: 0.001

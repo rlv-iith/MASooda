@@ -27,6 +27,8 @@
       <button id="playBtn" class="ghost" title="Play / pause (space)">❚❚</button>
       <div class="seg" id="speedSeg"><button data-speed="1">1×</button><button data-speed="2" class="on">2×</button><button data-speed="4">4×</button><button data-speed="8">8×</button></div>
       <button id="restartBtn" class="ghost" title="Replay from start">↺</button>
+      <button id="dlBtn" class="ghost" title="Download this run as JSON (manifest, config, command log, KPIs, events, frames)">⤓ Run</button>
+      <label class="ghost filebtn" title="Load a downloaded run and replay it without re-simulating">⤒ Load<input type="file" id="loadRun" accept=".json,application/json" hidden></label>
     </div>
   </header>
 
@@ -47,7 +49,7 @@
         <canvas id="map" aria-label="Map of the corridor network with live drone positions — click a drone to select it"></canvas>
         <div class="legend">
           <span><i class="sw emergency"></i>Emergency</span><span><i class="sw evtol"></i>eVTOL</span><span><i class="sw delivery"></i>Delivery</span>
-          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span>
+          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span><span><i class="sw spoof"></i>Spoofed report → W-MSR estimate</span><span><i class="sw junction"></i>Junction merge (amber = gap blocked)</span>
         </div>
         <div class="zoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit map">⤢</button><button id="zFollow" aria-label="Follow selected drone" title="Follow selected drone">◎</button></div>
         <div id="buffer" class="buffer" hidden>computing ahead…</div>
@@ -73,6 +75,9 @@
           <dt>V2V links (degree)</dt><dd id="dDeg">—</dd>
           <dt>DTC link</dt><dd id="dDtc">—</dd>
           <dt>ADMM · shifts · alerts</dt><dd id="dCounts">—</dd>
+          <dt>Last ADMM negotiation</dt><dd id="dNeg">—</dd>
+          <dt id="dPrioLbl">Emergency priority</dt><dd id="dPrio">—</dd>
+          <dt>Neighbour reports</dt><dd id="dTrust">—</dd>
         </dl>
         <div class="card-head sub"><h3>Events for this drone</h3><span class="muted" id="dEvCount">0</span></div>
         <ol id="dEvents" class="dev"></ol>
@@ -80,6 +85,13 @@
 
       <section class="card">
         <div class="card-head"><h2>Scenario</h2><span class="muted" id="seedLabel"></span></div>
+        <label class="archsel">Architecture
+          <select id="arch">
+            <option value="hierarchical">Hierarchical — DTC + local boids/ADMM (MASooda)</option>
+            <option value="centralized">Centralized — DTC computes every velocity</option>
+            <option value="decentralized">Decentralized — no DTC, ADMM + defence</option>
+            <option value="decentralized_undefended">Decentralized, undefended — no DTC, no defence</option>
+          </select></label>
         <div class="scenes" id="scenes">
           <button data-scene="normal" class="on"><b>Normal ops</b><small>Balanced fleet</small></button>
           <button data-scene="emergency"><b>Emergency surge</b><small>Priority + reserved layer</small></button>
@@ -103,6 +115,7 @@
         <div class="switches">
           <label><input type="checkbox" id="swOverseer" checked> P4 Drone Traffic Controller (DTC)</label>
           <label><input type="checkbox" id="swAdmm" checked> P2 ADMM deconfliction</label>
+          <label><input type="checkbox" id="swMerge" checked> P3 Junction merging + platoons</label>
           <label><input type="checkbox" id="swDefense" checked> P5 Report defence (W-MSR)</label>
           <label><input type="checkbox" id="swAttack"> P5 Inject spoofing attack</label>
           <label><input type="checkbox" id="swOutage"> P4 DTC link outage</label>
@@ -121,9 +134,11 @@
     <section class="kpis" id="kpis">
       <article id="kCrashCard"><small>Crashes</small><b id="kCrash">—</b><span id="kCrashSub">collisions (&lt; 2 m)</span></article>
       <article id="kLosCard"><small>Near misses</small><b id="kLos">—</b><span>loss-of-separation episodes</span></article>
-      <article><small>Min separation</small><b id="kSep">—</b><span id="kSepSub">STL: G(d ≥ d<sub>min</sub>)</span></article>
+      <article title="Layer-aware 3D separation from the route engine. verification/metrics.py (robustness_series) measures horizontal distance only, so experiment numbers use a different definition."><small>Min separation · 3D layer-aware</small><b id="kSep">—</b><span id="kSepSub">STL: G(d ≥ d<sub>min</sub>)</span></article>
       <article id="kViolCard"><small>Violation ticks</small><b id="kViol">—</b><span>robustness &lt; 0</span></article>
       <article><small>ADMM resolutions</small><b id="kAdmm">—</b><span id="kAdmmSub">conflict groups</span></article>
+      <article id="kPrioCard"><small>Emergency compliance</small><b id="kPrio">—</b><span id="kPrioSub">P4 · sector-layer under capacity</span></article>
+      <article id="kMergeCard"><small>Junction merges</small><b id="kMerge">—</b><span id="kMergeSub">P3 · gap rule</span></article>
       <article><small>Altitude shifts</small><b id="kShift">—</b><span>tactical collision avoidance</span></article>
       <article><small>DTC directives</small><b id="kLayer">—</b><span id="kLayerSub">layer changes</span></article>
       <article><small>Corridor boundary holds</small><b id="kTube">—</b><span id="kTubeSub">tube wall projections</span></article>
@@ -133,7 +148,8 @@
 
     <div class="bottom">
     <section class="card chart-card">
-      <div class="card-head"><h2>STL safety robustness</h2><span class="muted">ρ(t) = min d<sub>ij</sub> − d<sub>min</sub> · layer-aware</span></div>
+      <div class="card-head"><h2>STL safety robustness</h2><span class="muted">ρ(t) = min d<sub>ij</sub> − d<sub>min</sub></span></div>
+      <p class="defn">Safety definition: <b>layer-aware 3D</b> distance (horizontal offset and layer gap × layer height) from the route engine. <code>verification/metrics.py</code> uses horizontal distance only, so its numbers differ.</p>
       <canvas id="chart" aria-label="STL robustness over time"></canvas>
       <div class="card-head sub"><h3>Governance log</h3><span class="muted" id="logCount">0 events</span></div>
       <ol id="log" class="glog"></ol>
@@ -146,6 +162,14 @@
       </div>
       <canvas id="netChart" aria-label="Network and DTC metrics over time"></canvas>
       <div class="net-legend" id="netLegend"></div>
+    </section>
+    <section class="card admm-card">
+      <div class="card-head"><h2>P2 · ADMM convergence timer</h2><span class="muted" id="admmHead">iterations and solve time per conflict group</span></div>
+      <div class="admm-grid">
+        <canvas id="admmChart" aria-label="ADMM iterations and solve time over time"></canvas>
+        <dl class="kv" id="admmStats"></dl>
+      </div>
+      <div class="net-legend"><span><i style="background:#37d7f2"></i>Iterations · mean</span><span><i style="background:#2fe0a0"></i>Iterations · max</span><span><i style="background:#f6bd4b"></i>Solve ms · mean (right axis)</span><span><i style="background:#ff5f72"></i>Fallback (not converged)</span></div>
     </section>
     </div>
   </main>

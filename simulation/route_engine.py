@@ -30,15 +30,19 @@ from typing import Any, Callable, Iterator, Sequence
 import numpy as np
 
 from config.load_config import get_config, use_run_config
-from conflict_resolution.adapter import resolve_all_conflicts
 from local_behavior.boids import alignment, separation
 from resilience.attack import apply_attack, inject_attack
 from resilience.defense import defend_neighbor_reports
+from resilience.spoofer_estimate import estimate_spoofer_position, report_status
+from simulation.admm_probe import ADMMProbe
 from simulation.comm_graph import build_knn_graph, build_radius_graph
 from simulation.dynamics import step_dynamics
 from simulation.overseer import GlobalOverseer
 from simulation.overseer_link import OverseerLink
 from simulation.road_network import RoadNetwork, RoutePath
+from simulation.route_centralized import centralized_commands
+from simulation.route_formation import MergeTracker, platoon_stats
+from simulation.route_priority import EmergencyTracker
 from simulation.schema import AgentState, AgentType, GlobalStateSnapshot
 from simulation.spatial_grid import (
     UniformGrid, close_same_layer_pairs, layered_min_separation_grid, radius_adjacency,
@@ -50,6 +54,13 @@ CRASH_RADIUS_M = 2.0  # physical contact between ~1 m-class airframes on the sam
 TYPE_PRIORITY = {AgentType.EMERGENCY: 0, AgentType.EVTOL: 1, AgentType.DELIVERY: 2}
 TYPE_SPEED_FACTOR = {AgentType.EMERGENCY: 1.2, AgentType.EVTOL: 1.0, AgentType.DELIVERY: 0.9}
 SECTOR_COLS, SECTOR_ROWS = 3, 2
+# architecture -> (DTC on, ADMM on, report defence on, DTC computes every velocity)
+ARCHITECTURES = {
+    "hierarchical": None,                          # DTC + local boids/ADMM; switches as requested
+    "centralized": (True, False, False, True),     # route-mode port of simulation/centralized.py
+    "decentralized": (False, True, True, False),   # no DTC, ADMM + defence
+    "decentralized_undefended": (False, True, False, False),  # no DTC, ADMM, no defence
+}
 
 
 @dataclass
@@ -208,6 +219,8 @@ def simulate_routes(
     frame_every: int = 1,
     spatial_index: bool | None = None,
     exact_positions: bool = False,
+    architecture: str = "hierarchical",
+    junction_merge: bool = True,
 ) -> Iterator[dict[str, Any]]:
     """Yield one item per tick.
 
@@ -221,7 +234,17 @@ def simulate_routes(
     identical to the brute-force path (``False``), only faster for large fleets.
     ``exact_positions`` adds unrounded ``"pos"`` [[x, y, layer], ...] to full frames
     (used by the equivalence test).
+
+    ``architecture`` (see ``ARCHITECTURES``): ``hierarchical`` uses the three
+    switches as given; the others fix them. ``junction_merge`` turns on the P3
+    junction merge rule, platoon metrics and route-mode cohesion
+    (``simulation.route_formation``); off reproduces the Phase 1 behaviour.
     """
+    if architecture not in ARCHITECTURES:
+        raise ValueError(f"Unknown architecture '{architecture}'. Choose one of: {', '.join(ARCHITECTURES)}")
+    centralized = False
+    if ARCHITECTURES[architecture] is not None:
+        use_overseer, use_admm, defended, centralized = ARCHITECTURES[architecture]
     base = config if config is not None else get_config()
     cfg = _route_mode_config(base)
     if spatial_index is None:
@@ -229,7 +252,8 @@ def simulate_routes(
     with use_run_config(cfg):
         yield from _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defended,
                              attack_config, overseer_link_config, should_stop,
-                             max(1, int(frame_every)), bool(spatial_index), bool(exact_positions))
+                             max(1, int(frame_every)), bool(spatial_index), bool(exact_positions),
+                             centralized, bool(junction_merge) and not centralized)
 
 
 def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any]:
@@ -283,7 +307,7 @@ def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any
 
 def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defended,
               attack_config, overseer_link_config, should_stop, frame_every=1, spatial=True,
-              exact_positions=False):
+              exact_positions=False, centralized=False, junction_merge=False):
     dt = float(cfg["simulation"]["timestep_seconds"])
     tau_v = float(cfg["control"]["velocity_time_constant_seconds"])
     lb = cfg["local_behavior"]
@@ -349,6 +373,17 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     los_open: set[tuple[int, int]] = set()
     shift_cooldown: dict[int, float] = {}
     n_steps = int(round(duration_s / dt))
+    # Phase 2 instruments (P2 ADMM timer, P4 compliance, P3 merging, P5 W-MSR view)
+    probe = ADMMProbe(int(cfg["admm"].get("maximum_iterations", 50)))
+    w_coh, r_sep, r_plat = float(lb["w_coh"]), float(lb["r_sep"]), float(lb.get("r_plat", 40.0))
+
+    def cruise_of(f_or_a) -> float:
+        return min(v_max, v_cruise * TYPE_SPEED_FACTOR[f_or_a.type])
+
+    etrack = EmergencyTracker(flights, cruise_of, emergency_layer, int(cfg["corridors"]["capacity"]), dt)
+    mtrack = MergeTracker(network, flights, cfg) if junction_merge else None
+    wmsr_f = int(cfg.get("resilience", {}).get("f", 1))
+    last_cmd: dict[int, np.ndarray] = {}   # centralized: last DTC velocity command per drone
 
     for step in range(n_steps + 1):
         if should_stop and should_stop():
@@ -393,12 +428,14 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 if i not in held:
                     held.add(i)
                     stats.pad_holds += 1
+                    etrack.on_hold(i)
                     why = (f"pad airspace occupied by D-{busy[0]}" if busy
                            else f"waiting for a merge gap — D-{merge[0]} near the corridor junction on L{dep_layer}")
                     emit("hold", [i], f"D-{i} ground hold at {f.origin}: {why}", "global")
                 continue
             status[i] = AIRBORNE
             departed_now.append(i)
+            etrack.on_depart(i, t)
             if i in cached_layers:
                 agents[i].altitude_layer = cached_layers[i]
                 agents[i].position[2] = float(cached_layers[i])
@@ -458,6 +495,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                             deferred += 1
                             overseer.last_layer_map[aid] = cur
                             cached_layers[aid] = cur
+                            etrack.on_gate(aid)
                             emit("gate", [aid], f"DTC directive L{cur}→L{layer} deferred by safety gate: target layer not clear")
                             continue
                         changed += 1
@@ -470,6 +508,9 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     stats.layer_changes += changed
                     emit("overseer", [], f"DTC re-layered {changed} drone(s) for sector capacity/priority"
                          + (f"; {deferred} deferred by safety gate" if deferred else ""), "global")
+        if step % period_steps == 0 and airborne:  # P4 compliance check at every DTC period (any architecture)
+            etrack.on_dtc_update(airborne, lambda a: (_sector(network, a.position[0], a.position[1]),
+                                                      int(a.altitude_layer)))
 
         # --- P1 communication graph among airborne drones
         if airborne:
@@ -505,7 +546,24 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         # --- P3 route following + boids -> desired velocity
         desired: dict[int, np.ndarray] = {}
         threat: dict[int, tuple[int, float, float]] = {}   # id -> (other, t_cpa, miss)
-        for a in airborne:
+        corrections: dict[int, list[list[float]]] = {}    # spoofer -> receivers' corrected xy (this tick)
+        trust_tick: dict[int, list[list]] = {}            # receiver -> [[neighbour, status], ...]
+        leaders: dict[int, tuple[int, float, float]] = {}  # follower -> (leader, gap, speed)
+
+        def ref_speed(a, remaining: float) -> float:
+            # reference speed: cruise by mission type, brake to stop at the pad
+            return min(cruise_of(a), math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - 1.0, 0.0))) + 0.3)
+
+        if centralized and airborne:  # the DTC computes every drone's velocity from reported states
+            for a in airborne:
+                s_c, _, _ = by_id[a.id].route.project(a.position[:2], progress[a.id])
+                progress[a.id] = max(progress[a.id], s_c)
+            if link.is_up(t):
+                last_cmd.update(centralized_commands(
+                    reported, {a.id: by_id[a.id].route for a in airborne}, progress, ref_speed, cfg, lane, grid_cell))
+            for a in airborne:
+                desired[a.id] = last_cmd.get(a.id, np.zeros(3)).copy()
+        for a in ([] if centralized else airborne):
             f = by_id[a.id]
             route = f.route
             p = a.position[:2].copy()
@@ -520,6 +578,9 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             if a.id in attack_state.malicious or not defended:
                 nbrs = true_n if a.id in attack_state.malicious else rep_n
                 if a.id not in attack_state.malicious:
+                    if any(r.id in attack_state.falsified for r in rep_n):
+                        trust_tick[a.id] = [[int(r.id), "accepted" if r.id in attack_state.falsified else "kept"]
+                                            for r in rep_n]
                     for r in rep_n:
                         if r.id in attack_state.falsified:
                             stats.spoofed_reports_accepted += 1
@@ -530,15 +591,19 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 res = defend_neighbor_reports(a, rep_n, true_n)
                 nbrs = res.kept
                 stats.reports_dropped += len(res.dropped_ids)
+                if res.dropped_ids or any(r.id in attack_state.malicious for r in rep_n):
+                    trust_tick[a.id] = report_status([r.id for r in rep_n], res.dropped_ids, [x.id for x in true_n])
+                    for k_ in res.kept:
+                        if k_.id in res.dropped_ids:
+                            corrections.setdefault(int(k_.id), []).append([float(k_.position[0]), float(k_.position[1])])
                 for rid in res.dropped_ids:
                     if (a.id, rid) not in spoof_seen:
                         spoof_seen.add((a.id, rid))
                         emit("defend", [a.id, rid], f"Defence flagged D-{rid}'s report: range mismatch → position corrected (W-MSR)")
 
-            # reference speed: cruise by mission type, brake to stop at the pad
-            v_ref = min(v_max, v_cruise * TYPE_SPEED_FACTOR[a.type])
-            v_ref = min(v_ref, math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - 1.0, 0.0))) + 0.3)
+            v_ref = ref_speed(a, remaining)
             # car-following along the corridor (gap = d_0 + h * v)
+            lead = None
             for nb in nbrs:
                 rel = nb.position[:2] - p
                 along = float(rel @ tan)
@@ -547,6 +612,15 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 if float(np.asarray(nb.velocity[:2]) @ tan) < 0.0:
                     continue  # opposing flow is handled by the lane offset + separation
                 v_ref = min(v_ref, max(0.0, (along - d_0) / h_gap))
+                if along <= r_plat and (lead is None or along < lead[1]):
+                    lead = (int(nb.id), along)
+            if mtrack is not None:
+                if lead is not None:
+                    leaders[a.id] = (lead[0], lead[1], float(np.linalg.norm(a.velocity[:2])))
+                fac, why = mtrack.factor(a.id, s, int(a.altitude_layer), nbrs)
+                v_ref *= fac
+                if why:
+                    emit("merge", [a.id], why)
 
             fade = min(1.0, remaining / 30.0)  # lane offset merges back to the pad
             look = min(route.length, s + look_ahead)
@@ -585,8 +659,22 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             if v_ref < float(np.linalg.norm(v_goal)) and float(np.linalg.norm(v_goal)) > 1e-6:
                 v_goal = v_goal / float(np.linalg.norm(v_goal)) * v_ref
 
-            v = v_goal + v_avoid + w_sep * separation(a, nbrs) + w_ali * 0.5 * alignment(
-                a, [nb for nb in nbrs if float(np.asarray(nb.velocity[:2]) @ tan) > 0.0])
+            if mtrack is None:
+                v = v_goal + v_avoid + w_sep * separation(a, nbrs) + w_ali * 0.5 * alignment(
+                    a, [nb for nb in nbrs if float(np.asarray(nb.velocity[:2]) @ tan) > 0.0])
+            else:
+                # P3 within a road segment: alignment and cohesion use only same-direction drones
+                # inside this drone's tube; cohesion is along the road (route-mode boids.cohesion:
+                # mean along-track offset, zero when any segment mate is closer than r_sep or than
+                # the car-following gap d_0 + h*v, so cohesion never pulls a drone inside its headway)
+                seg = [nb for nb in nbrs if float(np.asarray(nb.velocity[:2]) @ tan) > 0.0
+                       and abs(float((nb.position[:2] - p) @ left)) <= half_w]
+                v_coh = np.zeros(2)
+                too_close = max(r_sep, d_0 + h_gap * float(np.linalg.norm(a.velocity[:2])))
+                if seg and all(float(np.linalg.norm(nb.position[:2] - p)) >= too_close for nb in seg):
+                    v_coh = tan * float(np.mean([float((nb.position[:2] - p) @ tan) for nb in seg]))
+                v = (v_goal + v_avoid + w_sep * separation(a, nbrs) + w_ali * 0.5 * alignment(a, seg)
+                     + w_coh * v_coh)
             sp = float(np.linalg.norm(v))
             if sp > v_max:
                 v *= v_max / sp
@@ -600,7 +688,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 it = copy.copy(a)
                 it.velocity = desired[a.id].copy()
                 intents.append(it)
-            for ev in resolve_all_conflicts(intents, {a.id: a.priority for a in airborne}):
+            for ev in probe.resolve(intents, {a.id: a.priority for a in airborne}, t):
                 stats.admm_events += 1
                 if ev.converged:
                     for aid, vel in ev.resolution.items():
@@ -612,7 +700,10 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         for aid, (partners, ok) in in_admm.items():
             if aid not in admm_open:
                 admm_open[aid] = {"t0": t, "partners": set(partners), "failed": 0}
-                emit("admm", [aid] + partners[:3], f"ADMM conflict detected with {', '.join('D-%d' % x for x in partners[:4])} — negotiating velocities")
+                neg = probe.last.get(aid, {})
+                how = (f" ({neg['it']} iterations, {'converged' if neg['ok'] else 'not converged → fallback'})"
+                       if neg.get("it") is not None else "")
+                emit("admm", [aid] + partners[:3], f"ADMM conflict detected with {', '.join('D-%d' % x for x in partners[:4])} — negotiating velocities{how}")
             else:
                 admm_open[aid]["partners"].update(partners)
             if not ok:
@@ -649,6 +740,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     shift_cooldown[mover.id] = t + 6.0
                     shifted.update({a.id, b.id})
                     stats.tactical_layer_shifts += 1
+                    etrack.on_shift(mover.id)
                     peer = b.id if mover is a else a.id
                     cause = "ADMM conflict not separable in-plane" if mover.id in in_admm else "CPA alert"
                     verb = "climb" if L > cur else "descend"
@@ -697,6 +789,9 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 status[a.id] = LANDED
                 nxt.velocity[:] = 0.0
                 stats.arrivals += 1
+                etrack.on_land(a.id, t)
+                if mtrack is not None:
+                    mtrack.drop(a.id)
                 emit("land", [a.id], f"D-{a.id} landed at {f.destination}", "global")
 
         # --- P6 safety: loss of separation, crashes, layer-aware STL robustness
@@ -725,10 +820,15 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     agents[pb].velocity[:] = 0.0
                     stats.crashes += 1
                     stats.crashed_drones += 2
+                    if mtrack is not None:
+                        mtrack.drop(pa)
+                        mtrack.drop(pb)
                     emit("crash", [pa, pb], f"CRASH: D-{pa} × D-{pb} collided on L{int(lay[u])} at "
                          f"({agents[pa].position[0]:.0f}, {agents[pa].position[1]:.0f}) — both drones lost", "global")
                 elif d < d_min and pair not in los_open:
                     stats.near_misses += 1
+                    if mtrack is not None:
+                        mtrack.on_los((pa, pb))
                     emit("los", [pa, pb], f"Loss of separation: D-{pa} ↔ D-{pb} at {d:.1f} m < {d_min:.0f} m on L{int(lay[u])}", "global")
             los_open.intersection_update(now_pairs)
             los_open.update(now_pairs)
@@ -738,6 +838,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         if rho < 0:
             stats.safety_violation_ticks += 1
         stats.min_separation_m = min(stats.min_separation_m, dmin_now)
+        etrack.on_tick(agents[i] for i in air_ids)
 
         if step % frame_every and step != n_steps:
             yield {"t": t, "k": step, "partial": True, "events": events, "stats": stats.to_dict()}
@@ -775,11 +876,45 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             "dtc": dtc,
             "events": events,
             "stats": stats.to_dict(),
+            **probe.frame(),                     # "admm" (window + run p95) and "neg" (last negotiation per drone)
+            "prio": etrack.snapshot(t),
+            "merge": (dict(mtrack.frame(), **platoon_stats(leaders, d_0, h_gap)) if mtrack is not None else None),
+            "spoof": _spoof_view(attack_state.malicious, by_air, reported, corrections, wmsr_f),
+            "trust": {str(k): v for k, v in trust_tick.items()},
         }
         if exact_positions:
             frame["pos"] = [[float(agents[i].position[0]), float(agents[i].position[1]),
                              float(agents[i].position[2])] for i in ids]
         yield frame
+
+
+def _spoof_view(malicious, by_air, reported, corrections, f) -> dict[str, Any]:
+    """Per airborne spoofer: reported, true and W-MSR-estimated position (pre-dynamics, this tick)."""
+    out: dict[str, Any] = {}
+    for m in malicious:
+        if m not in by_air:
+            continue
+        true = by_air[m].position[:2]
+        rep = (reported[m] if m in reported else by_air[m]).position[:2]
+        corr = corrections.get(m, [])
+        est = estimate_spoofer_position(corr, f)
+        out[str(m)] = {
+            "rep": [round(float(rep[0]), 1), round(float(rep[1]), 1)],
+            "true": [round(float(true[0]), 1), round(float(true[1]), 1)],
+            "est": None if est is None else [round(float(est[0]), 1), round(float(est[1]), 1)],
+            "n": len(corr),
+            "err_rep": round(float(np.linalg.norm(rep - true)), 1),
+            "err_est": None if est is None else round(float(np.linalg.norm(est - true)), 1),
+        }
+    return out
+
+
+def initial_conditions_hash(flights: Sequence[Flight], seed: int | None = None) -> str:
+    """Short hash of the planned flights (ids, types, routes, departures): equal across architectures."""
+    import hashlib
+    import json
+    payload = {"seed": seed, "flights": flight_manifest(flights)}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:12]
 
 
 def flight_manifest(flights: Sequence[Flight]) -> list[dict[str, Any]]:

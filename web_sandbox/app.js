@@ -11,13 +11,21 @@ const STATUS = ['queued', 'airborne', 'landed', 'crashed'];
 const SECTOR_COLS = 3, SECTOR_ROWS = 2;
 
 const SCENES = {
-  normal:     {title: 'Normal operations', mix: [10, 30, 60], overseer: true, admm: true, defense: true, attack: false, outage: false},
-  emergency:  {title: 'Emergency surge — priority & reserved layer', mix: [30, 30, 40], overseer: true, admm: true, defense: true, attack: false, outage: false},
-  outage:     {title: 'DTC link outage — drones hold last directive', mix: [10, 30, 60], overseer: true, admm: true, defense: true, attack: false, outage: true},
-  attack:     {title: 'GPS-spoofing attack — trusted-range + W-MSR defence', mix: [10, 30, 60], overseer: true, admm: true, defense: true, attack: true, outage: false},
-  undefended: {title: 'GPS-spoofing attack — defence disabled', mix: [10, 30, 60], overseer: true, admm: true, defense: false, attack: true, outage: false},
-  decentral:  {title: 'Decentralized baseline — no DTC', mix: [10, 30, 60], overseer: false, admm: true, defense: false, attack: false, outage: false},
+  normal:     {title: 'Normal operations', mix: [10, 30, 60], arch: 'hierarchical', overseer: true, admm: true, defense: true, attack: false, outage: false},
+  emergency:  {title: 'Emergency surge — priority & reserved layer', mix: [30, 30, 40], arch: 'hierarchical', overseer: true, admm: true, defense: true, attack: false, outage: false},
+  outage:     {title: 'DTC link outage — drones hold last directive', mix: [10, 30, 60], arch: 'hierarchical', overseer: true, admm: true, defense: true, attack: false, outage: true},
+  attack:     {title: 'GPS-spoofing attack — trusted-range + W-MSR defence', mix: [10, 30, 60], arch: 'hierarchical', overseer: true, admm: true, defense: true, attack: true, outage: false},
+  undefended: {title: 'GPS-spoofing attack — defence disabled', mix: [10, 30, 60], arch: 'hierarchical', overseer: true, admm: true, defense: false, attack: true, outage: false},
+  decentral:  {title: 'Decentralized baseline — no DTC', mix: [10, 30, 60], arch: 'decentralized', overseer: false, admm: true, defense: true, attack: false, outage: false},
 };
+// architecture -> fixed switches [DTC, ADMM, defence, junction merging] (null = as chosen); mirrors route_engine.ARCHITECTURES
+const ARCH = {
+  hierarchical: {label: 'Hierarchical', fixed: null},
+  centralized: {label: 'Centralized', fixed: [true, false, false, false]},
+  decentralized: {label: 'Decentralized', fixed: [false, true, true, null]},
+  decentralized_undefended: {label: 'Decentralized · undefended', fixed: [false, true, false, null]},
+};
+const SWITCH_IDS = ['#swOverseer', '#swAdmm', '#swDefense', '#swMerge'];
 const ADVANCED = [
   ['local_behavior.v_cruise', 'Cruise speed (m/s)'],
   ['safety.minimum_separation_meters', 'Min separation d_min (m)'],
@@ -44,11 +52,13 @@ let nextSeq = 0, lastStats = null, shownEvents = new WeakSet(), speedProbe = [];
 let scene = 'normal', simT = 0, playing = true, speed = 2, lastTs = 0, selected = null, layerFilter = 'all', follow = false;
 let view = {cx: 0, cy: 0, s: 0.2}, userMoved = false, dpr = 1, ctxPaths = null, backdropImg = null, logCursor = 0, logTotal = 0;
 let droneEvents = {}, eventsIndexed = 0, netPositions = null, lastDroneFeedKey = '';
+let negHist = {}, chosenSwitches = null, lastPrio = null;
 const canvas = $('#map'), ctx = canvas.getContext('2d');
 const chart = $('#chart'), cctx = chart.getContext('2d');
 const v25 = $('#view25'), vctx = v25.getContext('2d');
 const netG = $('#netGraph'), nctx = netG.getContext('2d');
 const netC = $('#netChart'), ncctx = netC.getContext('2d');
+const admmC = $('#admmChart'), actx = admmC.getContext('2d');
 
 // ------------------------------------------------------------------ helpers
 const get = (o, p) => p.split('.').reduce((v, k) => v?.[k], o);
@@ -62,7 +72,7 @@ async function api(path, body) {
   return data;
 }
 function sizeCanvas(c) { const r = c.getBoundingClientRect(); c.width = Math.max(1, Math.round(r.width * dpr)); c.height = Math.max(1, Math.round(r.height * dpr)); }
-function resize() { dpr = window.devicePixelRatio || 1; [canvas, chart, v25, netG, netC].forEach(sizeCanvas); if (!userMoved) fit(); }
+function resize() { dpr = window.devicePixelRatio || 1; [canvas, chart, v25, netG, netC, admmC].forEach(sizeCanvas); if (!userMoved) fit(); }
 
 // ------------------------------------------------------------------ map transform
 function fit() {
@@ -104,13 +114,18 @@ function frameAt(t) {
 function decodeFrame(r) {
   const ls = r.ls;
   if (r.stats) lastStats = r.stats;
+  if (r.prio) lastPrio = r.prio;
   return {
     v: r.v, n: r.n, k: r.k, t: r.t, rho: r.rho, link_up: r.link_up, attack: r.attack, net: r.net, dtc: r.dtc,
     events: r.events || [], edges: r.edges || [], edges_total: r.edges_total ?? (r.edges || []).length,
     x: r.x.map((v) => v / 10), y: r.y.map((v) => v / 10), speed: r.spd.map((v) => v / 10), progress: r.prog.map((v) => v / 1000),
     layer: ls.map((v) => v & 7), status: ls.map((v) => v >> 3), stats: lastStats,
+    admm: r.admm || null, prio: lastPrio, merge: r.merge || null, spoof: r.spoof || {}, trust: r.trust || {},
   };
 }
+// last ADMM negotiation per drone, kept outside the frames so browser thinning never loses it
+function indexNeg(r) { for (const [id, v] of Object.entries(r.neg || {})) (negHist[id] ??= []).push(v); }
+function lastNeg(id) { const h = negHist[id]; if (!h) return null; for (let i = h.length - 1; i >= 0; i--) if (h[i].t <= simT + 1e-6) return h[i]; return null; }
 // browser memory cap: drop every other frame in the older half; events move to the next kept frame
 function thinFrames() {
   const cap = LIMITS?.max_frames_in_memory ?? 6000;
@@ -176,7 +191,36 @@ function drawMap() {
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.8; drawRoute(f.route);
   }
   drawVertiports(s);
-  if (s) drawDrones(s);
+  if (s) { drawJunctions(s); drawDrones(s); drawSpoof(s); }
+}
+// P3: junctions where a merge is in progress this frame (amber = gap rule blocking, drone slows by 1 - k_v)
+function drawJunctions(s) {
+  const js = s.f0.merge?.junctions; if (!js?.length) return;
+  for (const [x, y, blocked] of js) {
+    const X = sx(x), Y = sy(y); ctx.lineWidth = blocked ? 2.4 : 1.4;
+    ctx.strokeStyle = blocked ? '#f6bd4b' : 'rgba(55,215,242,0.75)'; ctx.fillStyle = blocked ? 'rgba(246,189,75,0.18)' : 'rgba(55,215,242,0.08)';
+    ctx.beginPath(); ctx.arc(X, Y, Math.max(7, 9 * Math.min(2, view.s)), 0, 7); ctx.fill(); ctx.stroke();
+  }
+}
+// P5: for each airborne spoofer, the broadcast (false) position and the W-MSR estimate fused from the
+// receivers' range-corrected positions; the drone glyph itself is the true position
+function drawSpoof(s) {
+  const sp = s.f0.spoof; if (!sp || !RUN) return;
+  for (const [id, v] of Object.entries(sp)) {
+    const n = idxOf(+id); if (n < 0 || s.f0.status[n] !== 1) continue;
+    const t = posOf(s, n), T = [sx(t[0]), sy(t[1])], R = [sx(v.rep[0]), sy(v.rep[1])];
+    ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(...T); ctx.lineTo(...R); ctx.stroke();
+    ctx.beginPath(); ctx.arc(R[0], R[1], 7, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    const label = (txt, X, Y, col) => { ctx.font = '600 10px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(txt, X, Y); ctx.fillStyle = col; ctx.fillText(txt, X, Y); };
+    label(`D-${id} reported (${fmt(v.err_rep, 0)} m off)`, R[0] + 9, R[1] - 6, '#d8b4fe');
+    if (v.est) {
+      const E = [sx(v.est[0]), sy(v.est[1])];
+      ctx.strokeStyle = '#2fe0a0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(E[0] - 5, E[1] - 5); ctx.lineTo(E[0] + 5, E[1] + 5); ctx.moveTo(E[0] + 5, E[1] - 5); ctx.lineTo(E[0] - 5, E[1] + 5); ctx.stroke();
+      ctx.setLineDash([2, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(...E); ctx.lineTo(...T); ctx.stroke(); ctx.setLineDash([]);
+      label(`W-MSR est. (${fmt(v.err_est, 1)} m off, ${v.n} rcv)`, E[0] + 9, E[1] + 12, '#2fe0a0');
+    }
+  }
 }
 function drawRoute(route) { ctx.beginPath(); route.forEach((p, i) => i ? ctx.lineTo(sx(p[0]), sy(p[1])) : ctx.moveTo(sx(p[0]), sy(p[1]))); ctx.stroke(); }
 function drawSectors() {
@@ -313,7 +357,21 @@ function updatePanels() {
   $('#kSep').textContent = st.min_separation_m === null ? '—' : `${fmt(st.min_separation_m, 2)} m`;
   $('#kSepSub').innerHTML = `required ≥ ${RUN.limits.d_min} m · now ${f.rho === null ? '—' : fmt(f.rho + RUN.limits.d_min, 1) + ' m'}`;
   $('#kViol').textContent = st.safety_violation_ticks; $('#kViolCard').classList.toggle('bad', st.safety_violation_ticks > 0); $('#kViolCard').classList.toggle('good', st.safety_violation_ticks === 0);
-  $('#kAdmm').textContent = st.admm_events; $('#kAdmmSub').textContent = RUN.switches.use_admm ? `${st.admm_nonconverged} non-converged → fallback` : 'ADMM disabled';
+  const ar = f.admm?.run;
+  $('#kAdmm').textContent = st.admm_events;
+  $('#kAdmmSub').textContent = !RUN.switches.use_admm ? (RUN.architecture === 'centralized' ? 'centralized: no ADMM' : 'ADMM disabled')
+    : `p95 ${fmt(ar?.it_p95, 0)} it · ${fmt(ar?.ms_p95, 2)} ms · ${st.admm_nonconverged} fallback`;
+  const pr = f.prio;
+  if (pr && pr.count) {
+    $('#kPrio').textContent = pr.rate === null ? '—' : `${fmt(pr.rate * 100, 0)}%`;
+    $('#kPrioCard').classList.toggle('good', pr.rate === 1); $('#kPrioCard').classList.toggle('bad', pr.rate !== null && pr.rate < 0.9);
+    $('#kPrioSub').textContent = `${pr.count} EMG · delay ${pr.mean_delay_s === null ? '—' : fmt(pr.mean_delay_s) + ' s'} (${pr.arrived} landed) · ${pr.yields} yields`;
+  } else { $('#kPrio').textContent = '—'; $('#kPrioSub').textContent = 'no emergency flights'; $('#kPrioCard').classList.remove('good', 'bad'); }
+  const mg = f.merge;
+  if (mg) {
+    $('#kMerge').textContent = mg.rate === null ? '—' : `${fmt(mg.rate * 100, 0)}%`;
+    $('#kMergeSub').textContent = `${mg.attempts} attempts · ${mg.yield_ticks} gap-yield ticks · ${mg.platoons} platoons${mg.headway_s !== null ? ' · headway ' + fmt(mg.headway_s) + ' s' : ''}`;
+  } else { $('#kMerge').textContent = '—'; $('#kMergeSub').textContent = RUN.architecture === 'centralized' ? 'centralized: DTC commands velocities' : 'P3 merging off'; }
   $('#kShift').textContent = st.tactical_layer_shifts;
   $('#kLayer').textContent = st.dtc_directives; $('#kLayerSub').textContent = dtcOn ? `${st.layer_changes} layer changes · ${st.layer_changes_deferred} gated` : 'DTC disabled';
   $('#kTube').textContent = st.tube_corrections; $('#kTubeSub').textContent = `max lateral ${fmt(st.max_lateral_error_m)} / ${RUN.limits.corridor_width / 2} m · geofence ${st.geofence_corrections}`;
@@ -323,7 +381,7 @@ function updatePanels() {
   $('#kRep').textContent = undefended ? st.spoofed_reports_accepted : st.reports_dropped;
   $('#kRepSub').textContent = RUN.attack.enabled ? (undefended ? 'defence OFF — fed into separation' : `${RUN.attack.malicious_ids.map((i) => 'D-' + i).join(', ')} spoofing`) : 'no attack injected';
   $('#kArr').textContent = st.arrivals; $('#kArrSub').textContent = `of ${RUN.flights.length} flights`;
-  $('#runState').textContent = done && simT >= frames.at(-1).t - 1e-6 ? 'COMPLETE' : done ? 'REPLAY' : 'LIVE';
+  $('#runState').textContent = RUN.replay ? 'LOADED' : done && simT >= frames.at(-1).t - 1e-6 ? 'COMPLETE' : done ? 'REPLAY' : 'LIVE';
   updateOccupancy(s); updateDrone(s); pumpLog();
 }
 function updateOccupancy(s) {
@@ -357,6 +415,19 @@ function updateDrone(s) {
   const ev = (droneEvents[f.id] || []).filter((e) => e.t <= simT + 1e-6);
   const c = (k) => ev.filter((e) => k.includes(e.kind)).length;
   $('#dCounts').textContent = `${c(['admm'])} · ${c(['shift'])} · ${c(['los', 'gate', 'wall', 'spoof', 'defend'])}`;
+  const ng = lastNeg(f.id);
+  $('#dNeg').textContent = !RUN.switches.use_admm ? 'ADMM off' : ng ? `t ${fmt(ng.t)} s · with ${ng.partners.slice(0, 4).map((x) => 'D-' + x).join(', ') || '—'} · ${ng.it ?? '?'} it · ${ng.ok ? 'converged' : 'fallback'}` : 'none yet';
+  const ep = fr.prio?.per?.[f.id];
+  $('#dPrioLbl').hidden = $('#dPrio').hidden = !ep;
+  if (ep) {
+    const elapsed = st === 1 ? fr.t - f.depart_s : null;
+    const delay = ep.delay_s !== null ? `delay ${fmt(ep.delay_s)} s vs nominal ${fmt(ep.nominal_s)} s` : elapsed !== null ? `${fmt(elapsed, 0)} s elapsed · nominal ${fmt(ep.nominal_s)} s` : `nominal ${fmt(ep.nominal_s)} s`;
+    $('#dPrio').textContent = `${delay} · ${ep.yields} yields (${ep.holds} hold, ${ep.shifts} shift, ${ep.gated} gated) · reserved layer ${ep.on_layer === null ? '—' : fmt(ep.on_layer * 100, 0) + '%'} · compliance ${ep.compliance === null ? '—' : fmt(ep.compliance * 100, 0) + '%'}`;
+  }
+  const tr = fr.trust?.[f.id], sp = fr.spoof?.[f.id];
+  if (sp) $('#dTrust').textContent = `SPOOFER · broadcasts ${fmt(sp.err_rep, 0)} m off · W-MSR estimate ${sp.est ? fmt(sp.err_est, 1) + ' m off (' + sp.n + ' receivers)' : 'none (no same-layer receiver)'}`;
+  else if (tr) $('#dTrust').textContent = tr.map(([id, k]) => `D-${id} ${k}`).join(' · ');
+  else $('#dTrust').textContent = st !== 1 ? '—' : RUN.attack.enabled ? (RUN.switches.defended ? 'all kept (range-consistent)' : 'defence off — used as received') : 'all kept (no attack)';
   const key = `${f.id}:${ev.length}`;
   if (key !== lastDroneFeedKey) {
     lastDroneFeedKey = key; const list = $('#dEvents'); list.replaceChildren();
@@ -496,6 +567,41 @@ function drawNetChart() {
   ncctx.fillStyle = '#5c7088'; ncctx.fillText('0 s', L, h - 5); ncctx.textAlign = 'right'; ncctx.fillText(`${RUN.duration_s} s · max avg degree ${maxDeg.toFixed(1)}`, R, h - 5); ncctx.textAlign = 'left';
 }
 
+// ------------------------------------------------------------------ P2 ADMM convergence timer
+function drawAdmm() {
+  const w = admmC.clientWidth, h = admmC.clientHeight; screenTransform(actx); actx.clearRect(0, 0, w, h);
+  const s = RUN && frames.length ? frameAt(simT) : null, run = s?.f0.admm?.run;
+  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  if (!RUN || !s) { $('#admmStats').innerHTML = ''; return; }
+  if (!RUN.switches.use_admm) {
+    actx.fillStyle = '#5c7088'; actx.font = '12px system-ui'; actx.fillText(RUN.architecture === 'centralized' ? 'Centralized architecture: the DTC computes velocities, no ADMM.' : 'ADMM is switched off for this run.', 12, 24);
+    $('#admmStats').innerHTML = ''; return;
+  }
+  const L = 30, R = w - 40, T = 8, B = h - 20, X = (t) => L + (t / RUN.duration_s) * (R - L);
+  const step = Math.max(1, Math.floor(frames.length / 900));
+  let itMax = 1, msMax = 0.05;
+  for (const f of frames) { if (f.admm?.it_max) itMax = Math.max(itMax, f.admm.it_max); if (f.admm?.ms_mean) msMax = Math.max(msMax, f.admm.ms_mean); }
+  itMax = Math.ceil(itMax * 1.15); msMax *= 1.15;
+  const Yi = (v) => B - (v / itMax) * (B - T), Ym = (v) => B - (v / msMax) * (B - T);
+  actx.strokeStyle = '#16283e'; actx.fillStyle = '#5c7088'; actx.font = '10px system-ui'; actx.lineWidth = 1;
+  for (const v of [0, Math.round(itMax / 2), itMax]) { actx.beginPath(); actx.moveTo(L, Yi(v)); actx.lineTo(R, Yi(v)); actx.stroke(); actx.fillText(String(v), 6, Yi(v) + 3); }
+  actx.textAlign = 'left'; for (const v of [0, msMax / 2, msMax]) actx.fillText(`${v.toFixed(2)}ms`, R + 4, Ym(v) + 3);
+  const line = (get, Y, col, wd) => { actx.strokeStyle = col; actx.lineWidth = wd; actx.beginPath(); let pen = false;
+    for (let i = 0; i < frames.length; i += step) { const v = get(frames[i]); if (v === null || v === undefined) { pen = false; continue; } pen ? actx.lineTo(X(frames[i].t), Y(v)) : actx.moveTo(X(frames[i].t), Y(v)); pen = true; } actx.stroke(); };
+  line((f) => f.admm?.it_max, Yi, '#2fe0a0aa', 1);
+  line((f) => f.admm?.it_mean, Yi, '#37d7f2', 1.6);
+  line((f) => f.admm?.ms_mean, Ym, '#f6bd4b', 1.2);
+  actx.fillStyle = '#ff5f72'; for (const f of frames) if (f.admm?.fail) actx.fillRect(X(f.t) - 1, B - 6, 2, 6);
+  actx.strokeStyle = '#e6f0fa'; actx.lineWidth = 1; actx.beginPath(); actx.moveTo(X(simT), T); actx.lineTo(X(simT), B); actx.stroke();
+  actx.fillStyle = '#5c7088'; actx.fillText('0 s', L, h - 5); actx.textAlign = 'right'; actx.fillText(`${RUN.duration_s} s`, R, h - 5); actx.textAlign = 'left';
+  const r = run || {};
+  $('#admmStats').innerHTML = row('Conflict groups', r.groups ?? 0) + row('Converged · fallback', `${r.converged ?? 0} · ${r.fallback ?? 0}`)
+    + row('Iterations mean · p95 · max', `${fmt(r.it_mean, 1)} · ${fmt(r.it_p95, 0)} · ${fmt(r.it_max, 0)} / ${RUN.limits.max_iterations ?? '—'}`)
+    + row('Solve time mean · p95', `${fmt(r.ms_mean, 3)} · ${fmt(r.ms_p95, 3)} ms`)
+    + row('This frame', s.f0.admm?.groups ? `${s.f0.admm.groups} group(s) · ${fmt(s.f0.admm.it_mean, 1)} it` : 'no conflict')
+    + '<dt class="note">Solve time is wall-clock on this machine (not part of the deterministic replay).</dt>';
+}
+
 // ------------------------------------------------------------------ run control
 function readMix() { return {EMERGENCY: +$('#mixE').value || 0, EVTOL: +$('#mixV').value || 0, DELIVERY: +$('#mixD').value || 0}; }
 function buildRequest() {
@@ -512,6 +618,7 @@ function buildRequest() {
     if (v !== base) set(config, input.dataset.path, Number.isInteger(base) ? Math.round(v) : v);
   }
   return {map: mapId, fleet, duration_s: duration, seed, departure_window_s: Math.min(win, duration), mix, config,
+    architecture: $('#arch').value, junction_merge: $('#swMerge').checked,
     use_overseer: $('#swOverseer').checked, use_admm: $('#swAdmm').checked, defended: $('#swDefense').checked,
     attack: {enabled: $('#swAttack').checked, count: 2, start_s: Math.round(duration * 0.2)},
     outage: {enabled: $('#swOutage').checked, start_s: Math.round(duration * 0.25), end_s: Math.round(duration * 0.6)}};
@@ -525,9 +632,9 @@ async function launch() {
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     run.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = run; frames = []; done = false; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
-    nextSeq = 0; lastStats = null; speedProbe = [];
+    nextSeq = 0; lastStats = null; lastPrio = null; speedProbe = []; negHist = {};
     selected = Math.max(0, run.flights.findIndex((f) => f.type === 'EMERGENCY'));
-    resetLog(); $('#playBtn').textContent = '❚❚'; $('#seedLabel').textContent = `seed ${run.seed}`; $('#tMax').textContent = `/ ${run.duration_s} s`;
+    resetLog(); $('#playBtn').textContent = '❚❚'; $('#seedLabel').innerHTML = `seed ${run.seed} · ${ARCH[run.architecture]?.label ?? run.architecture} · <span class="ic" title="Initial-conditions hash: identical for the same seed, fleet and map in every architecture">IC ${run.ic_hash}</span>`; $('#tMax').textContent = `/ ${run.duration_s} s`;
     $('#sceneTitle').textContent = SCENES[scene].title; buildLayerSeg(); buildDronePick();
     status(`Run ${run.run_id}: ${run.flights.length} flights planned on ${MAP.label} corridors — streaming from the simulator.`, 'ok');
     poll(run.run_id);
@@ -541,7 +648,7 @@ async function poll(id) {
       if (!RUN || RUN.run_id !== id) break;
       nextSeq = r.next;
       if (r.frames.length) {
-        frames.push(...r.frames.map(decodeFrame)); indexEvents(); thinFrames();
+        frames.push(...r.frames.map((x) => { indexNeg(x); return decodeFrame(x); })); indexEvents(); thinFrames();
         speedProbe.push([performance.now(), frames.at(-1).t]); if (speedProbe.length > 20) speedProbe.shift();
       }
       if (r.error) { status(`Simulation error: ${r.error}`, 'err'); done = true; break; }
@@ -572,8 +679,50 @@ function selectScene(name) {
   document.querySelectorAll('#scenes button').forEach((b) => b.classList.toggle('on', b.dataset.scene === name));
   [$('#mixE').value, $('#mixV').value, $('#mixD').value] = sc.mix;
   $('#swOverseer').checked = sc.overseer; $('#swAdmm').checked = sc.admm; $('#swDefense').checked = sc.defense; $('#swAttack').checked = sc.attack; $('#swOutage').checked = sc.outage;
+  $('#swMerge').checked = true; chosenSwitches = null; $('#arch').value = sc.arch; applyArch();
   $('#sceneTitle').textContent = sc.title;
 }
+// non-hierarchical architectures fix DTC / ADMM / defence (and merging for centralized); restore the
+// user's own choices when switching back to hierarchical
+function applyArch() {
+  const fixed = ARCH[$('#arch').value].fixed;
+  if (fixed && !chosenSwitches) chosenSwitches = SWITCH_IDS.map((id) => $(id).checked);
+  if (!fixed && chosenSwitches) { SWITCH_IDS.forEach((id, k) => { $(id).checked = chosenSwitches[k]; }); chosenSwitches = null; }
+  SWITCH_IDS.forEach((id, k) => {
+    const v = fixed ? fixed[k] : null, input = $(id);
+    if (v !== null && v !== undefined) input.checked = v;
+    input.disabled = v !== null && v !== undefined; input.parentElement.classList.toggle('fixed', input.disabled);
+  });
+}
+$('#arch').onchange = applyArch;
+
+// ------------------------------------------------------------------ export / replay (2g)
+$('#dlBtn').onclick = () => {
+  if (!RUN || RUN.replay) { status(RUN?.replay ? 'This run was loaded from a file — it is already saved.' : 'Launch a run first.', 'err'); return; }
+  const a = document.createElement('a'); a.href = `/api/runs/${RUN.run_id}/export`; a.download = `masooda_run_${RUN.run_id}.json`;
+  document.body.append(a); a.click(); a.remove();
+  status(done ? 'Run downloaded (manifest, resolved config, command log, per-frame KPIs, events, frames).' : 'Run still computing — the download holds the frames computed so far.', 'ok');
+};
+$('#loadRun').onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data?.format !== 'masooda-run' || data.version !== 1) throw Error('not a MASooda run export (version 1)');
+    const m = data.manifest; if (!m?.flights || !data.frames?.length) throw Error('export has no flights or frames');
+    if (RUN && !done && !RUN.replay) api(`/api/runs/${RUN.run_id}/stop`, {}).catch(() => {});
+    if (m.map !== mapId) await loadMap(m.map);
+    const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
+    m.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
+    RUN = {...m, run_id: `replay:${m.run_id}`, replay: true}; frames = []; done = true; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
+    nextSeq = 0; lastStats = null; lastPrio = null; speedProbe = []; negHist = {};
+    frames = data.frames.map((x) => { indexNeg(x); return decodeFrame(x); }); indexEvents();
+    selected = Math.max(0, m.flights.findIndex((f) => f.type === 'EMERGENCY'));
+    resetLog(); $('#playBtn').textContent = '❚❚'; $('#tMax').textContent = `/ ${m.duration_s} s`;
+    $('#seedLabel').innerHTML = `seed ${m.seed} · ${ARCH[m.architecture]?.label ?? m.architecture} · <span class="ic">IC ${m.ic_hash}</span> · loaded`;
+    $('#sceneTitle').textContent = `Replay · ${file.name}`; buildLayerSeg(); buildDronePick();
+    status(`Loaded ${file.name}: ${frames.length} frames, ${m.flights.length} flights, config ${data.config_hash} — replaying without re-simulating${data.complete ? '' : ' (partial run)'}.`, 'ok');
+  } catch (err) { status(`Cannot load run: ${err.message}`, 'err'); }
+};
 
 function simSpeed() {  // simulated seconds computed per wall-clock second (recent polls)
   if (speedProbe.length < 2) return NaN;
@@ -606,7 +755,7 @@ function tick(ts) {
   } else $('#buffer').hidden = true;
   const s = RUN && frames.length ? frameAt(simT) : null;
   drawMap(); updatePanels(); draw25(s); drawNetwork(s);
-  if (RUN && frames.length) { drawChart(); drawNetChart(); }
+  if (RUN && frames.length) { drawChart(); drawNetChart(); drawAdmm(); }
   requestAnimationFrame(tick);
 }
 
