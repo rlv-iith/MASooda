@@ -1,0 +1,103 @@
+{
+ "id": "spoofing_zone",
+ "order": 4,
+ "title": "GPS spoofing near the restricted zone",
+ "description": "A restricted area protects the Hospital approach. Two compromised delivery drones start broadcasting false positions 30 m off, near the zone. Neighbours' trusted-range check and W-MSR fusion correct the reports (map shows reported vs estimated positions); at 110 s the operator quarantines both, so their reports are ignored network-wide and they are ordered to land.",
+ "kpi_focus": [
+  "spoofed reports filtered",
+  "W-MSR estimate error",
+  "safety margin",
+  "quarantine"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 100,
+  "duration_s": 240
+ },
+ "drones": [
+  {
+   "name": "spoof1",
+   "type": "DELIVERY",
+   "origin": "V6",
+   "destination": "V3",
+   "depart_s": 20,
+   "malicious": true,
+   "spoof_offset_m": [
+    -30,
+    0
+   ],
+   "spoof_start_s": 50
+  },
+  {
+   "name": "spoof2",
+   "type": "DELIVERY",
+   "origin": "V5",
+   "destination": "V1",
+   "depart_s": 25,
+   "malicious": true,
+   "spoof_offset_m": [
+    0,
+    -30
+   ],
+   "spoof_start_s": 50
+  }
+ ],
+ "script": [
+  {
+   "t": 1,
+   "type": "tfr",
+   "params": {
+    "polygon": [
+     [
+      -520,
+      -200
+     ],
+     [
+      -400,
+      -200
+     ],
+     [
+      -400,
+      -40
+     ],
+     [
+      -520,
+      -40
+     ]
+    ],
+    "start_s": 2,
+    "end_s": 240,
+    "name": "Hospital approach"
+   },
+   "reason": "protect the hospital approach"
+  },
+  {
+   "t": 110,
+   "type": "quarantine",
+   "targets": [
+    "@spoof1",
+    "@spoof2"
+   ],
+   "reason": "range checks flag both drones"
+  }
+ ],
+ "timeline": [
+  [
+   1,
+   "TFR 'Hospital approach' (pads stay usable)"
+  ],
+  [
+   50,
+   "@spoof1, @spoof2 broadcast positions 30 m off"
+  ],
+  [
+   50,
+   "Trusted-range defence + W-MSR correct the reports"
+  ],
+  [
+   110,
+   "Operator quarantines both: reports ignored, ordered to land"
+  ]
+ ]
+}

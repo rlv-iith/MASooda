@@ -73,7 +73,7 @@ class EmergencyTracker:
 
     def on_land(self, aid: int, t: float) -> None:
         p = self.per.get(aid)
-        if p is None:
+        if p is None or p["landed_s"] is not None:   # first mission only (repeated sorties follow)
             return
         p["landed_s"] = float(t)
         p["travel_s"] = round(float(t) - p["depart_s"], 2)

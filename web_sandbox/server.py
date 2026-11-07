@@ -32,6 +32,7 @@ import numpy as np
 
 from config.load_config import get_config
 from simulation.dtc_console import validate_command
+from simulation.scenario_presets import build_preset_request, list_presets, load_preset, script_by_tick
 from simulation.road_network import load_road_network
 from simulation.route_engine import (ARCHITECTURES, flight_from_row, flight_manifest, initial_conditions_hash,
                                      plan_flights, simulate_routes)
@@ -122,6 +123,8 @@ class LiveRun:
         self.ids: set[int] = set()
         self.view_t: float | None = None     # playback time reported by the page (pacing)
         self.sel: list[int] = []             # drones whose full health detail goes into frames
+        self.script: dict[int, list[dict[str, Any]]] = {}   # preset script, by tick
+        self.compare: list[dict[str, Any]] = []             # preset variants (headless) for comparison
         self.view_seen = 0.0                 # wall time of the last report
         self.lead_s = 5.0
         self.watch_timeout_s = 5.0
@@ -145,7 +148,14 @@ class LiveRun:
             self.pending.append(cmd)
 
     def drain(self, k: int, t: float) -> list[dict[str, Any]]:
-        """Engine side: commands to apply at the start of tick k (all submitted so far)."""
+        """Engine side: commands to apply at the start of tick k (preset script + all submitted so far)."""
+        if k in self.script:   # preset script: logged like operator commands (marked scripted)
+            for body in self.script.pop(k):
+                with self.lock:
+                    cmd = _make_cmd(self, body)
+                    cmd["scripted"] = True
+                    self.commands.append(cmd)
+                    self.pending.append(cmd)
         self.pace(t)
         with self.lock:
             out, self.pending = self.pending, []
@@ -181,6 +191,23 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
     """Validate a browser run request and build flights + run arguments."""
     if not isinstance(body, dict):
         raise ValueError("Request must be a JSON object")
+    if body.get("preset"):   # Phase 5: scripted preset (its request, named drones and timed commands)
+        preset = load_preset(str(body["preset"]))
+        variant = _int(body.get("variant", 0), "variant", 0, 20)
+        req, script, names = build_preset_request(preset, variant)
+        prepared = prepare_live_run(req)
+        known = {f.agent_id for f in prepared["flights"]}
+        cfg = prepared["config"]
+        for e in script:   # validate the whole script before the run starts
+            validate_command({k: v for k, v in e.items() if k != "t"}, known,
+                             [v.id for v in prepared["network"].vertiports], int(cfg["airspace"]["num_layers"]),
+                             prepared["duration"], float(cfg["safety"]["maximum_velocity_meters_per_second"]), 6)
+        variants = [v["label"] for v in preset.get("variants", [])]
+        prepared.update(script=script_by_tick(script, float(cfg["simulation"]["timestep_seconds"])),
+                        preset={"id": preset["id"], "title": preset["title"], "description": preset["description"],
+                                "timeline": preset.get("timeline", []), "kpi_focus": preset.get("kpi_focus", []),
+                                "variant": variant, "variants": variants, "names": names})
+        return prepared
     overrides = body.get("config", {}) or {}
     if isinstance(overrides, dict) and "web" in overrides:
         raise ValueError("web.* limits are server settings and cannot be overridden per run")
@@ -315,6 +342,7 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
         "map": prepared["map"],
         "architecture": prepared["architecture"],
         "ic_hash": prepared["ic_hash"],
+        "preset": prepared.get("preset"),
         "safety_definition": "layer-aware 3D: min over pairs of |(dx, dy, Δlayer·layer height)| (route engine); "
                              "verification/metrics.py robustness_series is horizontal-only",
         "dt": float(cfg["simulation"]["timestep_seconds"]) * prepared["stride"],
@@ -344,6 +372,9 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
     })
     run.manifest, run.config = manifest, _json_safe(cfg)
     run.network, run.duration = prepared["network"], prepared["duration"]
+    run.script = dict(prepared.get("script") or {})
+    if prepared.get("preset") and len(prepared["preset"]["variants"]) > 1:
+        _start_compare(run, body, prepared)
     run.lead_s = float(prepared["web"]["interactive_lead_s"])
     run.watch_timeout_s = float(prepared["web"]["watcher_timeout_s"])
     run.ids = {f.agent_id for f in prepared["flights"]}
@@ -352,17 +383,12 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
     return manifest
 
 
-def submit_command(run: LiveRun, body: dict[str, Any]) -> dict[str, Any]:
-    """Validate an operator command and queue it for the engine (applied at the start of its next tick).
-
-    ``add_drone`` (Phase 3) is a ground-side action. Every other type is a DTC console
-    command (``simulation.dtc_console``) that crosses the DTC link; with ``dry_run`` the
-    engine only reports the energy feasibility per target.
-    """
+def _make_cmd(run: LiveRun, body: dict[str, Any]) -> dict[str, Any]:
+    """Validated command dict (caller holds ``run.lock``)."""
     if not isinstance(body, dict):
         raise ValueError("command must be a JSON object")
     cfg = run.config
-    with run.lock:
+    if True:
         cid = f"c{len(run.commands) + 1}"
         if body.get("type") == "add_drone":
             row = dict(body.get("drone") or {})
@@ -377,8 +403,20 @@ def submit_command(run: LiveRun, body: dict[str, Any]) -> dict[str, Any]:
                 body, set(run.ids), [v.id for v in run.network.vertiports], int(cfg["airspace"]["num_layers"]),
                 run.duration, float(cfg["safety"]["maximum_velocity_meters_per_second"]), 6)}
         cmd.update(status="sent", tick_received=None, t_received=None, tick_delivered=None, results={}, outcome=None)
+    return cmd
+
+
+def submit_command(run: LiveRun, body: dict[str, Any]) -> dict[str, Any]:
+    """Validate an operator command and queue it for the engine (applied at the start of its next tick).
+
+    ``add_drone`` (Phase 3) is a ground-side action. Every other type is a DTC console
+    command (``simulation.dtc_console``) that crosses the DTC link; with ``dry_run`` the
+    engine only reports the energy feasibility per target.
+    """
+    with run.lock:
+        cmd = _make_cmd(run, body)
     run.submit(cmd)
-    return {"command_id": cid, "status": "sent", **({"drone_id": cmd["drone"]["id"]} if "drone" in cmd else {})}
+    return {"command_id": cmd["command_id"], "status": "sent", **({"drone_id": cmd["drone"]["id"]} if "drone" in cmd else {})}
 
 
 def scripted_commands(log: list[dict[str, Any]]):
@@ -439,6 +477,59 @@ def export_drones(body: dict[str, Any]) -> dict[str, Any]:
     return {"text": json.dumps(drones_to_json(rows), indent=1), "filename": "masooda_drones.json"}
 
 
+COMPARE_KEYS = ("arrivals", "delivered", "crashes", "near_misses", "safety_violation_ticks", "min_separation_m",
+                "pad_holds", "admm_events", "tactical_layer_shifts", "diversions", "forced_landings", "energy_depleted",
+                "energy_used_wh", "energy_per_delivered_wh", "max_pack_c", "max_motor_c", "bms_alerts", "missions",
+                "services", "service_wait_s")
+
+
+def run_kpis(stats: dict[str, Any], prio: dict[str, Any] | None) -> dict[str, Any]:
+    out = {k: stats.get(k) for k in COMPARE_KEYS}
+    out["emergency_mean_delay_s"] = (prio or {}).get("mean_delay_s")
+    out["priority_compliance"] = (prio or {}).get("rate")
+    return out
+
+
+def _start_compare(run: LiveRun, body: dict[str, Any], prepared: dict[str, Any]) -> None:
+    """Run the preset's other variants headless with the same seed, for the comparison table.
+
+    The live run is paced to playback, so these use the idle CPU in between.
+    """
+    labels = prepared["preset"]["variants"]
+    main = prepared["preset"]["variant"]
+    run.compare = [{"label": lab, "variant": i, "live": i == main, "done": False, "kpis": None, "error": None}
+                   for i, lab in enumerate(labels)]
+
+    def worker():
+        for entry in run.compare:
+            if entry["live"] or run.stop_flag:
+                continue
+            try:
+                p = prepare_live_run({"preset": prepared["preset"]["id"], "variant": entry["variant"]})
+                src = p.get("script") or {}
+                last, prio = {}, None
+                for item in simulate_routes(
+                        p["network"], p["flights"], p["duration"], config=p["config"], use_overseer=p["use_overseer"],
+                        use_admm=p["use_admm"], defended=p["defended"], attack_config=p["attack"],
+                        overseer_link_config=p["link"], should_stop=lambda: run.stop_flag, frame_every=50,
+                        spatial_index=bool(p["web"]["spatial_index"]), architecture=p["architecture"],
+                        junction_merge=p["junction_merge"], seed=p["seed"],
+                        command_source=lambda k, t, src=src: [_headless_cmd(c) for c in src.pop(k, [])]):
+                    last = item.get("stats", last)
+                    prio = item.get("prio", prio)
+                entry["kpis"] = run_kpis(_json_safe(last), _json_safe(prio))
+                entry["done"] = not run.stop_flag
+            except Exception as exc:   # shown in the comparison table
+                traceback.print_exc()
+                entry["error"] = f"{type(exc).__name__}: {exc}"
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def _headless_cmd(body: dict[str, Any]) -> dict[str, Any]:
+    return dict(body, command_id="s", status="sent", tick_received=None, results={}, outcome=None)
+
+
 # --------------------------------------------------------------------------- handler
 class ScenarioHandler(BaseHTTPRequestHandler):
     server_version = "MASoodaDemo/2.0"
@@ -480,6 +571,25 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                                       **{k: web[k] for k in ("max_fleet", "max_duration_s", "realtime_max_fleet",
                                                              "max_frames_in_memory", "poll_batch",
                                                              "target_frames_per_sim_s", "interactive_lead_s")}})
+            elif route == "/api/presets":
+                self._send_json(200, {"presets": list_presets()})
+            elif route.startswith("/api/runs/") and route.endswith("/compare"):
+                run = RUNS.get(route.split("/")[3])
+                if run is None:
+                    self._send_json(404, {"error": "run_not_found"})
+                    return
+                out = []
+                for e in run.compare:
+                    e = dict(e)
+                    if e["live"]:   # the live variant's numbers come from its own frames
+                        frames, _ = run.store.since(0, 10 ** 9)
+                        stats, prio = {}, None
+                        for f in frames:
+                            stats = f.get("stats", stats)
+                            prio = f.get("prio", prio)
+                        e.update(done=run.done, kpis=run_kpis(stats, prio) if stats else None)
+                    out.append(e)
+                self._send_json(200, {"variants": out})
             elif route == "/api/architectures":
                 self._send_json(200, {"default": "hierarchical", "architectures": list(ARCHITECTURES)})
             elif route == "/api/maps":

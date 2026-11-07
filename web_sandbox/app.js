@@ -411,7 +411,7 @@ function updatePanels() {
   $('#kRepSub').textContent = spoofers.length ? (undefended ? 'defence OFF — fed into separation' : `${spoofers.map((i) => 'D-' + i).join(', ')} spoofing`) : 'no attack injected';
   $('#kArr').textContent = st.arrivals; $('#kArrSub').textContent = `of ${RUN.flights.length} flights`;
   $('#runState').textContent = RUN.replay ? 'LOADED' : done && simT >= frames.at(-1).t - 1e-6 ? 'COMPLETE' : done ? 'REPLAY' : 'LIVE';
-  updateOccupancy(s); updateDrone(s); pumpLog(); updateFleetHealth(s); if (dTab === 'hl') updateHealthTab(s); updateConsole(s);
+  updateOccupancy(s); updateDrone(s); pumpLog(); updateFleetHealth(s); if (dTab === 'hl') updateHealthTab(s); updateConsole(s); updateCompare();
   const canInject = !RUN.replay && !done; if ($('#cdNow').disabled === canInject) $('#cdNow').disabled = !canInject;
 }
 function updateOccupancy(s) {
@@ -663,8 +663,8 @@ function buildRequest() {
     attack: {enabled: $('#swAttack').checked, count: 2, start_s: Math.round(duration * 0.2)},
     outage: {enabled: $('#swOutage').checked, start_s: Math.round(duration * 0.25), end_s: Math.round(duration * 0.6)}};
 }
-async function launch() {
-  let req; try { req = buildRequest(); } catch (e) { status(e.message, 'err'); return; }
+async function launch(presetReq = null) {
+  let req; try { req = presetReq || buildRequest(); } catch (e) { status(e.message, 'err'); return; }
   $('#runBtn').disabled = true; status('Planning routes on the corridor graph…');
   try {
     const run = await api('/api/runs', req);   // the server stops the previous run only once this one is accepted
@@ -674,7 +674,8 @@ async function launch() {
     nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; lastConsole = null; hselHist = {}; speedProbe = []; negHist = {}; selSet = new Set(); cmdHist = [];
     selected = Math.max(0, run.flights.findIndex((f) => f.type === 'EMERGENCY'));
     renderSel(); $('#ccHist').replaceChildren(); resetLog(); $('#playBtn').textContent = '❚❚'; $('#seedLabel').innerHTML = `seed ${run.seed} · ${ARCH[run.architecture]?.label ?? run.architecture} · <span class="ic" title="Initial-conditions hash: identical for the same seed, fleet and map in every architecture">IC ${run.ic_hash}</span>`; $('#tMax').textContent = `/ ${run.duration_s} s`;
-    $('#sceneTitle').textContent = SCENES[scene].title; buildLayerSeg(); buildDronePick();
+    $('#sceneTitle').textContent = run.preset ? `Preset · ${run.preset.title}` : SCENES[scene].title; buildLayerSeg(); buildDronePick(); cmpAt = 0;
+    if (run.preset?.names) for (const [nm, id] of Object.entries(run.preset.names)) { const f = run.flights.find((x) => x.id === id); if (f) f.task = `@${nm} · ${f.task}`; }
     status(`Run ${run.run_id}: ${run.flights.length} flights planned on ${MAP.label} corridors — streaming from the simulator.`, 'ok');
     poll(run.run_id);
   } catch (e) { status(e.message, 'err'); $('#runState').textContent = 'ERROR'; }
@@ -1368,12 +1369,56 @@ canvas.addEventListener('contextmenu', (e) => {
 });
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#ctxMenu')) hideCtx(); });
 
+// ------------------------------------------------------------------ Phase 5: scenario presets + comparison
+let PRESETS = [], cmpAt = 0;
+function renderPreset() {
+  const p = PRESETS.find((x) => x.id === $('#presetSel').value), box = $('#presetInfo');
+  box.hidden = !p; if (!p) return;
+  $('#presetDesc').textContent = p.description;
+  $('#presetTimeline').innerHTML = p.timeline.map(([t, txt]) => `<li><time>${t} s</time><span></span></li>`).join('');
+  [...$('#presetTimeline').children].forEach((li, i) => { li.lastChild.textContent = p.timeline[i][1]; });
+  $('#presetMeta').textContent = `${p.map.toUpperCase()} · ${p.fleet} random drones${p.custom_drones ? ' + ' + p.custom_drones + ' scripted' : ''} · ${p.duration_s} s` +
+    (p.variants.length ? ` · variants: ${p.variants.join(' / ')} (compared side by side)` : '') + ` · watch: ${p.kpi_focus.join(', ')}`;
+}
+$('#presetSel').onchange = renderPreset;
+$('#presetRun').onclick = async () => {
+  const id = $('#presetSel').value; if (!id) return;
+  const p = PRESETS.find((x) => x.id === id);
+  if (p.map !== mapId) await loadMap(p.map);
+  await launch({preset: id});
+};
+const CMP_ROWS = [['delivered', 'Delivered', 'max'], ['arrivals', 'Landed', 'max'], ['crashes', 'Crashes', 'min'], ['near_misses', 'Near misses', 'min'],
+  ['min_separation_m', 'Min separation (m)', 'max'], ['pad_holds', 'Ground holds', 'min'], ['emergency_mean_delay_s', 'Emergency delay (s)', 'min'],
+  ['energy_used_wh', 'Fleet energy (Wh)', 'min'], ['energy_per_delivered_wh', 'Energy / delivery (Wh)', 'min'], ['max_pack_c', 'Max pack °C', 'min'],
+  ['max_motor_c', 'Max motor °C', 'min'], ['diversions', 'Diversions', 'min'], ['forced_landings', 'Forced landings', 'min'], ['energy_depleted', 'Depleted', 'min']];
+async function updateCompare() {
+  const card = $('#cmpCard'), pr = RUN?.preset;
+  if (!pr || pr.variants.length < 2 || RUN.replay) { card.hidden = true; return; }
+  card.hidden = false;
+  const now = performance.now(); if (now - cmpAt < 2000) return; cmpAt = now;
+  let data; try { data = await api(`/api/runs/${RUN.run_id}/compare`); } catch { return; }
+  $('#cmpTitle').textContent = `Variant comparison · ${pr.title}`;
+  const vs = data.variants;
+  $('#cmpNote').textContent = `same seed and flights · ${vs.filter((v) => v.done).length}/${vs.length} finished · live: ${vs.find((v) => v.live)?.label}`;
+  let html = `<tr><th>KPI</th>${vs.map((v) => `<th>${v.label}${v.live ? ' (live)' : ''}${v.done ? '' : v.error ? ' ⚠' : ' …'}</th>`).join('')}</tr>`;
+  for (const [key, label, better] of CMP_ROWS) {
+    const vals = vs.map((v) => v.kpis?.[key]), nums = vals.filter((x) => typeof x === 'number');
+    const best = nums.length > 1 ? (better === 'max' ? Math.max(...nums) : Math.min(...nums)) : null, worst = nums.length > 1 ? (better === 'max' ? Math.min(...nums) : Math.max(...nums)) : null;
+    html += `<tr><td>${label}</td>${vals.map((x, i) => { const done = vs[i].done; const cls = done && best !== worst ? (x === best ? 'best' : x === worst ? 'worst' : '') : '';
+      return `<td class="${cls}">${x === null || x === undefined ? (vs[i].error ? 'error' : '…') : fmt(x, Number.isInteger(x) ? 0 : 1)}</td>`; }).join('')}</tr>`;
+  }
+  $('#cmpTable').innerHTML = html;
+}
+
 // ------------------------------------------------------------------ boot
 async function boot() {
   resize(); requestAnimationFrame(tick);
   try {
     let maps;
-    [baseConfig, maps, LIMITS] = await Promise.all([api('/api/config'), api('/api/maps'), api('/api/limits')]);
+    let presets;
+    [baseConfig, maps, LIMITS, presets] = await Promise.all([api('/api/config'), api('/api/maps'), api('/api/limits'), api('/api/presets')]);
+    PRESETS = presets.presets;
+    $('#presetSel').innerHTML = '<option value="">— none: build your own below —</option>' + PRESETS.map((p) => `<option value="${p.id}">${p.order}. ${p.title}</option>`).join('');
     applyLimits();
     MAPS = maps.maps;
     await loadMap(new URLSearchParams(location.search).get('map') || maps.default);

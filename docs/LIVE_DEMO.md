@@ -86,6 +86,16 @@ The **DTC console** card issues real ATC/UTM-style commands to the selected dron
 
 **Weather** (Scenario card): temperature presets and wind for the battery/thermal/air-density model.
 
+## Scenario presets (Phase 5)
+
+The Scenario card has a **Scenario preset** list with ten scripted IITH scenarios: medical
+emergency, vertiport congestion, VIP restricted area, GPS spoofing, DTC outage, weather cell,
+non-cooperative intruder, battery failure, heat wave and 60-minute operations. Each shows its
+description and timeline before you press **Run this preset**. Scripted commands appear in the
+command history like operator commands, and you can still give your own. Presets with variants
+(DTC outage: continue / hold / RTB; heat wave: 44 °C / 30 °C) also run the other variants in the
+background and fill a comparison table under the KPIs.
+
 ## What changed and why
 
 Before: the Hyderabad map was only a picture behind the simulation. The engine

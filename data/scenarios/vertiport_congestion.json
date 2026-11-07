@@ -1,0 +1,71 @@
+{
+ "id": "vertiport_congestion",
+ "order": 2,
+ "title": "Peak-hour vertiport congestion",
+ "description": "Two hundred drones try to leave within one minute, more than the pads and corridor junctions can take. The DTC runs a ground-delay program: departures in the north-west and north-centre sectors are stopped and released in turn, and traffic into the busy centre is metered with a speed limit.",
+ "kpi_focus": [
+  "ground holds",
+  "near misses",
+  "arrivals per minute",
+  "release behaviour"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 200,
+  "duration_s": 300,
+  "departure_window_s": 60
+ },
+ "script": [
+  {
+   "t": 20,
+   "type": "ground_stop",
+   "params": {
+    "sector": 3,
+    "release_s": 90
+   },
+   "reason": "ground-delay program"
+  },
+  {
+   "t": 20,
+   "type": "ground_stop",
+   "params": {
+    "sector": 4,
+    "release_s": 120
+   },
+   "reason": "ground-delay program"
+  },
+  {
+   "t": 30,
+   "type": "speed_limit",
+   "params": {
+    "sector": 1,
+    "v": 8,
+    "expires_s": 60
+   },
+   "reason": "metering into the centre"
+  }
+ ],
+ "timeline": [
+  [
+   0,
+   "200 drones, departure window 60 s (overloaded pads)"
+  ],
+  [
+   20,
+   "Ground stop S3 (until 90 s) and S4 (until 120 s)"
+  ],
+  [
+   30,
+   "Speed limit 8 m/s in S1 for 60 s"
+  ],
+  [
+   90,
+   "S3 released"
+  ],
+  [
+   120,
+   "S4 released"
+  ]
+ ]
+}

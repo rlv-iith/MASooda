@@ -26,6 +26,7 @@ safety:
   minimum_separation_meters: 8.0
   maximum_velocity_meters_per_second: 15.0
   maximum_acceleration_meters_per_second_squared: 4.0
+  detect_and_avoid_radius_meters: 30.0   # route mode: onboard sensing of drones without Remote ID
 
 corridors:
   width_meters: 20.0
@@ -281,6 +282,15 @@ dtc_console:
   charge_c_rate: 2.0             # fast charge (1/h)
   charge_target_pct: 90.0
   swap_time_s: 90.0
+  service_pad_capacity: 2        # drones served at once per battery-service pad; others queue (FIFO)
+
+# Phase 5 repeated operations (route mode). Off by default; the long-duration preset turns it on.
+operations:
+  sorties: false                 # after landing, take a new mission from that pad
+  turnaround_s: 30.0
+  service_soc_pct: 35.0          # below this SoC the next sortie starts with a battery service
+  service_mode: swap             # swap | charge
+  service_roles: [depot]         # vertiport roles that have battery service
 
 # Phase 3B drone health model (simulation/drone_health.py, docs/DRONE_HEALTH_MODEL.md).
 drone_health:

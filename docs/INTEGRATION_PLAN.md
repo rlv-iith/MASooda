@@ -325,3 +325,30 @@ energy per delivered drone 768 Wh (250) and 960 Wh (500, more eVTOLs delivered).
   −20…55 °C, ≤ 15 m/s). Temperature drives air density (hover power +4.6 % at 42 °C vs 15 °C),
   battery resistance and the thermal models. Wind changes airspeed and power, not the drones'
   motion.
+
+## 13. Phase 5 results (scenario presets)
+
+- **Presets:** 10 presets in `data/scenarios/*.json`, loaded by `simulation/scenario_presets.py`.
+  Named custom drones (`@name` → id `fleet + k`), timed scripts in the console API, a `moving_cell`
+  macro, and `variants`.
+- **Server:** `GET /api/presets`; `POST /api/runs {preset, variant}` validates the whole script up
+  front. Scripted commands enter the engine at their tick, are logged with `scripted: true`, and
+  replay exactly. `GET /api/runs/<id>/compare` returns the KPIs of every variant (the other variants
+  run headless with the same seed while the live one plays).
+- **Engine additions (approved B, C, D):**
+  - detect-and-avoid sensing of non-cooperative drones (`safety.detect_and_avoid_radius_meters`);
+  - repeated sorties (`operations:`);
+  - battery-service pads with capacity and a FIFO queue (`dtc_console.service_pad_capacity`);
+    ground-crew swap when a drone is too weak to fly to a depot.
+- **Fixes found by the presets** (they apply to all runs):
+  1. A drone whose route makes a U-turn at a pad could stall against the tube wall. Any airborne
+     drone with no progress for 30 s now gets a fresh route (11 times in the 60-minute preset;
+     deliveries went from 806 to 1469).
+  2. A diverting drone keeps its current route only if it is not more than 20 m longer than the new
+     option.
+  3. After a battery swap the BMS is re-evaluated at once. Before this, the stale CRITICAL status
+     failed the next pre-flight check.
+  4. Emergency arrival is counted only at the planned destination, first mission only.
+- **UI:** a preset picker with description, timeline and KPI focus; "Run this preset"; scripted
+  drones labelled `@name` in the drone list; a variant comparison table (best value green, worst
+  red).

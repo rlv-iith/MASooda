@@ -1,0 +1,69 @@
+{
+ "id": "battery_failure",
+ "order": 8,
+ "title": "Battery failure mid-route",
+ "description": "Two delivery drones get battery faults mid-route. @cargo1 loses a cell at 70 s: the cell imbalance takes the BMS to CRITICAL, the DTC gives it right of way and reserves its landing pad, and it diverts. @cargo2 (26 % charge) loses 30 % of its capacity at 80 s and diverts on low reserve. At 85 s the operator grounds every drone still at BMS CRITICAL.",
+ "kpi_focus": [
+  "fault to landing time",
+  "BMS escalation",
+  "diversions",
+  "no energy depletion"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 100,
+  "duration_s": 240
+ },
+ "drones": [
+  {
+   "name": "cargo1",
+   "type": "DELIVERY",
+   "origin": "V13",
+   "destination": "V12",
+   "depart_s": 20,
+   "soc_init_pct": 80,
+   "fault": {
+    "type": "cell_failure",
+    "t_s": 70
+   }
+  },
+  {
+   "name": "cargo2",
+   "type": "DELIVERY",
+   "origin": "V2",
+   "destination": "V9",
+   "depart_s": 25,
+   "soc_init_pct": 26,
+   "fault": {
+    "type": "capacity_loss",
+    "t_s": 80
+   }
+  }
+ ],
+ "script": [
+  {
+   "t": 85,
+   "type": "fleet_ground_bms_critical",
+   "reason": "operator: ground all BMS CRITICAL"
+  }
+ ],
+ "timeline": [
+  [
+   20,
+   "@cargo1 Sampoorna → SNCC (2.3 km, 80 % SoC); @cargo2 Main Gate → New Hostels (26 % SoC)"
+  ],
+  [
+   70,
+   "@cargo1 cell failure → BMS CRITICAL, right of way, pad reserved, diverts"
+  ],
+  [
+   80,
+   "@cargo2 loses 30 % capacity → low-reserve diversion"
+  ],
+  [
+   85,
+   "Operator: ground all BMS CRITICAL"
+  ]
+ ]
+}

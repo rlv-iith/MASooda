@@ -255,3 +255,19 @@ canvas#map.boxing{cursor:crosshair}
 .batt-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .batt-tools select{background:#06101d;border:1px solid var(--line2);border-radius:6px;color:var(--ink);padding:4px 6px;font-size:11.5px}
 #battGrid{width:100%;height:220px;display:block;cursor:pointer}
+
+/* Phase 5: presets + comparison */
+.presets{margin-bottom:10px}
+.preset-info{background:#071423;border:1px solid var(--line2);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px}
+.preset-info p{margin:0 0 6px;line-height:1.45}
+.preset-tl{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:2px}
+.preset-tl li{display:flex;gap:8px;font-size:11.5px}
+.preset-tl time{font-family:var(--mono);color:var(--cyan);flex:0 0 52px;text-align:right}
+.cmp-card{grid-column:1 / -1}
+.cmp-wrap{overflow-x:auto}
+table.cmp{border-collapse:collapse;width:100%;font-size:12px}
+table.cmp th,table.cmp td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+table.cmp th:first-child,table.cmp td:first-child{text-align:left;color:var(--mute)}
+table.cmp th{color:var(--ink)}
+table.cmp td.best{color:var(--green);font-weight:700}
+table.cmp td.worst{color:#ff8a8a}

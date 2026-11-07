@@ -200,6 +200,11 @@ class RouteRunStats:
     forced_landings: int = 0
     energy_depleted: int = 0           # must stay 0 in a correct run
     grounded_preflight: int = 0        # failed the pre-flight BMS / energy check, never took off
+    intruder_detections: int = 0       # drone pairs where onboard sensing found a non-cooperative drone
+    missions: int = 0                  # sorties started after the first (repeated operations)
+    services: int = 0                  # battery swaps / charges completed
+    service_queue_max: int = 0
+    service_wait_s: float = 0.0        # total time drones waited for a service slot
     energy_used_wh: float = 0.0        # all drones, drawn from the cells
     energy_per_delivered_wh: float | None = None
     max_pack_c: float | None = None
@@ -567,7 +572,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         e_rem, cruise = health.e_rem_wh(i), cruise_of(f)
         for length, vid, route in _pad_options(i):
             if health.energy_needed_wh(i, length, cruise) <= e_rem:
-                if vid == f.destination and length <= f.route.length - progress[i] + 1.0:
+                if vid == f.destination and f.route.length - progress[i] <= length + 20.0:   # current route is fine
                     diverting[i] = vid
                     emit("divert", [i], f"D-{i} {why}: continuing to {vid} (nearest reachable pad, "
                          f"{length:.0f} m, {e_rem:.0f} Wh left)", "global", severity)
@@ -985,7 +990,82 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
              + (f" (reason: {cmd['reason']})" if cmd.get("reason") else ""), "global", sev)
 
     console_state = {"lost_link_default": lost_link_default}
+    # Phase 5: detect-and-avoid sensing, repeated sorties, battery-service pad capacity
+    sense_r = float(cfg["safety"].get("detect_and_avoid_radius_meters", 30.0))
+    sensed_seen: set[tuple[int, int]] = set()
+    intruders_announced: set[int] = set()
+    ops = cfg.get("operations", {}) or {}
+    sorties = bool(ops.get("sorties", False))
+    service_capacity = max(1, int(ccfg.get("service_pad_capacity", 2)))
+    pad_queue: dict[str, list[tuple[int, dict[str, Any], float]]] = {}
+    sortie_n: dict[int, int] = {}
+    energy_at_sortie: dict[int, float] = {}
+
+    def _service_pads() -> list:
+        roles = set(ops.get("service_roles", ["depot"]))
+        return [v for v in network.vertiports if v.role in roles] or list(network.vertiports)
+
+    def _next_sortie(i: int) -> None:
+        """Repeated operations: after a turnaround the drone takes a new mission from the pad it is on,
+        or first flies to a battery-service pad when its charge is below ``service_soc_pct``."""
+        f = by_id[i]
+        here = network.vertiport(f.destination)
+        sortie_n[i] = sortie_n.get(i, 0) + 1
+        rng = np.random.default_rng([seed, 31337, i, sortie_n[i]])
+        others = [v for v in network.vertiports if v.id != here.id]
+        if f.type == AgentType.EMERGENCY and here.role != "hospital":
+            others = [v for v in others if v.role == "hospital"] or others
+        d = np.array([math.dist(here.position, v.position) for v in others])
+        w = np.exp(-d / 1500.0)
+        nxt_dest = others[int(rng.choice(len(others), p=w / w.sum()))]
+        turnaround = float(ops.get("turnaround_s", 30.0))
+        need_service = health is not None and health.soc(i) * 100.0 < float(ops.get("service_soc_pct", 35.0))
+        mode = str(ops.get("service_mode", "swap"))
+        if need_service:
+            pads = sorted(_service_pads(), key=lambda v: (RoutePath(network.vertiport_route(here, v)).length
+                                                         if v.id != here.id else 0.0, v.id))
+            svc = pads[0]
+            ferry = RoutePath(network.vertiport_route(here, svc)).length if svc.id != here.id else 0.0
+            too_weak = health.status(i) >= CRITICAL or not _energy_check(i, ferry)[0]
+            if svc.id == here.id or too_weak:   # on a service pad, or too weak to fly there: ground-crew service
+                if too_weak and svc.id != here.id:
+                    emit("service", [i], f"D-{i} too low to reach {svc.id}: ground-crew battery {mode} at {here.id}",
+                         "global", "warning")
+                    svc = here
+                status[i] = QUEUED
+                charge_plan[i] = {"pad": svc.id, "mode": mode, "resume": nxt_dest.id, "slow": svc.id not in
+                                  {v.id for v in _service_pads()}}
+                planned_dest[i] = nxt_dest.id
+                _start_service(i, agents[i])
+                return
+            charge_plan[i] = {"pad": svc.id, "mode": mode, "resume": nxt_dest.id}
+            dest, why = svc, f"battery {mode} at {svc.id} before the next mission"
+        else:
+            dest, why = nxt_dest, "next sortie"
+        route = RoutePath(network.vertiport_route(here, dest))
+        status[i] = QUEUED
+        f.origin, f.destination, f.route = here.id, dest.id, route
+        f.depart_s = round(t + turnaround, 1)
+        planned_dest[i] = nxt_dest.id
+        progress[i] = 0.0
+        start = route.point_at(0.0)
+        agents[i].position[0], agents[i].position[1] = float(start[0]), float(start[1])
+        agents[i].velocity[:] = 0.0
+        agents[i].destination = np.array([*route.point_at(route.length), agents[i].position[2]])
+        preflight_ok.discard(i)
+        held.discard(i)
+        if mtrack is not None:
+            mtrack.drop(i)
+            mtrack.add(network, f)
+        if health is not None:
+            energy_at_sortie[i] = health.energy_used_wh(i)
+        stats.missions += 1
+        reroutes.append({"id": i, "origin": here.id, "destination": dest.id, "reason": why,
+                         "route_length_m": round(route.length, 1),
+                         "route": [[round(float(x), 2), round(float(y), 2)] for x, y in route.points]})
+        emit("sortie", [i], f"D-{i} {why}: {here.id} → {dest.id}, departs at {f.depart_s:.0f} s", "drone")
     dep_block_seen: set[tuple[int, str]] = set()
+    stuck: dict[int, tuple[float, float]] = {}   # drone -> (progress, time) of its last real progress
     tfr_every = max(1, int(round(1.0 / dt)))
     last_console_sent: list[Any] = [None]
 
@@ -1034,20 +1114,34 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
              "global", "warning")
 
     def _start_service(i: int, nxt) -> None:
+        """Drone arrived at a battery-service pad: start now, or wait for a free slot (FIFO)."""
         plan = charge_plan.pop(i)
-        f = by_id[i]
         status[i] = QUEUED
         nxt.velocity[:] = 0.0
         pad = network.vertiport(plan["pad"])
         nxt.position[0], nxt.position[1] = float(pad.position[0]), float(pad.position[1])
+        by_id[i].depart_s = math.inf      # on the pad until the service is done
+        busy = sum(1 for c in charging.values() if c["pad"] == pad.id)
+        if busy >= service_capacity:
+            pad_queue.setdefault(pad.id, []).append((i, plan, t))
+            stats.service_queue_max = max(stats.service_queue_max, len(pad_queue[pad.id]))
+            console_dirty[0] = True
+            emit("service", [i], f"D-{i} waiting at {pad.id} for a battery {plan['mode']} slot "
+                 f"({busy} busy, {len(pad_queue[pad.id])} in queue)", "global")
+            return
+        _begin_service(i, plan)
+
+    def _begin_service(i: int, plan: dict[str, Any]) -> None:
+        f = by_id[i]
+        pad = network.vertiport(plan["pad"])
         if plan["mode"] == "swap" or health is None:
-            service = float(ccfg.get("swap_time_s", 90.0))
+            service = float(ccfg.get("swap_time_s", 90.0)) * (2.0 if plan.get("slow") else 1.0)
             target = 1.0
         else:
             target = float(ccfg.get("charge_target_pct", 90.0)) / 100.0
             rate = float(ccfg.get("charge_c_rate", 2.0))
             service = max(30.0, (target - health.soc(i)) / rate * 3600.0)
-        charging[i] = {"mode": plan["mode"], "until": t + service, "target": target}
+        charging[i] = {"mode": plan["mode"], "until": t + service, "target": target, "pad": pad.id}
         resume = network.vertiport(plan["resume"])
         route = RoutePath(network.vertiport_route(pad, resume))
         f.origin, f.destination, f.route, f.depart_s = pad.id, resume.id, route, round(t + service, 1)
@@ -1091,9 +1185,34 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             c = charging.pop(i)
             if health is not None:
                 health.set_soc(i, max(health.soc(i), c["target"]))
+                health.bms(np.array([health.index[i]]), initial=True)   # fresh pack: re-evaluate the BMS now
+            stats.services += 1
             console_dirty[0] = True
             emit("service", [i], f"D-{i} battery {c['mode']} complete — SoC "
                  f"{(health.soc(i) * 100 if health else 100):.0f}%", "global")
+            q = pad_queue.get(c["pad"])
+            if q:   # next drone in line at this pad
+                j, plan, since = q.pop(0)
+                stats.service_wait_s = round(stats.service_wait_s + (t - since), 1)
+                _begin_service(j, plan)
+        if step % tfr_every == 0:   # no progress for 30 s (e.g. a U-turn route against the tube wall): replan
+            for i in ids:
+                if status[i] != AIRBORNE or i in hold_at:
+                    stuck.pop(i, None)
+                    continue
+                s0, t0 = stuck.get(i, (progress[i], t))
+                if progress[i] > s0 + 2.0:
+                    stuck[i] = (progress[i], t)
+                elif t - t0 >= 30.0:
+                    f = by_id[i]
+                    route = _route_to(i, f.destination, None)
+                    stuck[i] = (0.0, t)
+                    if route is not None:
+                        _set_route(i, route, f.destination, "no progress for 30 s", "replan", "warning")
+                        emit("replan", [i], f"D-{i} made no progress for 30 s → new route to {f.destination} "
+                             f"({route.length:.0f} m)", "drone", "warning")
+                else:
+                    stuck.setdefault(i, (s0, t0))
         zones = _active_zones()
         if zones and step % tfr_every == 0:   # keep airborne drones out of active restrictions
             for i in ids:
@@ -1127,6 +1246,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             "lost_link_default": console_state["lost_link_default"],
             "lost_link": {str(k): v for k, v in lost_link_drone.items()},
             "outage_queue": len(outage_queue),
+            "service_queue": {k: [x[0] for x in v] for k, v in pad_queue.items() if v},
         }
 
     def nonlocal_set(key: str, value: Any) -> None:
@@ -1427,6 +1547,22 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     if (a.id, rid) not in spoof_seen:
                         spoof_seen.add((a.id, rid))
                         emit("defend", [a.id, rid], f"Defence flagged D-{rid}'s report: range mismatch → position corrected (W-MSR)")
+            if noncoop and sense_r > 0:   # detect-and-avoid: no Remote ID, so only onboard sensing sees it
+                for j in nbr_ids:
+                    if j not in noncoop or j == a.id or j not in by_air or by_air[j].altitude_layer != a.altitude_layer:
+                        continue
+                    dj = float(np.linalg.norm(by_air[j].position[:2] - p))
+                    if dj < sense_r:
+                        nbrs = list(nbrs) + [by_air[j]]
+                        stats.intruder_detections += 1 if (a.id, j) not in sensed_seen else 0
+                        if (a.id, j) not in sensed_seen:
+                            sensed_seen.add((a.id, j))
+                            emit("detect", [a.id, j], f"D-{a.id} sensed non-cooperative D-{j} at {dj:.0f} m (no Remote ID) "
+                                 f"→ avoiding", "drone", "warning")
+                            if j not in intruders_announced:
+                                intruders_announced.add(j)
+                                emit("detect", [j, a.id], f"Non-cooperative D-{j} detected by onboard sensing of D-{a.id} "
+                                     f"— the DTC cannot see it", "global", "warning")
 
             v_ref = ref_speed(a, remaining)
             # car-following along the corridor (gap = d_0 + h * v)
@@ -1632,9 +1768,12 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 if f.destination == planned_dest[a.id]:
                     stats.delivered += 1
                     if health is not None:
-                        delivered_energy.append(health.energy_used_wh(a.id))
+                        delivered_energy.append(health.energy_used_wh(a.id) - energy_at_sortie.get(a.id, 0.0))
                 diverting.pop(a.id, None)
-                etrack.on_land(a.id, t)
+                if f.destination == planned_dest[a.id]:   # an emergency counts only at its own destination
+                    etrack.on_land(a.id, t)
+                if sorties and a.id not in cancelled and a.id not in quarantined:
+                    _next_sortie(a.id)
                 if mtrack is not None:
                     mtrack.drop(a.id)
                 emit("land", [a.id], f"D-{a.id} landed at {f.destination}", "global")

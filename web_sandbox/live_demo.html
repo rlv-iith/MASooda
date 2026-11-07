@@ -147,6 +147,16 @@
 
       <section class="card">
         <div class="card-head"><h2>Scenario</h2><span class="muted" id="seedLabel"></span></div>
+        <div class="presets">
+          <label class="archsel">Scenario preset
+            <select id="presetSel"><option value="">— none: build your own below —</option></select></label>
+          <div id="presetInfo" class="preset-info" hidden>
+            <p id="presetDesc"></p>
+            <ol id="presetTimeline" class="preset-tl"></ol>
+            <p class="muted" id="presetMeta"></p>
+            <button id="presetRun" class="primary">▶ Run this preset</button>
+          </div>
+        </div>
         <label class="archsel">Architecture
           <select id="arch">
             <option value="hierarchical">Hierarchical — DTC + local boids/ADMM (MASooda)</option>
@@ -272,6 +282,10 @@
     </section>
 
     <div class="bottom">
+    <section class="card cmp-card" id="cmpCard" hidden>
+      <div class="card-head"><h2 id="cmpTitle">Variant comparison</h2><span class="muted" id="cmpNote">same seed, same flights</span></div>
+      <div class="cmp-wrap"><table class="cmp" id="cmpTable"></table></div>
+    </section>
     <section class="card batt-card" id="battCard">
       <div class="card-head"><h2>Battery matrix · every drone</h2>
         <div class="batt-tools">

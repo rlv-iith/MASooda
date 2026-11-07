@@ -1,0 +1,65 @@
+{
+ "id": "long_operations",
+ "order": 10,
+ "title": "Long-duration operations (60 min)",
+ "description": "A full hour of campus operations. Sixty drones fly repeated sorties; when a drone lands below 35 % charge it flies to a depot swap station first. Each depot serves two drones at a time and the rest queue. A one-minute DTC outage at 20 min tests the hold policy, and at 40 min the operator recalls every drone below 25 %. The battery matrix shows the fleet's charge cycling.",
+ "kpi_focus": [
+  "missions",
+  "energy per mission",
+  "swap queue and wait",
+  "SoC over time"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 60,
+  "duration_s": 3600,
+  "departure_window_s": 120,
+  "outage": {
+   "enabled": true,
+   "start_s": 1200,
+   "end_s": 1260
+  },
+  "config": {
+   "operations": {
+    "sorties": true
+   }
+  }
+ },
+ "script": [
+  {
+   "t": 1,
+   "type": "lost_link_policy",
+   "params": {
+    "policy": "hold"
+   },
+   "reason": "shift policy: hold on lost link"
+  },
+  {
+   "t": 2400,
+   "type": "fleet_recall_below_soc",
+   "params": {
+    "threshold_pct": 25
+   },
+   "reason": "end-of-shift recall"
+  }
+ ],
+ "timeline": [
+  [
+   0,
+   "60 drones; repeated sorties, 30 s turnaround"
+  ],
+  [
+   0,
+   "Below 35 % SoC: battery swap at a depot first (2 per pad, FIFO queue)"
+  ],
+  [
+   1200,
+   "DTC outage 60 s: drones hold"
+  ],
+  [
+   2400,
+   "Recall all drones below 25 % SoC"
+  ]
+ ]
+}
