@@ -89,11 +89,12 @@
           <button data-scene="decentral"><b>Decentralized</b><small>No DTC</small></button>
         </div>
         <div class="grid2">
-          <label>Fleet size<input id="fleet" type="number" min="1" max="150" value="60"></label>
-          <label>Duration (s)<input id="duration" type="number" min="5" max="900" value="240"></label>
-          <label>Departure window (s)<input id="window" type="number" min="0" max="900" value="90"></label>
+          <label>Fleet size <span class="muted" id="fleetHint"></span><input id="fleet" type="number" min="1" value="60"></label>
+          <label>Duration (s)<input id="duration" type="number" min="5" value="240"></label>
+          <label>Departure window (s)<input id="window" type="number" min="0" value="90"></label>
           <label>Random seed<input id="seed" type="number" min="0" value="42"></label>
         </div>
+        <p class="warn" id="fleetWarn" hidden></p>
         <div class="mix"><span>Mix %</span>
           <label class="e">EMG<input id="mixE" type="number" min="0" max="100" value="10"></label>
           <label class="v">eVTOL<input id="mixV" type="number" min="0" max="100" value="30"></label>

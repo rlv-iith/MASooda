@@ -40,6 +40,9 @@ from simulation.overseer import GlobalOverseer
 from simulation.overseer_link import OverseerLink
 from simulation.road_network import RoadNetwork, RoutePath
 from simulation.schema import AgentState, AgentType, GlobalStateSnapshot
+from simulation.spatial_grid import (
+    UniformGrid, close_same_layer_pairs, layered_min_separation_grid, radius_adjacency,
+)
 
 QUEUED, AIRBORNE, LANDED, CRASHED = 0, 1, 2, 3
 MERGE_CLEARANCE_M = 45.0  # departure needs this gap at the corridor junction on its layer
@@ -202,13 +205,31 @@ def simulate_routes(
     attack_config: dict[str, Any] | None = None,
     overseer_link_config: dict[str, Any] | None = None,
     should_stop: Callable[[], bool] | None = None,
+    frame_every: int = 1,
+    spatial_index: bool | None = None,
+    exact_positions: bool = False,
 ) -> Iterator[dict[str, Any]]:
-    """Yield one frame per tick: positions, layers, status, robustness, events."""
+    """Yield one item per tick.
+
+    Every ``frame_every``-th tick (and the last tick) is a full frame: positions,
+    layers, status, robustness, network metrics, events. The other ticks yield a
+    light ``{"t", "k", "partial": True, "events", "stats"}`` item so callers never
+    lose events. ``frame_every=1`` (default) yields a full frame every tick.
+
+    ``spatial_index`` (default ``web.spatial_index`` from config, else True) uses
+    the uniform-grid queries from ``simulation.spatial_grid``; results are
+    identical to the brute-force path (``False``), only faster for large fleets.
+    ``exact_positions`` adds unrounded ``"pos"`` [[x, y, layer], ...] to full frames
+    (used by the equivalence test).
+    """
     base = config if config is not None else get_config()
     cfg = _route_mode_config(base)
+    if spatial_index is None:
+        spatial_index = bool(cfg.get("web", {}).get("spatial_index", True))
     with use_run_config(cfg):
         yield from _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defended,
-                             attack_config, overseer_link_config, should_stop)
+                             attack_config, overseer_link_config, should_stop,
+                             max(1, int(frame_every)), bool(spatial_index), bool(exact_positions))
 
 
 def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any]:
@@ -261,7 +282,8 @@ def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any
 
 
 def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defended,
-              attack_config, overseer_link_config, should_stop):
+              attack_config, overseer_link_config, should_stop, frame_every=1, spatial=True,
+              exact_positions=False):
     dt = float(cfg["simulation"]["timestep_seconds"])
     tau_v = float(cfg["control"]["velocity_time_constant_seconds"])
     lb = cfg["local_behavior"]
@@ -280,6 +302,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     num_layers = int(cfg["airspace"]["num_layers"])
     emergency_layer = int(cfg["airspace"].get("emergency_layer", num_layers - 1))
     comm = cfg.get("communication", {})
+    comm_radius = float(comm.get("radius_meters", 40.0))
+    grid_cell = float(cfg.get("web", {}).get("grid_cell_m", max(comm_radius, 2.0 * d_min)))
     period_steps = max(1, int(round(float(cfg["overseer"]["update_period_seconds"]) / dt)))
     attack_cfg = attack_config if attack_config is not None else cfg.get("attack", {})
 
@@ -338,6 +362,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                            "scope": scope, "text": text})
 
         # --- departures (pad must be clear: ground holding otherwise)
+        dep_grid = None
+        departed_now: list[int] = []
         for f in flights:
             i = f.agent_id
             if status[i] != QUEUED or t < f.depart_s:
@@ -345,10 +371,24 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             pad = agents[i].position[:2]
             join = f.route.points[1] if len(f.route.points) > 2 else pad
             dep_layer = cached_layers.get(i, preferred_layer[i])
-            busy = [j for j in ids if status[j] == AIRBORNE and np.linalg.norm(agents[j].position[:2] - pad) < 2.0 * d_min]
-            # merge gap: no same-layer traffic near the junction where the approach leg joins the corridor
-            merge = [j for j in ids if status[j] == AIRBORNE and agents[j].altitude_layer == dep_layer
-                     and np.linalg.norm(agents[j].position[:2] - join) < MERGE_CLEARANCE_M]
+            if spatial:
+                if dep_grid is None:  # airborne at the start of this tick; same-tick departures checked directly
+                    dep_ids = [j for j in ids if status[j] == AIRBORNE]
+                    dep_grid = UniformGrid(np.array([agents[j].position[:2] for j in dep_ids]).reshape(-1, 2), grid_cell)
+                near_pad = {dep_ids[k] for k in dep_grid.within(float(pad[0]), float(pad[1]), 2.0 * d_min)}
+                near_join = {dep_ids[k] for k in dep_grid.within(float(join[0]), float(join[1]), MERGE_CLEARANCE_M)}
+                for j in departed_now:
+                    if np.linalg.norm(agents[j].position[:2] - pad) < 2.0 * d_min:
+                        near_pad.add(j)
+                    if np.linalg.norm(agents[j].position[:2] - join) < MERGE_CLEARANCE_M:
+                        near_join.add(j)
+                busy = sorted(near_pad, key=index_of.__getitem__)
+                merge = sorted((j for j in near_join if agents[j].altitude_layer == dep_layer), key=index_of.__getitem__)
+            else:
+                busy = [j for j in ids if status[j] == AIRBORNE and np.linalg.norm(agents[j].position[:2] - pad) < 2.0 * d_min]
+                # merge gap: no same-layer traffic near the junction where the approach leg joins the corridor
+                merge = [j for j in ids if status[j] == AIRBORNE and agents[j].altitude_layer == dep_layer
+                         and np.linalg.norm(agents[j].position[:2] - join) < MERGE_CLEARANCE_M]
             if busy or merge:
                 if i not in held:
                     held.add(i)
@@ -358,6 +398,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     emit("hold", [i], f"D-{i} ground hold at {f.origin}: {why}", "global")
                 continue
             status[i] = AIRBORNE
+            departed_now.append(i)
             if i in cached_layers:
                 agents[i].altitude_layer = cached_layers[i]
                 agents[i].position[2] = float(cached_layers[i])
@@ -434,16 +475,23 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         if airborne:
             if comm.get("mode", "radius") == "knn":
                 graph = build_knn_graph(airborne, int(comm.get("nearest_neighbors", 6)))
+                adj = {a.id: list(graph.neighbors(a.id)) for a in airborne}
+            elif spatial:
+                adj = radius_adjacency([a.id for a in airborne],
+                                       np.array([a.position[:2] for a in airborne]), comm_radius, grid_cell)
             else:
-                graph = build_radius_graph(airborne, float(comm.get("radius_meters", 40.0)))
-            adj = {a.id: list(graph.neighbors(a.id)) for a in airborne}
+                graph = build_radius_graph(airborne, comm_radius)
+                adj = {a.id: list(graph.neighbors(a.id)) for a in airborne}
         else:
             adj = {}
         by_air = {a.id: a for a in airborne}
 
         # --- P5 attack injection on reported positions
         attack_state = inject_attack(airborne, attack_cfg, t)
-        reported = {a.id: a for a in apply_attack(airborne, attack_state)}
+        if attack_state.falsified:
+            reported = {a.id: a for a in apply_attack(airborne, attack_state)}
+        else:  # no falsified report this tick: reports equal the true states (read-only below)
+            reported = by_air
         if attack_state.malicious:
             stats.attack_active_ticks += 1
             for m in attack_state.malicious:
@@ -656,17 +704,21 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         if len(air_ids) >= 2:
             xy = np.array([agents[i].position[:2] for i in air_ids])
             lay = np.array([agents[i].altitude_layer for i in air_ids])
-            dmin_now = layered_min_separation(xy, lay, layer_h)
-            diff = xy[:, None, :] - xy[None, :, :]
-            dist = np.sqrt(np.einsum("ijk,ijk->ij", diff, diff))
-            same = lay[:, None] == lay[None, :]
-            close = np.argwhere(np.triu(same & (dist < max(d_min, crash_r)), 1))
+            if spatial:
+                dmin_now = layered_min_separation_grid(xy, lay, layer_h, grid_cell, layered_min_separation)
+                close = close_same_layer_pairs(xy, lay, max(d_min, crash_r), grid_cell)
+            else:
+                dmin_now = layered_min_separation(xy, lay, layer_h)
+                diff = xy[:, None, :] - xy[None, :, :]
+                dist = np.sqrt(np.einsum("ijk,ijk->ij", diff, diff))
+                same = lay[:, None] == lay[None, :]
+                close = [(int(u), int(v), float(dist[u, v]))
+                         for u, v in np.argwhere(np.triu(same & (dist < max(d_min, crash_r)), 1))]
             now_pairs = set()
-            for u, v in close:
+            for u, v, d in close:
                 pa, pb = air_ids[u], air_ids[v]
                 pair = (pa, pb)
                 now_pairs.add(pair)
-                d = float(dist[u, v])
                 if d < crash_r and status[pa] == AIRBORNE and status[pb] == AIRBORNE:
                     status[pa] = status[pb] = CRASHED
                     agents[pa].velocity[:] = 0.0
@@ -687,6 +739,10 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             stats.safety_violation_ticks += 1
         stats.min_separation_m = min(stats.min_separation_m, dmin_now)
 
+        if step % frame_every and step != n_steps:
+            yield {"t": t, "k": step, "partial": True, "events": events, "stats": stats.to_dict()}
+            continue
+
         # --- network theory of the whole system (V2V graph + DTC hub)
         live = [i for i in ids if status[i] == AIRBORNE]
         net = _graph_metrics(live, adj)
@@ -702,8 +758,9 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             "layer_changes": stats.layer_changes, "deferred": stats.layer_changes_deferred,
         }
 
-        yield {
+        frame = {
             "t": t,
+            "k": step,
             "x": [round(float(agents[i].position[0]), 2) for i in ids],
             "y": [round(float(agents[i].position[1]), 2) for i in ids],
             "layer": [int(agents[i].altitude_layer) for i in ids],
@@ -719,6 +776,10 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             "events": events,
             "stats": stats.to_dict(),
         }
+        if exact_positions:
+            frame["pos"] = [[float(agents[i].position[0]), float(agents[i].position[1]),
+                             float(agents[i].position[2])] for i in ids]
+        yield frame
 
 
 def flight_manifest(flights: Sequence[Flight]) -> list[dict[str, Any]]:

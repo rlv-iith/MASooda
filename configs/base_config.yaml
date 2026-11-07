@@ -264,3 +264,19 @@ visualization:
     frame_stride_ticks: 5     # recorded videos: one frame every N ticks (0.5 s at dt = 0.1)
 
 
+
+# Live web demo (web_sandbox/server.py + simulation/route_engine.py).
+# Server / browser limits and streaming settings. The spatial index never
+# changes a result (tests/test_route_spatial.py), it only makes large fleets faster.
+web:
+  max_fleet: 500                 # largest fleet a run may request (set from the Phase 1d benchmark)
+  max_duration_s: 3600           # longest run a request may ask for
+  realtime_max_fleet: 500        # largest fleet measured >= 1x real time (Phase 1d: 3.4x at 500 on a 2-vCPU Xeon 2.1 GHz); UI warns above it
+  target_frames_per_sim_s: 5     # streamed frames per simulated second (dt 0.1 s -> every 2nd tick)
+  max_kb_per_sim_s: 40           # adaptive stride: raise the stride if frames would exceed this budget
+  est_bytes_per_drone_frame: 22  # compact-frame size estimate used by the adaptive stride
+  max_frames_in_memory: 6000     # server and browser thin older frames beyond this (events are kept)
+  max_edges_per_frame: 600       # V2V edges streamed per frame (evenly sampled above this)
+  poll_batch: 400                # frames returned per /frames request
+  spatial_index: true            # uniform-grid neighbour queries in the route engine
+  grid_cell_m: 40.0              # grid cell size (comm radius is a good choice)

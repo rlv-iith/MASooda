@@ -33,6 +33,7 @@ from simulation.road_network import load_road_network
 from simulation.route_engine import flight_manifest, plan_flights, simulate_routes
 from simulation.scenario_manifest import _merge_config, prepare_scenario_manifest
 from simulation.engine import run_simulation
+from web_sandbox.streaming import FrameStore, choose_stride, compact_frame, web_limits
 import local_behavior.boids as boids
 import simulation.overseer as overseer
 from verification.metrics import compute_run_metrics, robustness_series
@@ -60,9 +61,7 @@ def _network(map_id: str | None):
     return key, load_road_network(MAPS[key]["file"])
 MAX_REQUEST_BYTES = 2_000_000
 MAX_AGENT_TICKS = 50_000          # legacy /api/simulate limit
-MAX_FLEET = 150
-MAX_DURATION_S = 900.0
-FRAME_STRIDE = 2                  # stream every 2nd tick; the browser interpolates
+# Fleet / duration / streaming limits live in configs/base_config.yaml -> web: (see streaming.web_limits).
 STATIC = {
     "/": ("live_demo.html", "text/html; charset=utf-8"),
     "/index.html": ("live_demo.html", "text/html; charset=utf-8"),
@@ -99,9 +98,9 @@ def _json_safe(value: Any) -> Any:
 class LiveRun:
     """One background simulation whose frames are appended as they are computed."""
 
-    def __init__(self, run_id: str, request: dict[str, Any]):
+    def __init__(self, run_id: str, request: dict[str, Any], max_frames: int = 6000):
         self.id = run_id
-        self.frames: list[dict[str, Any]] = []
+        self.store = FrameStore(max_frames)
         self.done = False
         self.error: str | None = None
         self.stop_flag = False
@@ -140,11 +139,16 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
     """Validate a browser run request and build flights + run arguments."""
     if not isinstance(body, dict):
         raise ValueError("Request must be a JSON object")
-    config = _merge_config(get_config(), body.get("config", {}) or {})
-    fleet = _int(body.get("fleet", 60), "fleet", 1, MAX_FLEET)
-    duration = _float(body.get("duration_s", 180), "duration_s", 5.0, MAX_DURATION_S)
+    overrides = body.get("config", {}) or {}
+    if isinstance(overrides, dict) and "web" in overrides:
+        raise ValueError("web.* limits are server settings and cannot be overridden per run")
+    config = _merge_config(get_config(), overrides)
+    web = web_limits(config)
+    max_fleet, max_duration = int(web["max_fleet"]), float(web["max_duration_s"])
+    fleet = _int(body.get("fleet", 60), "fleet", 1, max_fleet)
+    duration = _float(body.get("duration_s", 180), "duration_s", 5.0, max_duration)
     seed = _int(body.get("seed", config["simulation"]["random_seed"]), "seed", 0, 2**31 - 1)
-    window = _float(body.get("departure_window_s", min(90.0, duration * 0.5)), "departure_window_s", 0.0, MAX_DURATION_S)
+    window = _float(body.get("departure_window_s", min(90.0, duration * 0.5)), "departure_window_s", 0.0, max_duration)
     mix = body.get("mix") or config["scenario"]["type_mix"]
     if not isinstance(mix, dict) or set(mix) - {"EMERGENCY", "EVTOL", "DELIVERY"}:
         raise ValueError("mix must map EMERGENCY / EVTOL / DELIVERY to shares")
@@ -191,30 +195,31 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
         switches[key] = value
 
     return {"map": map_id, "network": network, "flights": flights, "duration": duration, "config": config,
-            "attack": attack_cfg, "link": link_cfg, "seed": seed, "fleet": fleet, **switches}
+            "attack": attack_cfg, "link": link_cfg, "seed": seed, "fleet": fleet,
+            "stride": choose_stride(config, fleet), "web": web, **switches}
 
 
 def _run_worker(run: LiveRun, prepared: dict[str, Any]) -> None:
     pending_events: list[dict[str, Any]] = []
+    max_edges = int(prepared["web"]["max_edges_per_frame"])
     try:
         gen = simulate_routes(
             prepared["network"], prepared["flights"], prepared["duration"],
             config=prepared["config"], use_overseer=prepared["use_overseer"],
             use_admm=prepared["use_admm"], defended=prepared["defended"],
             attack_config=prepared["attack"], overseer_link_config=prepared["link"],
-            should_stop=lambda: run.stop_flag)
-        last = None
-        for k, frame in enumerate(gen):
-            pending_events.extend(frame["events"])
-            last = frame
-            if k % FRAME_STRIDE == 0:
-                frame = dict(frame, events=pending_events)
-                pending_events = []
-                with run.lock:
-                    run.frames.append(_json_safe(frame))
-        if last is not None and (pending_events or (len(run.frames) and run.frames[-1]["t"] != last["t"])):
-            with run.lock:
-                run.frames.append(_json_safe(dict(last, events=pending_events)))
+            should_stop=lambda: run.stop_flag, frame_every=prepared["stride"],
+            spatial_index=bool(prepared["web"]["spatial_index"]))
+        seq, prev_stats = 0, None
+        for item in gen:
+            pending_events.extend(item["events"])
+            if item.get("partial"):
+                continue  # light tick: its events ride on the next full frame
+            frame = compact_frame(_json_safe(dict(item, events=pending_events)), seq, prev_stats, max_edges)
+            prev_stats = item["stats"] if "stats" in frame else prev_stats
+            pending_events = []
+            run.store.append(frame)
+            seq += 1
     except Exception as exc:  # surfaced to the browser instead of hanging the run
         traceback.print_exc()
         run.error = f"{type(exc).__name__}: {exc}"
@@ -230,7 +235,7 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
         for key in [k for k, r in RUNS.items() if r.done][:-4]:
             RUNS.pop(key, None)
         run_id = uuid.uuid4().hex[:12]
-        run = LiveRun(run_id, body)
+        run = LiveRun(run_id, body, int(prepared["web"]["max_frames_in_memory"]))
         RUNS[run_id] = run
     run.thread = threading.Thread(target=_run_worker, args=(run, prepared), daemon=True)
     run.thread.start()
@@ -238,7 +243,9 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
     return _json_safe({
         "run_id": run_id,
         "map": prepared["map"],
-        "dt": float(cfg["simulation"]["timestep_seconds"]) * FRAME_STRIDE,
+        "dt": float(cfg["simulation"]["timestep_seconds"]) * prepared["stride"],
+        "stride_ticks": prepared["stride"],
+        "frame_version": 2,
         "duration_s": prepared["duration"],
         "seed": prepared["seed"],
         "flights": flight_manifest(prepared["flights"]),
@@ -294,8 +301,11 @@ class ScenarioHandler(BaseHTTPRequestHandler):
             elif route == "/api/config":
                 self._send_json(200, get_config())
             elif route == "/api/limits":
-                self._send_json(200, {"max_agent_ticks": MAX_AGENT_TICKS, "max_fleet": MAX_FLEET,
-                                      "max_duration_s": MAX_DURATION_S})
+                web = web_limits(get_config())
+                self._send_json(200, {"max_agent_ticks": MAX_AGENT_TICKS,
+                                      **{k: web[k] for k in ("max_fleet", "max_duration_s", "realtime_max_fleet",
+                                                             "max_frames_in_memory", "poll_batch",
+                                                             "target_frames_per_sim_s")}})
             elif route == "/api/maps":
                 self._send_json(200, {"default": DEFAULT_MAP,
                                       "maps": [{"id": k, "label": v["label"]} for k, v in MAPS.items()]})
@@ -317,11 +327,12 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                     self._send_json(404, {"error": "run_not_found"})
                     return
                 start = int(parse_qs(url.query).get("from", ["0"])[0])
-                with run.lock:
-                    frames = run.frames[start:start + 400]
-                    total = len(run.frames)
-                self._send_json(200, {"frames": frames, "from": start, "available": total,
-                                      "done": run.done and start + len(frames) >= total, "error": run.error})
+                finished = run.done  # read before the store so no frame can arrive unseen
+                frames, stored = run.store.since(start, int(web_limits(get_config())["poll_batch"]))
+                nxt = frames[-1]["n"] + 1 if frames else start
+                self._send_json(200, {"frames": frames, "from": start, "next": nxt, "stored": stored,
+                                      "thinned": run.store.thinned,
+                                      "done": finished and nxt > run.store.last_seq(), "error": run.error})
             elif route.startswith("/data/") and route[6:] in DATA_FILES:
                 path = ROOT / "data" / route[6:]
                 if not path.is_file():
@@ -346,7 +357,7 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 if run:
                     run.stop()
                 self._send_json(200, {"stopped": bool(run)})
-            elif route == "/api/simulate":
+            elif route == "/api/simulate":  # legacy: abstract three-corridor engine, not used by the page
                 self._legacy_simulate()
             else:
                 self._send_json(404, {"error": "route_not_found"})

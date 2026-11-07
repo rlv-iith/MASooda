@@ -172,3 +172,27 @@ drone_health:               # Phase 3B — equations and defaults shown for appr
    new Phase 7 route-mode experiments?
 5. **Phase 1 target host:** benchmark limits on your laptop (Windows) or on this cloud host? The
    limits in config should match the machine that will run the demo.
+
+## 8. Phase 1 results (scale)
+
+Same host as §2 (2-vCPU Xeon @ 2.1 GHz), IITH map, seed 42, defaults, measured the way the server
+streams (compact v2 frames at the adaptive stride, JSON serialisation included).
+
+| Fleet × duration | Grid | Ticks/s | × real time (whole run / worst 5 s) | Peak airborne | Frame KB | Stream KB per sim-s |
+|---|---|---|---|---|---|---|
+| 60 × 180 s | on | 189.5 | 19.0 | 46 | 1.97 | — |
+| 150 × 180 s | on | 87.9 | 8.8 | 81 | 3.91 | — |
+| 100 × 300 s | off / on | 152.9 / 169.4 | 15.3 / 16.9 (7.2 / 9.2) | 62 | 2.77 | 13.8 |
+| 250 × 300 s | off / on | 36.6 / 63.4 | 3.7 / 6.3 (1.8 / 3.8) | 114 | 5.90 | 29.5 |
+| 500 × 300 s | on | 34.4 | **3.4 (2.3)** | 177 | 11.08 (stride 3) | 37.0 |
+
+- Grid on and grid off give identical runs (same stats, events and positions;
+  `tests/test_route_spatial.py`). At 150 drones: 54.3 → 87.9 ticks/s compared with Phase 0, and
+  frames 5.37 → 3.91 KB (27% smaller, less than the 2–3× estimated in §2).
+- 500 drones holds ≥ 1× real time throughout, so `web.max_fleet = 500` and
+  `web.realtime_max_fleet = 500` *for this host*. Re-measure on the demo laptop and lower
+  `realtime_max_fleet` if needed; the UI warns above it.
+- At 500 the campus is limited by vertiport capacity, not compute: 464 ground holds and a peak of
+  177 airborne. At 250 and 500 the runs show 2–3 near misses (25–26 violation ticks), whether the
+  grid is on or off. This is a traffic-density finding for later phases, not a Phase 1 regression.
+- Remaining cost at 500 (ms/tick): defence 2.5, ADMM 2.3, dynamics 1.4, boids 1.0, grid queries ≈ 1.2.

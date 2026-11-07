@@ -39,7 +39,8 @@ const NET_SERIES = [
   {key: 'stale', label: 'Directive age (norm.)', color: '#ff5f72'},
 ];
 
-let baseConfig = null, MAP = null, MAPS = [], mapId = null, RUN = null, frames = [], done = false;
+let baseConfig = null, LIMITS = null, MAP = null, MAPS = [], mapId = null, RUN = null, frames = [], done = false;
+let nextSeq = 0, lastStats = null, shownEvents = new WeakSet(), speedProbe = [];
 let scene = 'normal', simT = 0, playing = true, speed = 2, lastTs = 0, selected = null, layerFilter = 'all', follow = false;
 let view = {cx: 0, cy: 0, s: 0.2}, userMoved = false, dpr = 1, ctxPaths = null, backdropImg = null, logCursor = 0, logTotal = 0;
 let droneEvents = {}, eventsIndexed = 0, netPositions = null, lastDroneFeedKey = '';
@@ -85,10 +86,43 @@ function screenTransform(c = ctx) { c.setTransform(dpr, 0, 0, dpr, 0, 0); }
 function linesPath(lines) { const p = new Path2D(); for (const l of lines) { p.moveTo(l[0][0], l[0][1]); for (let i = 1; i < l.length; i++) p.lineTo(l[i][0], l[i][1]); } return p; }
 
 // ------------------------------------------------------------------ frame sampling
+// frames may be unevenly spaced after thinning, so look them up by time
+function indexAtTime(t) {
+  let lo = 0, hi = frames.length - 1;
+  if (t <= frames[0].t) return 0;
+  if (t >= frames[hi].t) return hi;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (frames[m].t <= t) lo = m; else hi = m; }
+  return lo;
+}
 function frameAt(t) {
   if (!frames.length) return null;
-  const k = Math.min(frames.length - 1, Math.max(0, t / RUN.dt)), i = Math.floor(k), j = Math.min(frames.length - 1, i + 1);
-  return {i, j, a: k - i, f0: frames[i], f1: frames[j]};
+  const i = indexAtTime(t), j = Math.min(frames.length - 1, i + 1);
+  const span = frames[j].t - frames[i].t, a = span > 0 ? Math.min(1, Math.max(0, (t - frames[i].t) / span)) : 0;
+  return {i, j, a, f0: frames[i], f1: frames[j]};
+}
+// compact v2 frame from the server -> the shape the renderer uses
+function decodeFrame(r) {
+  const ls = r.ls;
+  if (r.stats) lastStats = r.stats;
+  return {
+    v: r.v, n: r.n, k: r.k, t: r.t, rho: r.rho, link_up: r.link_up, attack: r.attack, net: r.net, dtc: r.dtc,
+    events: r.events || [], edges: r.edges || [], edges_total: r.edges_total ?? (r.edges || []).length,
+    x: r.x.map((v) => v / 10), y: r.y.map((v) => v / 10), speed: r.spd.map((v) => v / 10), progress: r.prog.map((v) => v / 1000),
+    layer: ls.map((v) => v & 7), status: ls.map((v) => v >> 3), stats: lastStats,
+  };
+}
+// browser memory cap: drop every other frame in the older half; events move to the next kept frame
+function thinFrames() {
+  const cap = LIMITS?.max_frames_in_memory ?? 6000;
+  if (frames.length <= cap) return;
+  const half = frames.length >> 1, kept = []; let carry = [], newLog = 0;
+  frames.forEach((f, i) => {
+    if (i < half && i % 2 === 1) { carry.push(...f.events); return; }
+    if (carry.length) { f.events = carry.concat(f.events); carry = []; }
+    if (i < logCursor) newLog++;
+    kept.push(f);
+  });
+  frames = kept; logCursor = newLog; eventsIndexed = frames.length;  // all events were indexed on arrival
 }
 function posOf(s, n) {
   const {f0, f1, a} = s;
@@ -182,11 +216,11 @@ function drawDrones(s) {
     if (d < 1.5 * dmin) { ctx.strokeStyle = d < dmin ? '#ff5f72' : '#f6bd4bcc'; ctx.beginPath(); ctx.moveTo(sx(pos[a][0]), sy(pos[a][1])); ctx.lineTo(sx(pos[b][0]), sy(pos[b][1])); ctx.stroke(); }
   } }
   ctx.setLineDash([]);
-  const back = Math.round(6 / RUN.dt);
+  const trailStart = indexAtTime(f0.t - 6);
   for (let k = 0; k < n; k++) {
     if (!pos[k]) continue; const dim = layerFilter !== 'all' && f0.layer[k] !== Number(layerFilter);
     ctx.strokeStyle = COLORS[RUN.flights[k].type] + (dim ? '18' : '70'); ctx.lineWidth = 1.3; ctx.beginPath(); let started = false;
-    for (let i = Math.max(0, s.i - back); i <= s.i; i++) { if (frames[i].status[k] !== 1) continue; const X = sx(frames[i].x[k]), Y = sy(frames[i].y[k]); started ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); started = true; }
+    for (let i = trailStart; i <= s.i; i++) { if (frames[i].status[k] !== 1) continue; const X = sx(frames[i].x[k]), Y = sy(frames[i].y[k]); started ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); started = true; }
     if (started) { ctx.lineTo(sx(pos[k][0]), sy(pos[k][1])); ctx.stroke(); }
   }
   const size = Math.max(5, Math.min(10, 3.5 + view.s * 5));
@@ -335,7 +369,8 @@ function pumpLog() {
   const list = $('#log'); let added = false;
   while (logCursor < frames.length && frames[logCursor].t <= simT + 1e-6) {
     for (const e of frames[logCursor].events) {
-      if (e.scope !== 'global') continue;
+      if (e.scope !== 'global' || shownEvents.has(e)) continue;
+      shownEvents.add(e);
       if ((e.kind === 'depart' || e.kind === 'hold' || e.kind === 'land') && RUN.flights.length > 40 && RUN.flights[idxOf(e.id)]?.type !== 'EMERGENCY') continue;
       const li = document.createElement('li'); li.className = e.kind;
       li.innerHTML = `<time>${fmt(e.t)}s</time><span></span>`; li.lastChild.textContent = e.text;
@@ -347,7 +382,7 @@ function pumpLog() {
   while (list.children.length > 150) list.lastElementChild.remove();
   if (added) $('#logCount').textContent = `${logTotal} events`;
 }
-function resetLog() { $('#log').replaceChildren(); logCursor = 0; logTotal = 0; $('#logCount').textContent = '0 events'; lastDroneFeedKey = ''; }
+function resetLog() { $('#log').replaceChildren(); logCursor = 0; logTotal = 0; shownEvents = new WeakSet(); $('#logCount').textContent = '0 events'; lastDroneFeedKey = ''; }
 function indexEvents() {
   for (; eventsIndexed < frames.length; eventsIndexed++) for (const e of frames[eventsIndexed].events) {
     if (e.scope === 'none') { (droneEvents[e.ids[0]] ??= []).push(e); continue; }
@@ -465,8 +500,9 @@ function drawNetChart() {
 function readMix() { return {EMERGENCY: +$('#mixE').value || 0, EVTOL: +$('#mixV').value || 0, DELIVERY: +$('#mixD').value || 0}; }
 function buildRequest() {
   const fleet = +$('#fleet').value, duration = +$('#duration').value, seed = +$('#seed').value, win = +$('#window').value;
-  if (!Number.isInteger(fleet) || fleet < 1 || fleet > 150) throw Error('Fleet size must be a whole number from 1 to 150.');
-  if (!(duration >= 5 && duration <= 900)) throw Error('Duration must be 5–900 s.');
+  const maxFleet = LIMITS?.max_fleet ?? 150, maxDur = LIMITS?.max_duration_s ?? 900;
+  if (!Number.isInteger(fleet) || fleet < 1 || fleet > maxFleet) throw Error(`Fleet size must be a whole number from 1 to ${maxFleet}.`);
+  if (!(duration >= 5 && duration <= maxDur)) throw Error(`Duration must be 5–${maxDur} s.`);
   if (!Number.isInteger(seed) || seed < 0) throw Error('Seed must be a non-negative whole number.');
   const mix = readMix(); if (Object.values(mix).reduce((a, b) => a + b, 0) <= 0) throw Error('Vehicle mix must not be all zero.');
   const config = {};
@@ -489,6 +525,7 @@ async function launch() {
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     run.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = run; frames = []; done = false; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
+    nextSeq = 0; lastStats = null; speedProbe = [];
     selected = Math.max(0, run.flights.findIndex((f) => f.type === 'EMERGENCY'));
     resetLog(); $('#playBtn').textContent = '❚❚'; $('#seedLabel').textContent = `seed ${run.seed}`; $('#tMax').textContent = `/ ${run.duration_s} s`;
     $('#sceneTitle').textContent = SCENES[scene].title; buildLayerSeg(); buildDronePick();
@@ -500,12 +537,16 @@ async function launch() {
 async function poll(id) {
   try {
     while (RUN && RUN.run_id === id) {
-      const r = await api(`/api/runs/${id}/frames?from=${frames.length}`);
+      const r = await api(`/api/runs/${id}/frames?from=${nextSeq}`);
       if (!RUN || RUN.run_id !== id) break;
-      if (r.frames.length) { frames.push(...r.frames); indexEvents(); }
+      nextSeq = r.next;
+      if (r.frames.length) {
+        frames.push(...r.frames.map(decodeFrame)); indexEvents(); thinFrames();
+        speedProbe.push([performance.now(), frames.at(-1).t]); if (speedProbe.length > 20) speedProbe.shift();
+      }
       if (r.error) { status(`Simulation error: ${r.error}`, 'err'); done = true; break; }
       if (r.done) { done = true; const st = frames.at(-1)?.stats; if (st) status(`Run complete · ${st.arrivals} arrivals · ${st.crashes} crashes · ${st.near_misses} near misses · min separation ${fmt(st.min_separation_m, 2)} m.`, st.crashes || st.safety_violation_ticks ? 'err' : 'ok'); break; }
-      await new Promise((res) => setTimeout(res, r.frames.length >= 400 ? 0 : 250));
+      await new Promise((res) => setTimeout(res, r.frames.length >= (LIMITS?.poll_batch ?? 400) ? 0 : 250));
     }
   } catch (e) { if (RUN && RUN.run_id === id) status(`Lost connection to simulator: ${e.message}`, 'err'); }
 }
@@ -534,13 +575,33 @@ function selectScene(name) {
   $('#sceneTitle').textContent = sc.title;
 }
 
+function simSpeed() {  // simulated seconds computed per wall-clock second (recent polls)
+  if (speedProbe.length < 2) return NaN;
+  const [w0, t0] = speedProbe[0], [w1, t1] = speedProbe.at(-1);
+  return w1 > w0 ? (t1 - t0) / ((w1 - w0) / 1000) : NaN;
+}
+function applyLimits() {
+  $('#fleet').max = String(LIMITS.max_fleet); $('#duration').max = String(LIMITS.max_duration_s); $('#window').max = String(LIMITS.max_duration_s);
+  $('#fleetHint').textContent = `max ${LIMITS.max_fleet}`;
+  checkFleetWarning();
+}
+function checkFleetWarning() {
+  if (!LIMITS) return;
+  const n = +$('#fleet').value, w = $('#fleetWarn');
+  w.hidden = !(n > LIMITS.realtime_max_fleet);
+  w.textContent = `Above ${LIMITS.realtime_max_fleet} drones this machine computes slower than real time — playback will pause while it buffers.`;
+}
+$('#fleet').addEventListener('input', checkFleetWarning);
+
 // ------------------------------------------------------------------ main loop
 function tick(ts) {
   const dt = lastTs ? Math.min(0.1, (ts - lastTs) / 1000) : 0; lastTs = ts;
   if (RUN && frames.length && playing) {
     const maxT = frames.at(-1).t;
     simT = Math.min(simT + dt * speed, maxT);
-    $('#buffer').hidden = done || simT < maxT - 1e-6;
+    const buffering = !done && simT >= maxT - 1e-6;
+    $('#buffer').hidden = !buffering;
+    if (buffering) $('#buffer').textContent = `computing ahead… simulator at ${fmt(simSpeed(), 1)}× real time`;
     if (done && simT >= maxT) { playing = false; $('#playBtn').textContent = '▶'; }
   } else $('#buffer').hidden = true;
   const s = RUN && frames.length ? frameAt(simT) : null;
@@ -600,7 +661,8 @@ async function boot() {
   resize(); requestAnimationFrame(tick);
   try {
     let maps;
-    [baseConfig, maps] = await Promise.all([api('/api/config'), api('/api/maps')]);
+    [baseConfig, maps, LIMITS] = await Promise.all([api('/api/config'), api('/api/maps'), api('/api/limits')]);
+    applyLimits();
     MAPS = maps.maps;
     await loadMap(new URLSearchParams(location.search).get('map') || maps.default);
     $('#advFields').innerHTML = ADVANCED.map(([p, label]) => `<label>${label}<input type="number" step="any" data-path="${p}" data-label="${label}" value="${get(baseConfig, p)}"></label>`).join('');
