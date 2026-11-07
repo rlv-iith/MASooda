@@ -54,6 +54,7 @@ let scene = 'normal', simT = 0, playing = true, speed = 2, lastTs = 0, selected 
 let view = {cx: 0, cy: 0, s: 0.2}, userMoved = false, dpr = 1, ctxPaths = null, backdropImg = null, logCursor = 0, logTotal = 0;
 let droneEvents = {}, eventsIndexed = 0, netPositions = null, lastDroneFeedKey = '';
 let negHist = {}, chosenSwitches = null, lastPrio = null, lastH = null, hselHist = {}, dTab = 'ov';
+let selSet = new Set(), lastConsole = null, drawPoly = null, viaPick = false, viaPoint = null, boxSel = null, cmdHist = [], histAt = 0, tfrCount = 0;
 const hCellsC = $('#hCells'), hcctx = hCellsC.getContext('2d'), hChartC = $('#hChart'), hchctx = hChartC.getContext('2d');
 const canvas = $('#map'), ctx = canvas.getContext('2d');
 const chart = $('#chart'), cctx = chart.getContext('2d');
@@ -74,7 +75,7 @@ async function api(path, body) {
   return data;
 }
 function sizeCanvas(c) { const r = c.getBoundingClientRect(); c.width = Math.max(1, Math.round(r.width * dpr)); c.height = Math.max(1, Math.round(r.height * dpr)); }
-function resize() { dpr = window.devicePixelRatio || 1; [canvas, chart, v25, netG, netC, admmC, hCellsC, hChartC].forEach(sizeCanvas); if (!userMoved) fit(); }
+function resize() { dpr = window.devicePixelRatio || 1; [canvas, chart, v25, netG, netC, admmC, hCellsC, hChartC, battC].forEach(sizeCanvas); if (!userMoved) fit(); }
 
 // ------------------------------------------------------------------ map transform
 function fit() {
@@ -119,6 +120,7 @@ function decodeFrame(r) {
   if (r.stats) lastStats = r.stats;
   if (r.prio) lastPrio = r.prio;
   if (r.h) lastH = r.h;
+  if (r.console) lastConsole = r.console;
   if (r.hsel) for (const [id, d] of Object.entries(r.hsel)) (hselHist[id] ??= []).push({t: r.t, d});
   if (r.reroutes?.length) applyReroutes(r.reroutes);
   return {
@@ -126,7 +128,7 @@ function decodeFrame(r) {
     events: r.events || [], edges: r.edges || [], edges_total: r.edges_total ?? (r.edges || []).length,
     x: r.x.map((v) => v / 10), y: r.y.map((v) => v / 10), speed: r.spd.map((v) => v / 10), progress: r.prog.map((v) => v / 1000),
     layer: ls.map((v) => v & 7), status: ls.map((v) => v >> 3), stats: lastStats,
-    admm: r.admm || null, prio: lastPrio, h: lastH, merge: r.merge || null, spoof: r.spoof || {}, trust: r.trust || {},
+    admm: r.admm || null, prio: lastPrio, h: lastH, console: lastConsole, merge: r.merge || null, spoof: r.spoof || {}, trust: r.trust || {},
   };
 }
 // last ADMM negotiation per drone, kept outside the frames so browser thinning never loses it
@@ -198,6 +200,7 @@ function drawMap() {
   }
   drawVertiports(s);
   if (s) { drawJunctions(s); drawDrones(s); drawSpoof(s); }
+  drawConsoleOverlay(s);
 }
 // P3: junctions where a merge is in progress this frame (amber = gap rule blocking, drone slows by 1 - k_v)
 function drawJunctions(s) {
@@ -408,7 +411,7 @@ function updatePanels() {
   $('#kRepSub').textContent = spoofers.length ? (undefended ? 'defence OFF — fed into separation' : `${spoofers.map((i) => 'D-' + i).join(', ')} spoofing`) : 'no attack injected';
   $('#kArr').textContent = st.arrivals; $('#kArrSub').textContent = `of ${RUN.flights.length} flights`;
   $('#runState').textContent = RUN.replay ? 'LOADED' : done && simT >= frames.at(-1).t - 1e-6 ? 'COMPLETE' : done ? 'REPLAY' : 'LIVE';
-  updateOccupancy(s); updateDrone(s); pumpLog(); updateFleetHealth(s); if (dTab === 'hl') updateHealthTab(s);
+  updateOccupancy(s); updateDrone(s); pumpLog(); updateFleetHealth(s); if (dTab === 'hl') updateHealthTab(s); updateConsole(s);
   const canInject = !RUN.replay && !done; if ($('#cdNow').disabled === canInject) $('#cdNow').disabled = !canInject;
 }
 function updateOccupancy(s) {
@@ -490,7 +493,11 @@ function indexEvents() {
     for (const id of owners) (droneEvents[id] ??= []).push(e);
   }
 }
-function select(n) { if (n === null || n < 0 || !RUN) return; selected = n; lastDroneFeedKey = ''; }
+function select(n, add = false) {
+  if (n === null || n < 0 || !RUN) return;
+  if (add) { if (selSet.has(n) && selSet.size > 1) selSet.delete(n); else selSet.add(n); } else selSet = new Set([n]);
+  selected = n; lastDroneFeedKey = ''; renderSel();
+}
 
 // ------------------------------------------------------------------ STL chart
 function drawChart() {
@@ -648,6 +655,8 @@ function buildRequest() {
     if (!Number.isFinite(v) || v <= 0) throw Error(`${input.dataset.label} must be a positive number.`);
     if (v !== base) set(config, input.dataset.path, Number.isInteger(base) ? Math.round(v) : v);
   }
+  const wx = readWeather();
+  if (wx) set(config, 'drone_health.ambient_c', wx.t), set(config, 'drone_health.wind_mps', wx.wind);
   return {map: mapId, fleet, duration_s: duration, seed, departure_window_s: Math.min(win, duration), mix, config,
     architecture: $('#arch').value, junction_merge: $('#swMerge').checked, drones: customDrones,
     use_overseer: $('#swOverseer').checked, use_admm: $('#swAdmm').checked, defended: $('#swDefense').checked,
@@ -662,9 +671,9 @@ async function launch() {
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     run.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = run; frames = []; done = false; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
-    nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; hselHist = {}; speedProbe = []; negHist = {};
+    nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; lastConsole = null; hselHist = {}; speedProbe = []; negHist = {}; selSet = new Set(); cmdHist = [];
     selected = Math.max(0, run.flights.findIndex((f) => f.type === 'EMERGENCY'));
-    resetLog(); $('#playBtn').textContent = '❚❚'; $('#seedLabel').innerHTML = `seed ${run.seed} · ${ARCH[run.architecture]?.label ?? run.architecture} · <span class="ic" title="Initial-conditions hash: identical for the same seed, fleet and map in every architecture">IC ${run.ic_hash}</span>`; $('#tMax').textContent = `/ ${run.duration_s} s`;
+    renderSel(); $('#ccHist').replaceChildren(); resetLog(); $('#playBtn').textContent = '❚❚'; $('#seedLabel').innerHTML = `seed ${run.seed} · ${ARCH[run.architecture]?.label ?? run.architecture} · <span class="ic" title="Initial-conditions hash: identical for the same seed, fleet and map in every architecture">IC ${run.ic_hash}</span>`; $('#tMax').textContent = `/ ${run.duration_s} s`;
     $('#sceneTitle').textContent = SCENES[scene].title; buildLayerSeg(); buildDronePick();
     status(`Run ${run.run_id}: ${run.flights.length} flights planned on ${MAP.label} corridors — streaming from the simulator.`, 'ok');
     poll(run.run_id);
@@ -703,7 +712,7 @@ async function loadMap(id) {
   if (MAP.backdrop) { backdropImg = new Image(); backdropImg.src = MAP.backdrop.url; }
   $('#attrib').textContent = `${MAP.source}${MAP.backdrop?.attribution ? ' · ' + MAP.backdrop.attribution : ''} · ${MAP.graph.nodes} junctions · ${MAP.vertiports.length} vertiports`;
   $('#mapEyebrow').textContent = `Live airspace · ${MAP.label}`;
-  buildMapSeg(); userMoved = false; fit(); cdFillSelects();
+  buildMapSeg(); userMoved = false; fit(); cdFillSelects(); consoleFill();
 }
 function selectScene(name) {
   scene = name; const sc = SCENES[name];
@@ -745,7 +754,7 @@ $('#loadRun').onchange = async (e) => {
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     m.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = {...m, run_id: `replay:${m.run_id}`, replay: true}; frames = []; done = true; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
-    nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; hselHist = {}; speedProbe = []; negHist = {};
+    nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; lastConsole = null; hselHist = {}; speedProbe = []; negHist = {}; selSet = new Set(); cmdHist = [];
     frames = data.frames.map((x) => { indexNeg(x); return decodeFrame(x); }); indexEvents();
     selected = Math.max(0, m.flights.findIndex((f) => f.type === 'EMERGENCY'));
     resetLog(); $('#playBtn').textContent = '❚❚'; $('#tMax').textContent = `/ ${m.duration_s} s`;
@@ -786,7 +795,7 @@ function tick(ts) {
   } else $('#buffer').hidden = true;
   const s = RUN && frames.length ? frameAt(simT) : null;
   drawMap(); updatePanels(); draw25(s); drawNetwork(s);
-  if (RUN && frames.length) { drawChart(); drawNetChart(); drawAdmm(); }
+  if (RUN && frames.length) { drawChart(); drawNetChart(); drawAdmm(); drawBatt(s); }
   requestAnimationFrame(tick);
 }
 
@@ -797,9 +806,15 @@ function pick(px, py) {
   return best;
 }
 let drag = null;
-canvas.addEventListener('pointerdown', (e) => { drag = {x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false}; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button === 2) return;
+  const r = canvas.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey || e.altKey) { boxSel = {x0: e.clientX - r.left, y0: e.clientY - r.top, x1: e.clientX - r.left, y1: e.clientY - r.top}; canvas.classList.add('boxing'); canvas.setPointerCapture(e.pointerId); return; }
+  drag = {x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false}; canvas.setPointerCapture(e.pointerId);
+});
 canvas.addEventListener('pointermove', (e) => {
   const r = canvas.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  if (boxSel) { boxSel.x1 = px; boxSel.y1 = py; return; }
   if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 3) { drag.moved = true; follow = false; userMoved = true; canvas.classList.add('drag'); } view.cx = drag.cx - dx / view.s; view.cy = drag.cy + dy / view.s; return; }
   const n = pick(px, py), tip = $('#tip');
   canvas.style.cursor = n === null ? '' : 'pointer';
@@ -810,8 +825,12 @@ canvas.addEventListener('pointermove', (e) => {
 });
 canvas.addEventListener('pointerup', (e) => {
   const r = canvas.getBoundingClientRect();
-  if (drag && !drag.moved && pickMode) { pickVertiport(e.clientX - r.left, e.clientY - r.top); }
-  else if (drag && !drag.moved) { const n = pick(e.clientX - r.left, e.clientY - r.top); if (n !== null) select(n); }
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  if (boxSel) { finishBox(); boxSel = null; canvas.classList.remove('boxing'); return; }
+  if (drag && !drag.moved && drawPoly) { drawPoly.push([wx(px), wy(py)]); updateDrawHint(); }
+  else if (drag && !drag.moved && viaPick) { viaPoint = [wx(px), wy(py)]; viaPick = false; $('#ccVia').classList.add('on'); $('#ccVia').textContent = `◎ via (${viaPoint[0].toFixed(0)}, ${viaPoint[1].toFixed(0)})`; $('#drawHint').hidden = true; }
+  else if (drag && !drag.moved && pickMode) { pickVertiport(px, py); }
+  else if (drag && !drag.moved) { const n = pick(px, py); if (n !== null) select(n, e.shiftKey); }
   drag = null; canvas.classList.remove('drag');
 });
 canvas.addEventListener('pointerleave', () => { $('#tip').hidden = true; });
@@ -832,7 +851,17 @@ $('#mapSeg').onclick = async (e) => { const b = e.target.closest('button'); if (
 $('#scenes').onclick = (e) => { const b = e.target.closest('button'); if (b) selectScene(b.dataset.scene); };
 $('#scrub').oninput = (e) => { if (!RUN) return; const t = Math.min(+e.target.value, frames.at(-1)?.t ?? 0); if (t < simT) resetLog(); simT = t; };
 $('#runBtn').onclick = launch;
-window.addEventListener('keydown', (e) => { if (e.code === 'Space' && !['INPUT', 'BUTTON', 'SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); $('#playBtn').click(); } });
+window.addEventListener('keydown', (e) => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.code === 'Space' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); $('#playBtn').click(); return; }
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { if (drawPoly) { drawPoly = null; $('#drawHint').hidden = true; } else if (viaPick) { viaPick = false; $('#drawHint').hidden = true; } else { selSet = new Set(); renderSel(); } hideCtx(); return; }
+  if (k === 'enter' && drawPoly) { finishPolygon(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const map = {h: 'hold', r: 'resume', g: 'ground_now', b: 'rtb', q: 'quarantine'};
+  if (map[k]) { e.preventDefault(); runConsole(map[k]); }
+  else if (k === '[' || k === ']') { e.preventDefault(); shiftLayer(k === ']' ? 1 : -1); }
+});
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(document.querySelector('.layout'));
 $('#netLegend').innerHTML = NET_SERIES.map((s) => `<span><i style="background:${s.color}"></i>${s.label}</span>`).join('');
@@ -1029,6 +1058,316 @@ $('#dTabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) ret
   document.querySelectorAll('#dTabs button').forEach((x) => x.classList.toggle('on', x === b));
   $('#tabOv').hidden = dTab !== 'ov'; $('#tabHl').hidden = dTab !== 'hl'; resize(); };
 
+// ------------------------------------------------------------------ weather controls
+function readWeather() {
+  if (!baseConfig?.drone_health) return null;
+  const t = +$('#wxTemp').value, ws = +$('#wxWind').value, dir = +$('#wxDir').value;
+  if (!(t >= -20 && t <= 55)) throw Error('Temperature must be between −20 and 55 °C.');
+  if (!(ws >= 0 && ws <= 15)) throw Error('Wind speed must be 0–15 m/s.');
+  const to = (dir + 180) * Math.PI / 180;   // wind FROM dir blows TOWARD dir + 180
+  const wind = [Math.round(ws * Math.sin(to) * 100) / 100, Math.round(ws * Math.cos(to) * 100) / 100];
+  const base = baseConfig.drone_health;
+  if (t === base.ambient_c && ws === 0 && !Math.hypot(...base.wind_mps)) return null;
+  return {t, wind};
+}
+function airDensity(tc, h) { return 101325 * (1 - 2.25577e-5 * h) ** 5.25588 / (287.05 * (tc + 273.15)); }
+function updateWeather() {
+  const h = baseConfig?.drone_health?.site_elevation_m ?? 542, t = +$('#wxTemp').value;
+  const rho = airDensity(t, h), ref = airDensity(15, h);
+  $('#wxRho').textContent = Number.isFinite(rho) ? `${rho.toFixed(3)} kg/m³ · hover power ${((Math.sqrt(ref / rho) - 1) * 100).toFixed(1)}% vs 15 °C` : '—';
+  document.querySelectorAll('#wxPresets button').forEach((b) => b.classList.toggle('on', +b.dataset.t === t && +b.dataset.w === +$('#wxWind').value));
+}
+$('#wxPresets').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; $('#wxTemp').value = b.dataset.t; $('#wxWind').value = b.dataset.w; updateWeather(); };
+for (const id of ['#wxTemp', '#wxWind', '#wxDir']) $(id).addEventListener('input', updateWeather);
+
+// ------------------------------------------------------------------ battery matrix (per-drone SoC graphs, Task-Manager style)
+const battC = $('#battGrid'), bctx = battC.getContext('2d');
+let battLayout = [], battAt = 0, battHistKey = null, battHist = [];
+const socCol = (soc, bms) => (bms >= 2 || soc < 15) ? '#ff3b5c' : (bms === 1 || soc < 30) ? '#f6bd4b' : '#2fe0a0';
+function battHistory(i) {   // distinct once-per-second health snapshots in the last 120 s up to frame i
+  const key = `${RUN.run_id}:${i}:${frames.length}`;
+  if (battHistKey === key) return battHist;
+  const out = [], tEnd = frames[i].t; let last = null;
+  for (let j = i; j >= 0 && frames[j].t >= tEnd - 120; j--) { const h = frames[j].h; if (h && h !== last) { out.push({t: frames[j].t, h, st: frames[j].status}); last = h; } }
+  battHistKey = key; battHist = out.reverse(); return battHist;
+}
+function drawBatt(s, force = false) {
+  const now = performance.now(), dims = `${battC.width}x${battC.height}`;
+  if (!force && now - battAt < 250 && dims === drawBatt.dims) return;   // a resize clears the canvas: redraw at once
+  battAt = now;
+  const card = $('#battCard'), on = RUN?.limits.health?.enabled;
+  card.hidden = !on; if (!on || !s || !s.f0.h) { battLayout = []; return; }
+  const f0 = s.f0, h = f0.h, n = RUN.flights.length, show = $('#battShow').value, sort = $('#battSort').value;
+  let order = [...Array(n).keys()].filter((k) => h.soc[k] !== undefined && (show === 'all' || f0.status[k] === 1));
+  if (sort === 'soc') order.sort((a, b) => h.soc[a] - h.soc[b] || a - b);
+  else if (sort === 'bms') order.sort((a, b) => h.bms[b] - h.bms[a] || h.soc[a] - h.soc[b] || a - b);
+  const W = battC.clientWidth, gap = 4;
+  // tile size: as large as fits ~560 px of height, between 44×32 and 96×60 (Task Manager per-core look)
+  let tw = 96;
+  for (; tw > 44; tw -= 4) { const cols = Math.max(1, Math.floor((W + gap) / (tw + gap))); if (Math.ceil(order.length / cols) * (tw * 0.62 + gap) <= 560) break; }
+  const th = Math.round(tw * 0.62), cols = Math.max(1, Math.floor((W + gap) / (tw + gap))), rows = Math.ceil(order.length / cols);
+  const tw2 = Math.floor((W - gap * (cols - 1)) / cols), H = Math.max(60, rows * (th + gap) - gap);
+  if (Math.abs(battC.clientHeight - H) > 1) { battC.style.height = `${H}px`; sizeCanvas(battC); }
+  screenTransform(bctx); bctx.clearRect(0, 0, W, H);
+  const hist = battHistory(s.i), tEnd = f0.t;
+  const counts = [0, 0, 0, 0]; let low = 0;
+  battLayout = [];
+  order.forEach((k, idx) => {
+    const x = (idx % cols) * (tw2 + gap), y = Math.floor(idx / cols) * (th + gap), soc = h.soc[k], bms = h.bms[k], st = f0.status[k];
+    const air = st === 1, col = socCol(soc, bms);
+    if (air) { counts[bms]++; if (soc < 30) low++; }
+    battLayout.push([x, y, tw2, th, k]);
+    bctx.globalAlpha = air ? 1 : 0.42;
+    bctx.fillStyle = '#06111f'; bctx.fillRect(x, y, tw2, th);
+    bctx.strokeStyle = 'rgba(80,120,160,0.16)'; bctx.lineWidth = 1;
+    for (const g of [0.25, 0.5, 0.75]) { bctx.beginPath(); bctx.moveTo(x, y + th * g); bctx.lineTo(x + tw2, y + th * g); bctx.stroke(); }
+    // SoC history graph (filled area), x = last 120 s
+    const X = (t) => x + tw2 * (1 - (tEnd - t) / 120), Y = (v) => y + th - 2 - (v / 100) * (th - 4);
+    const pts = hist.filter((r) => r.h.soc[k] !== undefined && r.st[k] !== undefined).map((r) => [X(r.t), Y(r.h.soc[k])]);
+    if (pts.length) {
+      pts.push([x + tw2, Y(soc)]);
+      bctx.beginPath(); bctx.moveTo(pts[0][0], y + th); for (const [px, py] of pts) bctx.lineTo(px, py); bctx.lineTo(x + tw2, y + th); bctx.closePath();
+      bctx.fillStyle = col + '40'; bctx.fill();
+      bctx.beginPath(); pts.forEach(([px, py], i) => i ? bctx.lineTo(px, py) : bctx.moveTo(px, py)); bctx.strokeStyle = col; bctx.lineWidth = 1.3; bctx.stroke();
+    }
+    bctx.strokeStyle = k === selected ? '#ffffff' : bms >= 2 ? '#ff3b5c' : bms === 1 ? '#f6bd4b' : '#1e3550';
+    bctx.lineWidth = k === selected ? 2 : bms ? 1.6 : 1; bctx.strokeRect(x + 0.5, y + 0.5, tw2 - 1, th - 1);
+    bctx.globalAlpha = air ? 1 : 0.7;
+    const f = RUN.flights[k], fs = tw2 >= 70 ? 10.5 : 9;
+    if (tw2 < 66) {   // compact tile: % on top, id at the bottom (hover for details)
+      bctx.font = `700 ${fs + 1}px ui-monospace,monospace`; bctx.fillStyle = col; bctx.textBaseline = 'top'; bctx.fillText(`${soc}%`, x + 3, y + 2);
+      bctx.font = `600 ${fs - 1}px ui-monospace,monospace`; bctx.fillStyle = COLORS[f.type]; bctx.textBaseline = 'bottom'; bctx.fillText(`${f.id}`, x + 3, y + th - 2);
+      bctx.textBaseline = 'alphabetic'; bctx.globalAlpha = 1; return;
+    }
+    bctx.font = `600 ${fs}px ui-monospace,monospace`; bctx.fillStyle = COLORS[f.type]; bctx.textBaseline = 'top';
+    bctx.fillText(`D-${f.id}`, x + 3, y + 2);
+    bctx.textAlign = 'right'; bctx.fillStyle = col; bctx.fillText(`${soc}%`, x + tw2 - 3, y + 2); bctx.textAlign = 'left';
+    if (!air) { bctx.fillStyle = '#8fa3ba'; bctx.font = `600 ${fs - 1}px system-ui`; bctx.textBaseline = 'bottom';
+      bctx.fillText(['queued', '', 'landed', 'CRASH', 'FORCED'][st] ?? '', x + 3, y + th - 2); }
+    else if (bms) { bctx.fillStyle = col; bctx.font = `700 ${fs - 1}px system-ui`; bctx.textBaseline = 'bottom'; bctx.fillText(BMS[bms], x + 3, y + th - 2); }
+    bctx.textBaseline = 'alphabetic'; bctx.globalAlpha = 1;
+  });
+  drawBatt.dims = `${battC.width}x${battC.height}`;
+  $('#battSummary').textContent = `${order.length} shown · airborne: ${counts[0]} normal, ${counts[1]} warning, ${counts[2] + counts[3]} critical/fault · ${low} below 30 %`;
+}
+function battHit(e) {
+  const r = battC.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  return battLayout.find(([x, y, w, h]) => px >= x && px <= x + w && py >= y && py <= y + h) || null;
+}
+battC.addEventListener('click', (e) => { const hit = battHit(e); if (!hit) return; select(hit[4]); if (dTab !== 'hl') document.querySelector('#dTabs button[data-tab="hl"]').click(); document.querySelector('#droneCard').scrollIntoView({block: 'nearest', behavior: 'smooth'}); drawBatt(frameAt(simT), true); });
+battC.addEventListener('mousemove', (e) => {
+  const hit = battHit(e), tip = $('#battTip');
+  if (!hit || !frames.length) { tip.hidden = true; return; }
+  const k = hit[4], f0 = frameAt(simT).f0, f = RUN.flights[k], r = battC.getBoundingClientRect(), card = $('#battCard').getBoundingClientRect();
+  tip.hidden = false; tip.style.left = `${e.clientX - card.left + 12}px`; tip.style.top = `${e.clientY - card.top + 12}px`;
+  tip.textContent = `D-${f.id} ${f.type} · SoC ${f0.h.soc[k]}% · BMS ${BMS[f0.h.bms[k]]} · max temp ${f0.h.tmax[k]} °C · ${STATUS[f0.status[k]]} · ${f.origin_name || f.origin} → ${f.destination_name || f.destination}`;
+});
+battC.addEventListener('mouseleave', () => { $('#battTip').hidden = true; });
+$('#battSort').onchange = $('#battShow').onchange = () => { if (frames.length) drawBatt(frameAt(simT), true); };
+
+// ------------------------------------------------------------------ Phase 4: DTC operator console
+const MOVEMENT = new Set(['reroute', 'hold', 'rtb', 'change_layer', 'speed_limit', 'divert_charge']);
+const live = () => RUN && !RUN.replay && !done;
+const selIds = () => [...selSet].filter((n) => RUN?.flights[n]).map((n) => RUN.flights[n].id);
+function renderSel() {
+  const ids = selIds();
+  $('#ccSel').textContent = ids.length ? `Selected (${ids.length}): ${ids.slice(0, 8).map((i) => 'D-' + i).join(', ')}${ids.length > 8 ? ' …' : ''}` : 'No drones selected';
+}
+function consoleFill() {
+  if (!MAP) return;
+  const vps = MAP.vertiports.map((v) => `<option value="${v.id}">${v.id} · ${v.name}</option>`).join('');
+  $('#ccDest').innerHTML = vps; $('#ccPad').innerHTML = vps;
+  const L = RUN?.limits.num_layers ?? baseConfig?.airspace.num_layers ?? 3;
+  $('#ccLayer').innerHTML = Array.from({length: L}, (_, l) => `<option value="${l}">L${l}</option>`).join('');
+  $('#ccfLayer').innerHTML = '<option value="">any layer</option>' + Array.from({length: L}, (_, l) => `<option value="${l}">L${l}</option>`).join('');
+  const secs = Array.from({length: SECTOR_COLS * SECTOR_ROWS}, (_, i) => `<option value="${i}">S${i}</option>`).join('');
+  $('#ccfSector').innerHTML = '<option value="">any sector</option>' + secs; $('#ccGsSector').innerHTML = secs;
+  $('#ccVSector').innerHTML = '<option value="">selected drones</option>' + secs.replace(/>S(\d)</g, '>sector S$1<');
+}
+function finishBox() {
+  if (!RUN || !frames.length) return;
+  const s = frameAt(simT), x0 = Math.min(boxSel.x0, boxSel.x1), x1 = Math.max(boxSel.x0, boxSel.x1), y0 = Math.min(boxSel.y0, boxSel.y1), y1 = Math.max(boxSel.y0, boxSel.y1);
+  const hit = [];
+  RUN.flights.forEach((_, n) => { const st = s.f0.status[n]; if (st !== 1 && st !== 0) return; const p = st === 1 ? posOf(s, n) : [s.f0.x[n], s.f0.y[n]];
+    const X = sx(p[0]), Y = sy(p[1]); if (X >= x0 && X <= x1 && Y >= y0 && Y <= y1) hit.push(n); });
+  selSet = new Set(hit); if (hit.length) selected = hit[0]; renderSel();
+  status(`${hit.length} drone(s) selected by box.`, 'ok');
+}
+$('#ccClear').onclick = () => { selSet = new Set(); renderSel(); };
+$('#ccfApply').onclick = () => {
+  if (!RUN || !frames.length) return;
+  const f0 = frameAt(simT).f0, ty = $('#ccfType').value, se = $('#ccfSector').value, la = $('#ccfLayer').value, st = $('#ccfStatus').value;
+  const hit = RUN.flights.map((f, n) => n).filter((n) => (!ty || RUN.flights[n].type === ty) && (st === '' || f0.status[n] === +st)
+    && (la === '' || f0.layer[n] === +la) && (se === '' || sectorOf(f0.x[n], f0.y[n]) === +se));
+  selSet = new Set(hit); if (hit.length) selected = hit[0]; renderSel(); status(`${hit.length} drone(s) match the filter.`, 'ok');
+};
+async function dryRun(body) {
+  const r = await api(`/api/runs/${RUN.run_id}/commands`, {...body, dry_run: true});
+  for (let k = 0; k < 30; k++) {
+    await new Promise((res) => setTimeout(res, 150));
+    const c = (await api(`/api/runs/${RUN.run_id}/commands`)).commands.find((x) => x.command_id === r.command_id);
+    if (c?.status === 'checked') return c;
+  }
+  return null;
+}
+function askConfirm(html, buttons) {
+  const box = $('#ccConfirm'); box.innerHTML = html + '<div class="btns"></div>'; box.hidden = false;
+  for (const [label, fn, cls] of buttons) { const b = document.createElement('button'); b.className = `ghost sm ${cls || ''}`; b.textContent = label; b.onclick = () => { box.hidden = true; fn?.(); }; box.lastChild.append(b); }
+  box.scrollIntoView({block: 'nearest'});
+}
+async function sendCmd(type, targets, params = {}, opts = {}) {
+  if (!live()) { status(RUN?.replay ? 'This is a loaded replay — commands need a live run.' : 'Commands need a running simulation (launch one first).', 'err'); return; }
+  const body = {type, targets, params, reason: opts.reason || 'operator'};
+  if (opts.confirm && !opts.confirmed) {
+    askConfirm(`<b>Confirm:</b> ${opts.confirm}`, [['Send', () => sendCmd(type, targets, params, {...opts, confirmed: true})], ['Cancel']]); return;
+  }
+  try {
+    if (MOVEMENT.has(type) && targets.length && !opts.force) {
+      const chk = await dryRun(body);
+      const bad = chk ? Object.entries(chk.results || {}).filter(([, r]) => !r.feasible) : [];
+      if (bad.length) {
+        const alts = bad.filter(([, r]) => r.alternative);
+        askConfirm(`<b>Energy check:</b> ${bad.length} of ${targets.length} drone(s) cannot complete this with the reserve margin.<ul>${bad.map(([id, r]) => `<li>D-${id}: ${r.detail}</li>`).join('')}</ul>`, [
+          ...(alts.length ? [[`Send to the nearest reachable pad instead`, async () => {
+            const okIds = targets.filter((i) => !bad.some(([id]) => +id === i));
+            if (okIds.length) await sendCmd(type, okIds, params, {...opts, force: true});
+            for (const [id, r] of alts) await sendCmd('reroute', [+id], {dest: r.alternative}, {force: true, reason: `feasible alternative to ${type}`});
+          }]] : []),
+          ['Send anyway', () => sendCmd(type, targets, params, {...opts, force: true}), 'warnbtn'], ['Cancel']]);
+        return;
+      }
+    }
+    const r = await api(`/api/runs/${RUN.run_id}/commands`, {...body, force: !!opts.force});
+    status(`${r.command_id} ${type.replace(/_/g, ' ')} sent${targets.length ? ' to ' + targets.length + ' drone(s)' : ''} — applied at the simulator's next tick (≤ ${LIMITS?.interactive_lead_s ?? 5} s ahead of playback).`, 'ok');
+    histAt = 0;
+  } catch (e) { status(`Command refused: ${e.message}`, 'err'); }
+}
+function needSel() { const ids = selIds(); if (!ids.length) status('Select one or more drones first (click, Shift+click, Ctrl+drag, or the filter).', 'err'); return ids; }
+function runConsole(cmd) {
+  const ids = selIds(), many = ids.length > 5 ? `${ids.length} drones` : null;
+  switch (cmd) {
+    case 'hold': case 'resume': case 'ground_now': case 'rtb': case 'quarantine':
+      if (!needSel().length) return;
+      return sendCmd(cmd, ids, {}, {confirm: cmd === 'quarantine' ? `quarantine ${ids.map((i) => 'D-' + i).join(', ')} (reports ignored, ordered to land)` : many && `${cmd.replace('_', ' ')} for ${many}`});
+    case 'promote': case 'demote':
+      if (!needSel().length) return;
+      return sendCmd('priority', ids, {level: cmd === 'promote' ? 0 : 2});
+    case 'change_layer': if (!needSel().length) return; return sendCmd('change_layer', ids, {layer: +$('#ccLayer').value});
+    case 'reroute': if (!needSel().length) return;
+      return sendCmd('reroute', ids, {dest: $('#ccDest').value, ...(viaPoint ? {via: viaPoint} : {})}).then(() => { viaPoint = null; $('#ccVia').classList.remove('on'); $('#ccVia').textContent = '◎ via'; });
+    case 'speed_limit': {
+      const sec = $('#ccVSector').value, params = {v: +$('#ccV').value, expires_s: +$('#ccExp').value};
+      if (sec !== '') return sendCmd('speed_limit', [], {...params, sector: +sec}, {confirm: `speed limit ${params.v} m/s in sector S${sec} for ${params.expires_s} s`});
+      if (!needSel().length) return; return sendCmd('speed_limit', ids, params);
+    }
+    case 'divert_charge': if (!needSel().length) return; return sendCmd('divert_charge', ids, {pad: $('#ccPad').value, mode: $('#ccMode').value});
+    case 'll_selected': if (!needSel().length) return; return sendCmd('lost_link_policy', ids, {policy: $('#ccLL').value});
+    case 'll_fleet': return sendCmd('lost_link_policy', [], {policy: $('#ccLL').value}, {confirm: `fleet lost-link policy → ${$('#ccLL').value}`});
+    case 'ground_stop': { const rel = $('#ccGsRel').value; return sendCmd('ground_stop', [], {sector: +$('#ccGsSector').value, ...(rel !== '' ? {release_s: +rel} : {})}, {confirm: `ground stop in sector S${$('#ccGsSector').value}`}); }
+    case 'ground_stop_release': return sendCmd('ground_stop_release', [], {sector: +$('#ccGsSector').value});
+    case 'fleet_ground_bms_critical': return sendCmd(cmd, [], {}, {confirm: 'ground every drone at BMS CRITICAL or worse'});
+    case 'fleet_recall_below_soc': return sendCmd(cmd, [], {threshold_pct: +$('#ccRecall').value}, {confirm: `recall every drone below ${$('#ccRecall').value}% SoC to its base`});
+  }
+}
+function shiftLayer(d) {
+  const ids = needSel(); if (!ids.length || !frames.length) return;
+  const f0 = frameAt(simT).f0, n = RUN.flights.findIndex((f) => f.id === ids[0]);
+  const L = Math.max(0, Math.min((RUN.limits.num_layers ?? 3) - 1, f0.layer[n] + d));
+  sendCmd('change_layer', ids, {layer: L});
+}
+document.querySelectorAll('#consoleCard [data-cmd]').forEach((b) => { b.onclick = () => runConsole(b.dataset.cmd); });
+$('#ccVia').onclick = (e) => { e.preventDefault(); viaPick = true; viaPoint = null; const h = $('#drawHint'); h.textContent = 'Click the map point to fly via (Esc cancels).'; h.hidden = false; };
+// restricted areas (TFR): click vertices on the map, double-click or Enter to finish
+function updateDrawHint() { const h = $('#drawHint'); h.hidden = false; h.textContent = `Restricted area: ${drawPoly.length} point(s) — click to add, double-click or Enter to finish, Esc to cancel.`; }
+$('#ccTfrDraw').onclick = () => { if (!live()) { status('Restricted areas need a running simulation.', 'err'); return; } drawPoly = []; updateDrawHint(); };
+canvas.addEventListener('dblclick', (e) => { if (drawPoly) { e.preventDefault(); finishPolygon(); } });
+function finishPolygon() {
+  const poly = drawPoly; drawPoly = null; $('#drawHint').hidden = true;
+  if (!poly || poly.length < 3) { status('A restricted area needs at least 3 points.', 'err'); return; }
+  const start = $('#ccTfrStart').value === '' ? 0 : +$('#ccTfrStart').value, end = $('#ccTfrEnd').value === '' ? RUN.duration_s : +$('#ccTfrEnd').value;
+  const name = `TFR-${++tfrCount}`;
+  sendCmd('tfr', [], {polygon: poly.map(([x, y]) => [Math.round(x), Math.round(y)]), start_s: start, end_s: end, name},
+    {confirm: `restricted area ${name} (${poly.length} points) from ${start} s to ${end} s — drones inside are rerouted out or landed, departures inside are held`});
+}
+function renderTfrs(c) {
+  const list = $('#ccTfrList'), key = JSON.stringify(c?.tfrs || []) + JSON.stringify(c?.ground_stops || {});
+  if (renderTfrs.key === key) return; renderTfrs.key = key; list.replaceChildren();
+  for (const z of c?.tfrs || []) { const li = document.createElement('li'); li.innerHTML = `<span style="color:${z.active ? '#ff5f72' : '#f6bd4b'}">${z.name}</span><span class="muted">${z.active ? 'ACTIVE' : 'scheduled/ended'} · ${fmt(z.start_s, 0)}–${fmt(z.end_s, 0)} s</span><button class="ghost sm">end</button>`;
+    li.lastChild.onclick = (e) => { e.stopPropagation(); sendCmd('tfr_cancel', [], {name: z.name}); }; list.append(li); }
+  for (const [sec, rel] of Object.entries(c?.ground_stops || {})) { const li = document.createElement('li'); li.innerHTML = `<span style="color:#f6bd4b">Ground stop S${sec}</span><span class="muted">${rel === null ? 'until released' : 'until ' + fmt(rel, 0) + ' s'}</span>`; list.append(li); }
+  if (!list.children.length) list.innerHTML = '<li class="empty">no restricted areas or ground stops</li>';
+}
+async function refreshHist() {
+  if (!RUN || RUN.replay) return;
+  try { cmdHist = (await api(`/api/runs/${RUN.run_id}/commands`)).commands; } catch { return; }
+  const list = $('#ccHist'); list.replaceChildren();
+  const shown = cmdHist.filter((c) => !c.dry_run).slice(-25).reverse();
+  $('#ccHistCount').textContent = `${shown.length} command(s)`;
+  for (const c of shown) {
+    const li = document.createElement('li'), tgt = c.targets?.length ? ' → ' + c.targets.slice(0, 5).map((i) => 'D-' + i).join(', ') + (c.targets.length > 5 ? '…' : '') : c.drone_id !== undefined ? ` D-${c.drone_id}` : '';
+    const when = c.t_received === null || c.t_received === undefined ? 'waiting for the simulator' : `received ${fmt(c.t_received)} s${c.t_delivered !== null && c.t_delivered !== undefined ? ' · delivered ' + fmt(c.t_delivered) + ' s' : ''}`;
+    li.innerHTML = `<span class="st ${c.status}">${c.status}</span>${c.command_id} ${c.type.replace(/_/g, ' ')}${tgt}<small></small>`;
+    li.lastChild.textContent = `${when}${c.outcome ? ' · ' + c.outcome : ''}${c.results ? ' · ' + Object.entries(c.results).slice(0, 3).map(([k, v]) => (/^\d+$/.test(k) ? 'D-' + k + ': ' : '') + (typeof v === 'string' ? v : v.detail)).join(' | ') : ''}`;
+    list.append(li);
+  }
+}
+function updateConsole(s) {
+  const c = s?.f0.console, d = s?.f0.dtc;
+  $('#ccLink').textContent = !RUN ? '—' : !RUN.switches.use_overseer ? 'no DTC in this architecture' : `link ${d?.link_up ? 'UP' : 'DOWN'}${c?.outage_queue ? ' · ' + c.outage_queue + ' queued' : ''} · lost-link: ${c?.lost_link_default ?? 'continue'}`;
+  renderTfrs(c);
+  const now = performance.now(); if (live() && now - histAt > 1000) { histAt = now; refreshHist(); }
+}
+function drawConsoleOverlay(s) {
+  const c = s?.f0.console;
+  for (const z of c?.tfrs || []) {
+    if (!z.active && z.end_s <= simT) continue;
+    ctx.beginPath(); z.polygon.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))); ctx.closePath();
+    ctx.fillStyle = z.active ? 'rgba(255,59,92,0.16)' : 'rgba(246,189,75,0.07)'; ctx.fill();
+    ctx.strokeStyle = z.active ? '#ff3b5c' : '#f6bd4b'; ctx.lineWidth = 2; ctx.setLineDash(z.active ? [] : [6, 4]); ctx.stroke(); ctx.setLineDash([]);
+    const [x, y] = z.polygon[0]; ctx.fillStyle = ctx.strokeStyle; ctx.font = '700 11px system-ui'; ctx.fillText(`${z.name} ${z.active ? 'ACTIVE' : 'from ' + fmt(z.start_s, 0) + ' s'}`, sx(x) + 4, sy(y) - 4);
+  }
+  if (c?.ground_stops && MAP) for (const sec of Object.keys(c.ground_stops)) {
+    const [x0, y0, x1, y1] = MAP.bounds, col = +sec % SECTOR_COLS, row = Math.floor(+sec / SECTOR_COLS);
+    const ax = x0 + (x1 - x0) * col / SECTOR_COLS, bx = x0 + (x1 - x0) * (col + 1) / SECTOR_COLS, ay = y0 + (y1 - y0) * row / SECTOR_ROWS, by = y0 + (y1 - y0) * (row + 1) / SECTOR_ROWS;
+    ctx.fillStyle = 'rgba(246,189,75,0.07)'; ctx.fillRect(sx(ax), sy(by), (bx - ax) * view.s, (by - ay) * view.s);
+    ctx.fillStyle = '#f6bd4b'; ctx.font = '700 11px system-ui'; ctx.fillText(`GROUND STOP S${sec}`, sx(ax) + 6, sy(by) + 28);
+  }
+  if (drawPoly?.length) {
+    ctx.strokeStyle = '#ff3b5c'; ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.beginPath(); drawPoly.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))); ctx.stroke(); ctx.setLineDash([]);
+    for (const [x, y] of drawPoly) { ctx.fillStyle = '#ff3b5c'; ctx.fillRect(sx(x) - 3, sy(y) - 3, 6, 6); }
+  }
+  if (viaPoint) { ctx.strokeStyle = '#37d7f2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx(viaPoint[0]), sy(viaPoint[1]), 7, 0, 7); ctx.stroke(); ctx.fillStyle = '#37d7f2'; ctx.font = '600 10px system-ui'; ctx.fillText('via', sx(viaPoint[0]) + 9, sy(viaPoint[1]) + 3); }
+  if (boxSel) { ctx.strokeStyle = '#37d7f2'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeRect(boxSel.x0, boxSel.y0, boxSel.x1 - boxSel.x0, boxSel.y1 - boxSel.y0); ctx.setLineDash([]); }
+  if (!s || !RUN) return;
+  const holds = new Set(c?.holds || []), quar = new Set(c?.quarantined || []), charging = c?.charging || {};
+  RUN.flights.forEach((f, n) => {
+    const st = s.f0.status[n]; if (st !== 1 && st !== 0) return;
+    const p = st === 1 ? posOf(s, n) : [s.f0.x[n], s.f0.y[n]], X = sx(p[0]), Y = sy(p[1]);
+    if (selSet.has(n) && n !== selected) { ctx.strokeStyle = '#37d7f2'; ctx.lineWidth = 1.6; ctx.setLineDash([3, 2]); ctx.beginPath(); ctx.arc(X, Y, 12, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+    const tag = (txt, col, dy) => { ctx.font = '700 10px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(txt, X - 6, Y + dy); ctx.fillStyle = col; ctx.fillText(txt, X - 6, Y + dy); };
+    if (holds.has(f.id)) tag(st === 1 ? '⏸ HOLD' : '⏸ held', '#f6bd4b', 22);
+    if (quar.has(f.id)) tag('⛔ QUARANTINED', '#c084fc', 34);
+    if (charging[f.id]) tag(`⚡ ${charging[f.id].mode} until ${fmt(charging[f.id].until, 0)} s`, '#2fe0a0', 22);
+  });
+}
+// right-click context menu on a drone
+function hideCtx() { $('#ctxMenu').hidden = true; }
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault(); const r = canvas.getBoundingClientRect(), n = pick(e.clientX - r.left, e.clientY - r.top);
+  if (n === null) { hideCtx(); return; }
+  if (!selSet.has(n)) select(n);
+  const ids = selIds(), m = $('#ctxMenu');
+  const items = [['⏸ Hold', 'hold'], ['▶ Resume', 'resume'], ['⤓ Ground now', 'ground_now'], ['↩ Return to base', 'rtb'], ['▲ Climb one layer', 'up'], ['▼ Descend one layer', 'down'],
+    ['⚕ Make EMERGENCY', 'promote'], ['⛔ Quarantine', 'quarantine'], ['♥ Show health', 'health']];
+  m.innerHTML = `<div class="h">${ids.length > 1 ? ids.length + ' drones' : 'D-' + ids[0]}</div>` + items.map(([l, c]) => `<button data-c="${c}">${l}</button>`).join('');
+  m.style.left = `${Math.min(e.clientX - r.left, r.width - 190)}px`; m.style.top = `${Math.min(e.clientY - r.top, r.height - 290)}px`; m.hidden = false;
+  m.onclick = (ev) => { const b = ev.target.closest('button'); if (!b) return; hideCtx(); const c = b.dataset.c;
+    if (c === 'up' || c === 'down') shiftLayer(c === 'up' ? 1 : -1);
+    else if (c === 'health') { selected = n; document.querySelector('#dTabs button[data-tab="hl"]').click(); }
+    else runConsole(c); };
+});
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#ctxMenu')) hideCtx(); });
+
 // ------------------------------------------------------------------ boot
 async function boot() {
   resize(); requestAnimationFrame(tick);
@@ -1040,6 +1379,7 @@ async function boot() {
     await loadMap(new URLSearchParams(location.search).get('map') || maps.default);
     $('#advFields').innerHTML = ADVANCED.map(([p, label]) => `<label>${label}<input type="number" step="any" data-path="${p}" data-label="${label}" value="${get(baseConfig, p)}"></label>`).join('');
     $('#seed').value = baseConfig.simulation.random_seed;
+    if (baseConfig.drone_health) { $('#wxTemp').value = baseConfig.drone_health.ambient_c; updateWeather(); } else document.querySelector('.weather').hidden = true;
     $('#sysStatus').textContent = 'ONLINE'; $('#sysDot').className = 'dot ok';
     buildLayerSeg(); selectScene('normal');
     await launch();

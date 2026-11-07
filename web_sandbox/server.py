@@ -31,6 +31,7 @@ import uuid
 import numpy as np
 
 from config.load_config import get_config
+from simulation.dtc_console import validate_command
 from simulation.road_network import load_road_network
 from simulation.route_engine import (ARCHITECTURES, flight_from_row, flight_manifest, initial_conditions_hash,
                                      plan_flights, simulate_routes)
@@ -135,7 +136,7 @@ class LiveRun:
         are still applied at a logged tick, so replays stay exact.
         """
         while (not self.stop_flag and self.view_t is not None and t > self.view_t + self.lead_s
-               and time.time() - self.view_seen < self.watch_timeout_s):
+               and time.time() - self.view_seen < self.watch_timeout_s and not self.pending):
             time.sleep(0.02)
 
     def submit(self, cmd: dict[str, Any]) -> None:
@@ -201,6 +202,14 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("simulation.timestep_seconds must be between 0.05 and 0.5 for the live demo")
     if not 1 <= int(config["airspace"]["num_layers"]) <= 6:
         raise ValueError("airspace.num_layers must be between 1 and 6")
+    dh = config.get("drone_health", {}) or {}
+    if dh:   # weather controls (ambient temperature, wind) from the page
+        _float(dh.get("ambient_c", 35.0), "weather: ambient temperature (°C)", -20.0, 55.0)
+        wind = dh.get("wind_mps", [0.0, 0.0])
+        if not (isinstance(wind, list) and len(wind) == 2 and all(isinstance(w, (int, float)) for w in wind)):
+            raise ValueError("weather: wind must be [east, north] m/s")
+        if float(np.hypot(*wind)) > 15.0:
+            raise ValueError("weather: wind speed must be at most 15 m/s")
 
     map_id, network = _network(body.get("map"))
     flights = plan_flights(network, fleet, mix, seed, window) if fleet else []
@@ -344,33 +353,47 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
 
 
 def submit_command(run: LiveRun, body: dict[str, Any]) -> dict[str, Any]:
-    """Validate an operator command and queue it; the engine applies it at the start of the next tick.
+    """Validate an operator command and queue it for the engine (applied at the start of its next tick).
 
-    Phase 3 supports ``add_drone`` (the scenario-builder form; it departs at the current sim time).
+    ``add_drone`` (Phase 3) is a ground-side action. Every other type is a DTC console
+    command (``simulation.dtc_console``) that crosses the DTC link; with ``dry_run`` the
+    engine only reports the energy feasibility per target.
     """
-    if not isinstance(body, dict) or body.get("type") != "add_drone":
-        raise ValueError("command type must be 'add_drone' (more command types arrive with the DTC console)")
+    if not isinstance(body, dict):
+        raise ValueError("command must be a JSON object")
+    cfg = run.config
     with run.lock:
-        taken = set(run.ids)
-        row = dict(body.get("drone") or {})
-        row.pop("depart_s", None)   # "Add drone now": departs at the current sim time
-        [valid] = validate_route_drones([row], [v.id for v in run.network.vertiports], run.config,
-                                        run.duration, taken_ids=taken)
-        run.ids.add(valid["id"])
-        cmd = {"command_id": f"c{len(run.commands) + 1}", "type": "add_drone", "drone": valid,
-               "reason": str(body.get("reason", ""))[:200], "status": "sent",
-               "tick_applied": None, "t_applied": None, "outcome": None}
+        cid = f"c{len(run.commands) + 1}"
+        if body.get("type") == "add_drone":
+            row = dict(body.get("drone") or {})
+            row.pop("depart_s", None)   # "Add drone now": departs at the current sim time
+            [valid] = validate_route_drones([row], [v.id for v in run.network.vertiports], cfg,
+                                            run.duration, taken_ids=set(run.ids))
+            run.ids.add(valid["id"])
+            cmd = {"command_id": cid, "type": "add_drone", "drone": valid, "targets": [], "params": {},
+                   "reason": str(body.get("reason", ""))[:200], "dry_run": False}
+        else:
+            cmd = {"command_id": cid, **validate_command(
+                body, set(run.ids), [v.id for v in run.network.vertiports], int(cfg["airspace"]["num_layers"]),
+                run.duration, float(cfg["safety"]["maximum_velocity_meters_per_second"]), 6)}
+        cmd.update(status="sent", tick_received=None, t_received=None, tick_delivered=None, results={}, outcome=None)
     run.submit(cmd)
-    return {"command_id": cmd["command_id"], "status": "sent", "drone_id": valid["id"]}
+    return {"command_id": cid, "status": "sent", **({"drone_id": cmd["drone"]["id"]} if "drone" in cmd else {})}
 
 
 def scripted_commands(log: list[dict[str, Any]]):
-    """Command source for replay: re-applies each logged command at its logged tick."""
+    """Command source for replay: re-applies each logged command at the tick it entered the engine.
+
+    Delivery (link up / queued / lost) and the outcome are re-derived by the engine, so
+    the replay reproduces them; dry-run checks are skipped (they change nothing).
+    """
     by_tick: dict[int, list[dict[str, Any]]] = {}
     for c in log:
-        if c.get("tick_applied") is not None:
-            fresh = {k: v for k, v in c.items() if k not in ("tick_applied", "t_applied", "status", "outcome")}
-            by_tick.setdefault(int(c["tick_applied"]), []).append(fresh)
+        k = c.get("tick_received", c.get("tick_applied"))
+        if k is not None and not c.get("dry_run"):
+            fresh = {key: v for key, v in c.items() if key in ("command_id", "type", "drone", "targets", "params",
+                                                               "reason", "force", "dry_run")}
+            by_tick.setdefault(int(k), []).append(fresh)
     return lambda k, t: by_tick.pop(k, [])
 
 
@@ -496,7 +519,9 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                     self._send_json(404, {"error": "run_not_found"})
                     return
                 with run.lock:
-                    self._send_json(200, {"commands": [dict(c) for c in run.commands]})
+                    cmds = [{k: v for k, v in c.items() if k != "drone"} | ({"drone_id": c["drone"]["id"]} if "drone" in c else {})
+                            for c in run.commands]
+                self._send_json(200, {"commands": cmds})
             elif route.startswith("/api/runs/") and route.endswith("/frames"):
                 run = RUNS.get(route.split("/")[3])
                 if run is None:

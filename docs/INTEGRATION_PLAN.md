@@ -276,3 +276,52 @@ Measured (IITH, seed 42, 300 s, worker incl. frames): 250 drones 48.4 ticks/s (4
 54.4), 500 drones 26.5 ticks/s (2.6×, Phase 2 32.8); frames 9.2 / 17.7 KB. Random fleets
 (SoC 35–100 %) on campus routes: 0 diversions, 0 forced landings, 0 depleted, max pack 39 °C,
 energy per delivered drone 768 Wh (250) and 960 Wh (500, more eVTOLs delivered).
+
+## 12. Phase 4 results (DTC operator console) and weather controls
+
+- `simulation/dtc_console.py`: command validation, polygon geometry, road-graph planning that avoids
+  restricted areas. The command handlers are in `route_engine.py` (they need the run state).
+- **Delivery.** `POST /api/runs/<id>/commands` → queue → applied at the start of the engine's next
+  tick (`tick_received`).
+  - Console commands cross the DTC link (`tick_delivered`). While the link is down they are
+    `queued` until `dtc_console.queue_ttl_s` (then `expired`), or `lost` with
+    `outage_policy: drop`.
+  - Each target is `acknowledged` or `failed` with a reason, and every outcome goes to the
+    governance log.
+  - Architectures without a DTC refuse console commands.
+  - Replay re-applies commands at `tick_received`, so frames and events are identical (test).
+- **All 13 command types:**
+  - reroute (destination and/or via point);
+  - ground now (nearest pad within `ground_now_max_pad_m`, else land in place; queued drones are
+    cancelled);
+  - hold / resume (loiter; for queued drones, a departure hold);
+  - return to base;
+  - change layer (layer-transition safety check, pinned against later DTC allocation);
+  - speed limit per drone or per sector, with expiry;
+  - priority (P0 = emergency privileges: the DTC treats it as EMERGENCY);
+  - restricted area / TFR (polygon, start/end): routes avoid it, drones inside are rerouted out or
+    landed, departures inside are held;
+  - sector ground stop with optional release time, and release;
+  - quarantine (reports ignored network-wide: neighbours use sensed positions; excluded from DTC
+    and ADMM; ordered to land);
+  - lost-link policy, fleet default and per drone (continue / hold / rtb / land; holds are
+    released when the link returns);
+  - divert to charge or swap (`charge_c_rate`, `charge_target_pct`, `swap_time_s`; the drone
+    resumes its mission afterwards);
+  - fleet actions: ground all BMS CRITICAL, recall below X % SoC.
+- **Energy check.** Movement commands are checked against the reserve: `dry_run` returns
+  feasibility per target with the nearest reachable pad. The page shows the warning first and
+  offers "send to the nearest reachable pad instead", "send anyway" or cancel. Without `force`,
+  the engine refuses an infeasible movement.
+- **UI:**
+  - selection by click, Shift+click, Ctrl+drag box or filter (type / sector / layer / status);
+  - right-click menu, command bar and keyboard shortcuts (H R G B Q [ ] Esc);
+  - restricted areas drawn on the map;
+  - inline confirmation for fleet-wide actions;
+  - command history with status and per-drone results;
+  - map overlays for restricted areas, ground stops, holds, quarantine and charging.
+- **Weather (user request).** Temperature with presets (winter 15 °C, pre-monsoon 35 °C,
+  heat wave 42 °C) and wind speed/direction feed `drone_health.ambient_c` / `wind_mps` (validated:
+  −20…55 °C, ≤ 15 m/s). Temperature drives air density (hover power +4.6 % at 42 °C vs 15 °C),
+  battery resistance and the thermal models. Wind changes airspeed and power, not the drones'
+  motion.

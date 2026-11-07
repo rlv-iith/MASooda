@@ -269,6 +269,19 @@ visualization:
 # Live web demo (web_sandbox/server.py + simulation/route_engine.py).
 # Server / browser limits and streaming settings. The spatial index never
 # changes a result (tests/test_route_spatial.py), it only makes large fleets faster.
+# Phase 4 DTC operator console (simulation/dtc_console.py).
+dtc_console:
+  outage_policy: queue           # queue | drop: commands sent while the DTC link is down
+  queue_ttl_s: 30.0              # a queued command expires after this
+  ground_now_max_pad_m: 800.0    # ground now: nearest pad within this route distance, else land in place
+  hold_gain: 0.5                 # 1/s, loiter controller
+  hold_max_speed: 3.0            # m/s
+  hold_check_s: 60.0             # energy check for a hold: hold this long, then finish the route
+  lost_link_default: continue    # continue | hold | rtb | land
+  charge_c_rate: 2.0             # fast charge (1/h)
+  charge_target_pct: 90.0
+  swap_time_s: 90.0
+
 # Phase 3B drone health model (simulation/drone_health.py, docs/DRONE_HEALTH_MODEL.md).
 drone_health:
   enabled: true

@@ -47,8 +47,8 @@ DEFAULT_WEB = {
     "interactive_lead_s": 5.0,
     "watcher_timeout_s": 5.0,
 }
-PHASE2_KEYS = ("admm", "neg", "merge", "spoof", "trust", "new_flights", "h", "hsel", "reroutes")
-CARRY_KEYS = ("stats", "prio", "h")   # sent only when changed / once per second; carried forward
+PHASE2_KEYS = ("admm", "neg", "merge", "spoof", "trust", "new_flights", "h", "hsel", "reroutes", "console")
+CARRY_KEYS = ("stats", "prio", "h", "console")   # sent only when changed / once per second; carried forward
 LIST_KEYS = ("new_flights", "reroutes")  # must never be lost: concatenated into the next kept frame
 
 

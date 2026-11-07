@@ -70,6 +70,22 @@ last 60 s. Onboard responses (pre-flight check, divert on low reserve or CRITICA
 FAULT, speed limit when hot) and the DTC right-of-way rule appear in the governance log with
 severity. Schedule faults from the Custom drones form.
 
+## DTC operator console (Phase 4) and weather
+
+The **DTC console** card issues real ATC/UTM-style commands to the selected drones:
+- **Selection:** click, Shift+click, Ctrl+drag a box, or the filter.
+- **Commands:** hold/resume, ground now, return to base, layer change, reroute (with a via point
+  picked on the map), speed limits (drone or sector), priority, quarantine, battery swap/charge,
+  lost-link policy, restricted areas drawn on the map, sector ground stops, and fleet health
+  actions.
+- **Energy check:** movement commands are checked against each drone's energy first. Infeasible
+  ones show the nearest reachable pad.
+- **Delivery:** commands travel over the DTC link (queued during an outage). The history panel
+  shows sent / queued / acknowledged / failed / expired.
+- **Shortcuts:** H R G B Q, [ ] layer, Esc. Right-click a drone for a menu.
+
+**Weather** (Scenario card): temperature presets and wind for the battery/thermal/air-density model.
+
 ## What changed and why
 
 Before: the Hyderabad map was only a picture behind the simulation. The engine

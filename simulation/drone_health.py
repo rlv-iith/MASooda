@@ -390,6 +390,18 @@ class HealthModel:
             "pending_fault": self.fault_plan.get(aid),
         }
 
+    def set_soc(self, aid: int, soc: float) -> None:
+        """Battery swap (or the end of a charge): the pack is replaced / topped up."""
+        k = self.index[aid]
+        self.a["soc"][k] = float(np.clip(soc, 0.0, 1.0))
+        self._update_ocv(np.array([k]))
+
+    def charge(self, aid: int, dt: float, c_rate: float, target: float) -> None:
+        """Constant-current charge at ``c_rate`` (1/h) up to ``target`` SoC (charging pad)."""
+        k = self.index[aid]
+        self.a["soc"][k] = float(min(target, self.a["soc"][k] + c_rate * dt / 3600.0))
+        self._update_ocv(np.array([k]))
+
     def energy_used_wh(self, aid: int) -> float:
         return float(self.a["e_out"][self.index[aid]])
 

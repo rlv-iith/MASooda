@@ -199,3 +199,19 @@ def test_sensor_fault_lands_in_place_and_frames_stay_deterministic():
     assert 4 in last["status"] and last["stats"]["forced_landings"] == 1
     h = [f["h"] for f in a if not f.get("partial") and "h" in f]
     assert h and len(h[-1]["soc"]) == len(last["x"])
+
+
+def test_weather_controls_change_power_and_are_validated():
+    from web_sandbox.server import prepare_live_run
+    hover = {}
+    for t in (15.0, 42.0):
+        p = prepare_live_run({"map": "iith", "fleet": 1, "duration_s": 10,
+                              "config": {"drone_health": {"ambient_c": t, "wind_mps": [4.0, 0.0]}}})
+        hm = HealthModel(p["config"], 1, (0.0, 0.0))
+        hm.add(1, "DELIVERY", None, custom=True)
+        hover[t] = float(hm.power(np.array([0]), np.array([0.0]))[0][0])
+        assert hm.t_amb == t and list(hm.wind) == [4.0, 0.0]
+    assert hover[42.0] > hover[15.0]
+    for bad in ({"ambient_c": 70}, {"wind_mps": [20.0, 0.0]}, {"wind_mps": "calm"}):
+        with pytest.raises(ValueError, match="weather|wind_mps"):
+            prepare_live_run({"map": "iith", "fleet": 1, "config": {"drone_health": bad}})

@@ -54,6 +54,8 @@
         <div class="zoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit map">⤢</button><button id="zFollow" aria-label="Follow selected drone" title="Follow selected drone">◎</button></div>
         <div id="buffer" class="buffer" hidden>computing ahead…</div>
         <div id="tip" class="tip" hidden></div>
+        <div id="ctxMenu" class="ctx" hidden></div>
+        <div id="drawHint" class="drawhint" hidden></div>
         <div class="attrib" id="attrib"></div>
       </div>
       <div class="timeline"><span id="tLabel">t = 0.0 s</span><input id="scrub" type="range" min="0" max="0" value="0" step="0.1" aria-label="Simulation time"><span id="tMax">/ — s</span></div>
@@ -107,6 +109,42 @@
         <ol id="dEvents" class="dev"></ol>
       </section>
 
+      <section class="card" id="consoleCard">
+        <div class="card-head"><h2>DTC console</h2><span class="muted" id="ccLink">—</span></div>
+        <div class="cc-sel"><span id="ccSel">No drones selected</span><button class="ghost sm" id="ccClear">Clear</button></div>
+        <p class="hint">Click a drone · Shift+click to add · Ctrl+drag a box · right-click for a menu · keys: H hold, R resume, G ground, B return, Q quarantine, [ ] layer, Esc clear.</p>
+        <div class="cc-filter">
+          <select id="ccfType"><option value="">any type</option><option>EMERGENCY</option><option>EVTOL</option><option>DELIVERY</option></select>
+          <select id="ccfSector"><option value="">any sector</option></select>
+          <select id="ccfLayer"><option value="">any layer</option></select>
+          <select id="ccfStatus"><option value="1">airborne</option><option value="0">queued</option><option value="">any status</option></select>
+          <button class="ghost sm" id="ccfApply">Select matching</button>
+        </div>
+        <div class="cc-bar">
+          <button class="ghost" data-cmd="hold" title="H">⏸ Hold</button>
+          <button class="ghost" data-cmd="resume" title="R">▶ Resume</button>
+          <button class="ghost" data-cmd="ground_now" title="G">⤓ Ground now</button>
+          <button class="ghost" data-cmd="rtb" title="B">↩ Return to base</button>
+          <button class="ghost" data-cmd="quarantine" title="Q">⛔ Quarantine</button>
+          <button class="ghost" data-cmd="promote">⚕ Make EMERGENCY</button>
+          <button class="ghost" data-cmd="demote">Normal priority</button>
+        </div>
+        <div class="cc-row"><span>Layer</span><select id="ccLayer"></select><button class="ghost sm" data-cmd="change_layer">Change layer</button></div>
+        <div class="cc-row"><span>Reroute to</span><select id="ccDest"></select><button class="pick" id="ccVia" title="Click a point on the map to fly via it">◎ via</button><button class="ghost sm" data-cmd="reroute">Reroute</button></div>
+        <div class="cc-row"><span>Speed ≤</span><input id="ccV" type="number" min="0.5" step="0.5" value="6"><span>m/s for</span><input id="ccExp" type="number" min="1" step="5" value="60"><span>s</span><select id="ccVSector"><option value="">selected drones</option></select><button class="ghost sm" data-cmd="speed_limit">Apply</button></div>
+        <div class="cc-row"><span>Battery at</span><select id="ccPad"></select><select id="ccMode"><option value="swap">swap</option><option value="charge">charge</option></select><button class="ghost sm" data-cmd="divert_charge">Divert</button></div>
+        <div class="cc-row"><span>Lost link</span><select id="ccLL"><option>continue</option><option>hold</option><option>rtb</option><option>land</option></select><button class="ghost sm" data-cmd="ll_selected">Selected</button><button class="ghost sm" data-cmd="ll_fleet">Fleet default</button></div>
+        <div class="sub-h">Airspace</div>
+        <div class="cc-row"><button class="ghost sm" id="ccTfrDraw">✎ Draw restricted area</button><span>from</span><input id="ccTfrStart" type="number" min="0" step="5" placeholder="now"><span>to</span><input id="ccTfrEnd" type="number" min="1" step="5" placeholder="end"><span>s</span></div>
+        <ol class="fh-list" id="ccTfrList"></ol>
+        <div class="cc-row"><span>Ground stop</span><select id="ccGsSector"></select><span>release at</span><input id="ccGsRel" type="number" min="0" step="10" placeholder="manual"><span>s</span><button class="ghost sm" data-cmd="ground_stop">Stop</button><button class="ghost sm" data-cmd="ground_stop_release">Release</button></div>
+        <div class="sub-h">Fleet health actions</div>
+        <div class="cc-row"><button class="ghost sm" data-cmd="fleet_ground_bms_critical">Ground all BMS CRITICAL</button><span>Recall below</span><input id="ccRecall" type="number" min="1" max="100" value="30"><span>% SoC</span><button class="ghost sm" data-cmd="fleet_recall_below_soc">Recall</button></div>
+        <div id="ccConfirm" class="cc-confirm" hidden></div>
+        <div class="sub-h">Command history <span class="muted" id="ccHistCount"></span></div>
+        <ol class="cc-hist" id="ccHist"></ol>
+      </section>
+
       <section class="card">
         <div class="card-head"><h2>Scenario</h2><span class="muted" id="seedLabel"></span></div>
         <label class="archsel">Architecture
@@ -131,6 +169,17 @@
           <label>Random seed<input id="seed" type="number" min="0" value="42"></label>
         </div>
         <p class="warn" id="fleetWarn" hidden></p>
+        <div class="weather">
+          <div class="sub-h">Weather <span class="muted">(battery, motor and air-density model)</span></div>
+          <div class="seg" id="wxPresets"><button data-t="15" data-w="2">Winter 15 °C</button><button data-t="35" data-w="0" class="on">Pre-monsoon 35 °C</button><button data-t="42" data-w="4">Heat wave 42 °C</button></div>
+          <div class="grid2 cd">
+            <label>Temperature (°C)<input id="wxTemp" type="number" min="-20" max="55" step="1" value="35"></label>
+            <label>Wind speed (m/s)<input id="wxWind" type="number" min="0" max="15" step="0.5" value="0"></label>
+            <label>Wind from (°, 0 = north)<input id="wxDir" type="number" min="0" max="359" step="5" value="270"></label>
+            <label>Air density<output id="wxRho">—</output></label>
+          </div>
+          <p class="hint">Wind changes airspeed and so power draw; it does not push the drones in this simulation.</p>
+        </div>
         <div class="mix"><span>Mix %</span>
           <label class="e">EMG<input id="mixE" type="number" min="0" max="100" value="10"></label>
           <label class="v">eVTOL<input id="mixV" type="number" min="0" max="100" value="30"></label>
@@ -223,6 +272,18 @@
     </section>
 
     <div class="bottom">
+    <section class="card batt-card" id="battCard">
+      <div class="card-head"><h2>Battery matrix · every drone</h2>
+        <div class="batt-tools">
+          <span class="muted" id="battSummary"></span>
+          <select id="battSort"><option value="id">sort: drone id</option><option value="soc">sort: lowest SoC first</option><option value="bms">sort: worst BMS first</option></select>
+          <select id="battShow"><option value="all">all drones</option><option value="air">airborne only</option></select>
+        </div>
+      </div>
+      <canvas id="battGrid" aria-label="Battery state of charge of every drone over time"></canvas>
+      <div class="net-legend"><span><i style="background:#2fe0a0"></i>SoC ≥ 30 %</span><span><i style="background:#f6bd4b"></i>below 30 % / BMS warning</span><span><i style="background:#ff3b5c"></i>below 15 % / critical / fault</span><span class="muted">tile graph = SoC over the last 2 min · dim = on the ground · click a tile to open its Health tab</span></div>
+      <div id="battTip" class="tip" hidden></div>
+    </section>
     <section class="card chart-card">
       <div class="card-head"><h2>STL safety robustness</h2><span class="muted">ρ(t) = min d<sub>ij</sub> − d<sub>min</sub></span></div>
       <p class="defn">Safety definition: <b>layer-aware 3D</b> distance (horizontal offset and layer gap × layer height) from the route engine. <code>verification/metrics.py</code> uses horizontal distance only, so its numbers differ.</p>
