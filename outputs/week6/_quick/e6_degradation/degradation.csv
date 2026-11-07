@@ -1,0 +1,2 @@
+seed,num_agents,violations_normal,violations_failure,graceful_degradation_score,throughput_normal,throughput_failure,outage_start_s,outage_end_s,directive_age_max_in_outage_s,directive_refreshed_in_outage,max_position_diff_m,first_divergence_s,normal_spec_hash,failure_spec_hash
+42,12,0,0,1.0,nan,nan,90.0,120.0,nan,n/a,0.0,nan,db84348a9cba2bbb,3468d234778cb4e4

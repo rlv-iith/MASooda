@@ -1,0 +1,69 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "admm_iter_mean",
+      "admm_converged_frac",
+      "admm_time_per_tick_ms"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": [
+    {
+      "group": {
+        "admm_max_iterations": "5",
+        "num_agents": "12"
+      },
+      "reasons": [
+        "admm_iter_mean: n=0 < 3",
+        "admm_converged_frac: n=0 < 3",
+        "admm_time_per_tick_ms: n=0 < 3"
+      ]
+    },
+    {
+      "group": {
+        "admm_max_iterations": "10",
+        "num_agents": "12"
+      },
+      "reasons": [
+        "admm_iter_mean: n=0 < 3",
+        "admm_converged_frac: n=0 < 3",
+        "admm_time_per_tick_ms: n=0 < 3"
+      ]
+    },
+    {
+      "group": {
+        "admm_max_iterations": "20",
+        "num_agents": "12"
+      },
+      "reasons": [
+        "admm_iter_mean: n=0 < 3",
+        "admm_converged_frac: n=0 < 3",
+        "admm_time_per_tick_ms: n=0 < 3"
+      ]
+    },
+    {
+      "group": {
+        "admm_max_iterations": "50",
+        "num_agents": "12"
+      },
+      "reasons": [
+        "admm_iter_mean: n=0 < 3",
+        "admm_converged_frac: n=0 < 3",
+        "admm_time_per_tick_ms: n=0 < 3"
+      ]
+    },
+    {
+      "group": {
+        "admm_max_iterations": "100",
+        "num_agents": "12"
+      },
+      "reasons": [
+        "admm_iter_mean: n=0 < 3",
+        "admm_converged_frac: n=0 < 3",
+        "admm_time_per_tick_ms: n=0 < 3"
+      ]
+    }
+  ]
+}

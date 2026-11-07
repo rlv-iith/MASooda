@@ -1,0 +1,188 @@
+{
+  "agent_counts": [
+    30,
+    45,
+    60,
+    75
+  ],
+  "architectures": [
+    "centralized",
+    "decentralized_undefended"
+  ],
+  "base_config_hash": "e4509b11210199a7",
+  "command": "python.exe scripts/week6_e5_build.py --run-missing --workers 12",
+  "config_hash": "e4509b11210199a7",
+  "config_section": {
+    "experiments.week6.matrices.e5": {
+      "agent_counts": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "architectures": [
+        "centralized",
+        "decentralized_undefended"
+      ],
+      "duration_s": null,
+      "group_by": [
+        "architecture",
+        "num_agents"
+      ],
+      "output_subdir": "e5_stl",
+      "scenario": "e5_stl",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "csv": "runs.csv",
+  "failures": [],
+  "git_commit": "285920f04b0213b0a66c759be8aa05a5e340c090-dirty",
+  "identical_initial_conditions": {
+    "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+    "ok": true
+  },
+  "missing_before": [
+    "centralized N=30",
+    "centralized N=45",
+    "centralized N=75",
+    "decentralized_undefended N=30",
+    "decentralized_undefended N=45",
+    "decentralized_undefended N=75"
+  ],
+  "n_archived_stale": 0,
+  "n_deferred_max_runs": 0,
+  "n_run": 18,
+  "n_skipped_resume": 0,
+  "n_specs": 18,
+  "per_run_wall_time_s": [
+    {
+      "label": "centralized N=30 seed=43",
+      "wall_s": 6.19
+    },
+    {
+      "label": "centralized N=30 seed=42",
+      "wall_s": 6.306
+    },
+    {
+      "label": "centralized N=30 seed=44",
+      "wall_s": 6.3
+    },
+    {
+      "label": "centralized N=45 seed=42",
+      "wall_s": 10.259
+    },
+    {
+      "label": "centralized N=45 seed=43",
+      "wall_s": 10.289
+    },
+    {
+      "label": "centralized N=45 seed=44",
+      "wall_s": 10.294
+    },
+    {
+      "label": "decentralized_undefended N=30 seed=42",
+      "wall_s": 23.48
+    },
+    {
+      "label": "decentralized_undefended N=30 seed=44",
+      "wall_s": 23.556
+    },
+    {
+      "label": "decentralized_undefended N=30 seed=43",
+      "wall_s": 24.371
+    },
+    {
+      "label": "centralized N=75 seed=43",
+      "wall_s": 20.601
+    },
+    {
+      "label": "centralized N=75 seed=42",
+      "wall_s": 20.735
+    },
+    {
+      "label": "centralized N=75 seed=44",
+      "wall_s": 20.91
+    },
+    {
+      "label": "decentralized_undefended N=45 seed=44",
+      "wall_s": 36.603
+    },
+    {
+      "label": "decentralized_undefended N=45 seed=42",
+      "wall_s": 36.878
+    },
+    {
+      "label": "decentralized_undefended N=45 seed=43",
+      "wall_s": 36.884
+    },
+    {
+      "label": "decentralized_undefended N=75 seed=44",
+      "wall_s": 52.007
+    },
+    {
+      "label": "decentralized_undefended N=75 seed=42",
+      "wall_s": 52.214
+    },
+    {
+      "label": "decentralized_undefended N=75 seed=43",
+      "wall_s": 52.305
+    }
+  ],
+  "quick": false,
+  "runs_added": 18,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "sources": [
+    "e1_admm_scaling",
+    "e2_formation",
+    "e3_priority",
+    "e4_resilience",
+    "e5_stl"
+  ],
+  "stl_runs_csv": {
+    "file": "stl_runs.csv",
+    "rows": 135
+  },
+  "stl_summary_csv": {
+    "file": "stl_summary.csv",
+    "group_by": [
+      "scenario",
+      "condition",
+      "architecture",
+      "num_agents"
+    ],
+    "metrics": [
+      "min_robustness_m",
+      "p5_robustness_m",
+      "violation_fraction",
+      "violation_episodes",
+      "mean_recovery_time_s",
+      "max_recovery_time_s"
+    ]
+  },
+  "stl_summary_pooled_csv": {
+    "file": "stl_summary_pooled.csv",
+    "group_by": [
+      "architecture",
+      "num_agents"
+    ],
+    "note": "nominal runs of all experiments, one per (architecture, N, seed)"
+  },
+  "timestamp": "2026-11-07T00:55:57+0530",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "python": "3.14.3"
+  },
+  "wall_time_s": 63.776,
+  "workers": 12
+}

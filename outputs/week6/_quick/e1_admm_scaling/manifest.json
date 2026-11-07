@@ -1,0 +1,259 @@
+{
+  "agent_counts": [
+    12
+  ],
+  "architectures": [
+    "hierarchical"
+  ],
+  "calls_csv": {
+    "file": "calls.csv",
+    "rows": 0
+  },
+  "command": "python scripts/week6_e1_run.py --quick",
+  "config_hash": "e4509b11210199a7",
+  "config_section": {
+    "experiments.week6.matrices.e1": {
+      "agent_counts": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "duration_s": null,
+      "group_by": [
+        "num_agents",
+        "admm_max_iterations"
+      ],
+      "output_subdir": "e1_admm_scaling",
+      "scenario": "e1_admm_scaling",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    },
+    "experiments.week6.matrices.e1_iter": {
+      "admm_max_iterations": [
+        5,
+        10,
+        20,
+        50,
+        100
+      ],
+      "agent_counts": [
+        60
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "duration_s": null,
+      "group_by": [
+        "num_agents",
+        "admm_max_iterations"
+      ],
+      "output_subdir": "e1_admm_scaling",
+      "scenario": "e1_admm_scaling",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "config_section_resolved": {
+    "e1": {
+      "admm_max_iterations": [
+        null
+      ],
+      "agent_counts": [
+        12
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "attack_enabled": [
+        false
+      ],
+      "attack_offset_m": [
+        null
+      ],
+      "attack_start_s": [
+        null
+      ],
+      "duration_s": 20.0,
+      "emergency": [
+        false
+      ],
+      "emergency_control": [
+        false
+      ],
+      "group_by": [
+        "num_agents",
+        "admm_max_iterations"
+      ],
+      "link_failure": [
+        false
+      ],
+      "output_subdir": "e1_admm_scaling",
+      "overrides": {},
+      "scenario": "e1_admm_scaling",
+      "seeds": [
+        42
+      ]
+    },
+    "e1_iter": {
+      "admm_max_iterations": [
+        5,
+        10,
+        20,
+        50,
+        100
+      ],
+      "agent_counts": [
+        12
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "attack_enabled": [
+        false
+      ],
+      "attack_offset_m": [
+        null
+      ],
+      "attack_start_s": [
+        null
+      ],
+      "duration_s": 20.0,
+      "emergency": [
+        false
+      ],
+      "emergency_control": [
+        false
+      ],
+      "group_by": [
+        "num_agents",
+        "admm_max_iterations"
+      ],
+      "link_failure": [
+        false
+      ],
+      "output_subdir": "e1_admm_scaling",
+      "overrides": {},
+      "scenario": "e1_admm_scaling",
+      "seeds": [
+        42
+      ]
+    }
+  },
+  "csv": "runs.csv",
+  "failures": [],
+  "git_commit": "285920f04b0213b0a66c759be8aa05a5e340c090-dirty",
+  "hardware": {
+    "cpu_count": 16,
+    "machine": "AMD64",
+    "os": "Windows 11",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "python": "3.14.3"
+  },
+  "identical_initial_conditions": {
+    "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+    "ok": true
+  },
+  "matrices": [
+    "e1",
+    "e1_iter"
+  ],
+  "n_specs_unique": 5,
+  "pending_after_this_call": 0,
+  "per_matrix": {
+    "e1": {
+      "failures": [],
+      "identical_initial_conditions": {
+        "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+        "ok": true
+      },
+      "n_run": 1,
+      "n_skipped_resume": 0,
+      "n_specs": 1,
+      "per_run_wall_time_s": [
+        {
+          "label": "hierarchical N=12 seed=42",
+          "wall_s": 0.542
+        }
+      ],
+      "wall_time_s": 0.861
+    },
+    "e1_iter": {
+      "failures": [],
+      "identical_initial_conditions": {
+        "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+        "ok": true
+      },
+      "n_run": 4,
+      "n_skipped_resume": 1,
+      "n_specs": 5,
+      "per_run_wall_time_s": [
+        {
+          "label": "hierarchical N=12 seed=42 iters=5",
+          "wall_s": 0.54
+        },
+        {
+          "label": "hierarchical N=12 seed=42 iters=10",
+          "wall_s": 0.522
+        },
+        {
+          "label": "hierarchical N=12 seed=42 iters=20",
+          "wall_s": 0.525
+        },
+        {
+          "label": "hierarchical N=12 seed=42 iters=100",
+          "wall_s": 0.511
+        }
+      ],
+      "wall_time_s": 1.2
+    }
+  },
+  "provisional": true,
+  "quick": true,
+  "seeds": [
+    42
+  ],
+  "summary_csv": {
+    "file": "summary.csv",
+    "group_by": [
+      "num_agents",
+      "admm_max_iterations"
+    ],
+    "groups": 5,
+    "metrics": [
+      "admm_solver_calls",
+      "admm_iter_mean",
+      "admm_iter_p95",
+      "admm_iter_max",
+      "admm_converged_frac",
+      "admm_solve_ms_mean",
+      "admm_solve_ms_p95",
+      "admm_time_per_tick_ms",
+      "admm_max_group_size",
+      "admm_events",
+      "safety_violation_ticks",
+      "min_robustness_m",
+      "throughput_per_s"
+    ]
+  },
+  "timestamp": "2026-11-07T01:08:08+0530",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "python": "3.14.3"
+  },
+  "wall_time_s": 2.086,
+  "weak_results": {
+    "file": "weak_results.json",
+    "groups": 5
+  }
+}

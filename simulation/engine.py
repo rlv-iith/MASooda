@@ -35,6 +35,7 @@ from simulation.interfaces import (
     update_local_behavior,
 )
 from simulation.schema import AgentState, GlobalStateSnapshot, OverseerDirective
+from simulation.telemetry import admm_solver_records, build_tick_info
 
 
 @dataclass
@@ -59,6 +60,7 @@ def run_simulation(
     attack_config: dict | None = None,
     defended: bool = True,
     overseer_link_config: dict | None = None,
+    telemetry: object | None = None,
 ) -> SimulationResult:
     """Execute forward simulation for a fleet of agents.
 
@@ -80,6 +82,10 @@ def run_simulation(
         Whether honest agents use P5's defence against falsified reports.
     overseer_link_config : dict, optional
         Configuration for OverseerLink communication drops and latency.
+    telemetry : object, optional
+        Opt-in (Week 6). If given, ``telemetry.on_tick(t, info)`` is called
+        after every tick with the dict from
+        ``simulation.telemetry.build_tick_info``. None leaves the run unchanged.
 
     Returns
     -------
@@ -172,6 +178,9 @@ def run_simulation(
 
     for step_idx in range(n_steps):
         t_now = float(times[step_idx])
+        tick_admm_events0 = admm_events
+        tick_admm_nonconverged0 = admm_nonconverged
+        tick_admm_records: list = []
 
         # Overseer update on step 0 and every period_steps thereafter
         if use_overseer and (step_idx % period_steps == 0):
@@ -284,7 +293,11 @@ def run_simulation(
 
                 priorities = {a.id: a.priority for a in current_agents}
                 start = time.perf_counter()
-                events = resolve_all_conflicts(intents, priorities)
+                if telemetry is None:
+                    events = resolve_all_conflicts(intents, priorities)
+                else:
+                    with admm_solver_records(True) as tick_admm_records:
+                        events = resolve_all_conflicts(intents, priorities)
                 admm_time_s += time.perf_counter() - start
 
                 for event in events:
@@ -316,6 +329,27 @@ def run_simulation(
         if loggers:
             for logger in loggers:
                 logger.log_state(float(times[step_idx + 1]), current_agents)
+
+        if telemetry is not None:
+            if not use_overseer:
+                link_up = None
+            else:
+                link_up = link.is_up(t_now) if link is not None else True
+            telemetry.on_tick(
+                float(times[step_idx + 1]),
+                build_tick_info(
+                    current_agents,
+                    corridors,
+                    admm_events_tick=admm_events - tick_admm_events0,
+                    admm_nonconverged_tick=admm_nonconverged - tick_admm_nonconverged0,
+                    admm_records=tick_admm_records,
+                    malicious_ids=attack_state.malicious,
+                    overseer_link_up=link_up,
+                    directive_age_s=(
+                        t_now - last_directive_time if last_directive_time is not None else float("nan")
+                    ),
+                ),
+            )
 
     overseer_dropped = getattr(link, "dropped", 0) if link is not None else 0
 

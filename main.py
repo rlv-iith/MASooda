@@ -86,6 +86,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=False,
         help="Generate animation GIF (default: False)",
     )
+    parser.add_argument(
+        "--telemetry",
+        action="store_true",
+        default=False,
+        help="Record per-tick ADMM/overseer/attack telemetry to <out>/telemetry.csv (default: False)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -133,6 +139,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     monitor = LiveSTLMonitor(console_every_seconds=10.0, event_log_path=events_path)
     traj = TrajectoryLogger()
 
+    telemetry_kwargs: dict[str, Any] = {}
+    recorder = None
+    if args.telemetry:
+        from simulation.telemetry import TelemetryRecorder
+
+        recorder = TelemetryRecorder()
+        telemetry_kwargs["telemetry"] = recorder
+
     t_start = time.perf_counter()
     if args.architecture == "hierarchical":
         result = run_simulation(
@@ -144,6 +158,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             attack_config=attack_config,
             defended=defended,
             overseer_link_config=overseer_link_config,
+            **telemetry_kwargs,
         )
     else:
         try:
@@ -157,6 +172,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             loggers=[traj, monitor],
             attack_config=attack_config,
             overseer_link_config=overseer_link_config,
+            **telemetry_kwargs,
         )
     wall_time_s = time.perf_counter() - t_start
 
@@ -202,6 +218,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     monitor.to_csv(out_dir / "stl_robustness.csv")
     if hasattr(traj, "to_csv"):
         traj.to_csv(out_dir / "trajectory.csv")
+    if recorder is not None:
+        recorder.to_csv(out_dir / "telemetry.csv")
 
     # Final-frame PNG
     final_positions = result.positions[-1]

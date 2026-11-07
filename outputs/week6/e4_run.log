@@ -1,0 +1,12 @@
+[e4] 15 runs in summary, identical IC: True, 15 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience
+[e4] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience\README.md
+Sat Nov  7 00:49:02 IST 2026
+[week6] matrix e4: 30 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e4_resilience
+[week6] 30 runs, 0 already done, 30 to run, workers=12
+[e4] 30 runs in summary, identical IC: True, 2 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e4_resilience
+Sat Nov  7 00:51:15 IST 2026
+[week6] matrix e4_offset: 36 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e4_resilience
+[week6] 36 runs, 9 already done, 27 to run, workers=12
+[e4] 57 runs in summary, identical IC: True, 8 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e4_resilience
+Sat Nov  7 00:53:17 IST 2026
+[e4] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e4_resilience\README.md

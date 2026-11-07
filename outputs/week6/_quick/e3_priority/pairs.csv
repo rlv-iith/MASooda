@@ -1,0 +1,2 @@
+num_agents,seed,emergency_id,priority_compliance_rate,emergency_delay_s,time_saved_vs_control_s,lower_priority_delay_s,emergency_travel_time_s,control_travel_time_s,emergency_nominal_time_s,emergency_spec_hash,control_spec_hash
+12,42,5,1.0,nan,nan,nan,nan,nan,116.13485619913187,4ed047065611807a,f756db62c7c9cef9

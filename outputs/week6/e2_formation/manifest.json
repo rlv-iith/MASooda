@@ -1,0 +1,208 @@
+{
+  "agent_counts": [
+    30,
+    45,
+    60,
+    75
+  ],
+  "architectures": [
+    "hierarchical"
+  ],
+  "command": "python.exe scripts/week6_e2_run.py --workers 12",
+  "config_hash": "e4509b11210199a7",
+  "config_section": {
+    "experiments.week6.matrices.e2": {
+      "agent_counts": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "duration_s": null,
+      "group_by": [
+        "num_agents"
+      ],
+      "output_subdir": "e2_formation",
+      "scenario": "e2_formation",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "config_section_resolved": {
+    "e2": {
+      "admm_max_iterations": [
+        null
+      ],
+      "agent_counts": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "attack_enabled": [
+        false
+      ],
+      "attack_offset_m": [
+        null
+      ],
+      "attack_start_s": [
+        null
+      ],
+      "duration_s": 180.0,
+      "emergency": [
+        false
+      ],
+      "emergency_control": [
+        false
+      ],
+      "group_by": [
+        "num_agents"
+      ],
+      "link_failure": [
+        false
+      ],
+      "output_subdir": "e2_formation",
+      "overrides": {},
+      "scenario": "e2_formation",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "csv": "runs.csv",
+  "failures": [],
+  "git_commit": "285920f04b0213b0a66c759be8aa05a5e340c090-dirty",
+  "hardware": {
+    "cpu_count": 16,
+    "machine": "AMD64",
+    "os": "Windows 11",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "python": "3.14.3"
+  },
+  "identical_initial_conditions": {
+    "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+    "ok": true
+  },
+  "matrices": [
+    "e2"
+  ],
+  "n_specs_unique": 12,
+  "pending_after_this_call": 0,
+  "per_matrix": {
+    "e2": {
+      "failures": [],
+      "identical_initial_conditions": {
+        "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+        "ok": true
+      },
+      "n_run": 12,
+      "n_skipped_resume": 0,
+      "n_specs": 12,
+      "per_run_wall_time_s": [
+        {
+          "label": "hierarchical N=30 seed=43",
+          "wall_s": 31.814
+        },
+        {
+          "label": "hierarchical N=30 seed=42",
+          "wall_s": 32.031
+        },
+        {
+          "label": "hierarchical N=30 seed=44",
+          "wall_s": 32.293
+        },
+        {
+          "label": "hierarchical N=45 seed=44",
+          "wall_s": 47.843
+        },
+        {
+          "label": "hierarchical N=45 seed=42",
+          "wall_s": 50.43
+        },
+        {
+          "label": "hierarchical N=45 seed=43",
+          "wall_s": 51.296
+        },
+        {
+          "label": "hierarchical N=60 seed=44",
+          "wall_s": 61.977
+        },
+        {
+          "label": "hierarchical N=60 seed=42",
+          "wall_s": 62.704
+        },
+        {
+          "label": "hierarchical N=60 seed=43",
+          "wall_s": 63.9
+        },
+        {
+          "label": "hierarchical N=75 seed=43",
+          "wall_s": 71.536
+        },
+        {
+          "label": "hierarchical N=75 seed=44",
+          "wall_s": 71.666
+        },
+        {
+          "label": "hierarchical N=75 seed=42",
+          "wall_s": 72.228
+        }
+      ],
+      "wall_time_s": 73.676
+    }
+  },
+  "provisional": true,
+  "quick": false,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "summary_csv": {
+    "file": "summary.csv",
+    "group_by": [
+      "num_agents"
+    ],
+    "groups": 4,
+    "metrics": [
+      "merge_attempts",
+      "merge_success",
+      "merge_failed",
+      "not_reached",
+      "merge_success_rate",
+      "util_mean_c0",
+      "util_mean_c1",
+      "util_mean_c2",
+      "util_peak_c0",
+      "util_peak_c1",
+      "util_peak_c2",
+      "ticks_over_capacity",
+      "throughput_per_s",
+      "arrivals",
+      "safety_violation_ticks",
+      "min_robustness_m"
+    ]
+  },
+  "timestamp": "2026-11-07T00:44:38+0530",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "python": "3.14.3"
+  },
+  "wall_time_s": 73.702,
+  "weak_results": {
+    "file": "weak_results.json",
+    "groups": 1
+  }
+}

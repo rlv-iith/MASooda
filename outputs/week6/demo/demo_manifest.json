@@ -1,0 +1,38 @@
+{
+  "demo_scenario": {
+    "architecture": "hierarchical",
+    "n_agents": 60,
+    "seed": 42,
+    "duration_s": 180.0,
+    "inject_emergency": true,
+    "attack_start_s": 60.0,
+    "link_down_s": [
+      90.0,
+      120.0
+    ],
+    "clips": {
+      "formation_merge": [
+        0.0,
+        75.0
+      ],
+      "emergency_priority": [
+        40.0,
+        160.0
+      ],
+      "attack_dtc_outage": [
+        55.0,
+        135.0
+      ]
+    }
+  },
+  "outputs": {
+    "fallback_demo": "outputs\\week6\\demo\\fallback_demo.mp4",
+    "clip_formation_merge": "outputs\\week6\\demo\\clip_formation_merge.mp4",
+    "clip_emergency_priority": "outputs\\week6\\demo\\clip_emergency_priority.mp4",
+    "clip_attack_dtc_outage": "outputs\\week6\\demo\\clip_attack_dtc_outage.mp4"
+  },
+  "simulate_s": 37.5,
+  "total_s": 255.3,
+  "frames_stride_ticks": 5,
+  "fps": 10
+}

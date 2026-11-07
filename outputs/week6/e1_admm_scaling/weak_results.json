@@ -1,0 +1,23 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "admm_iter_mean",
+      "admm_converged_frac",
+      "admm_time_per_tick_ms"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": [
+    {
+      "group": {
+        "admm_max_iterations": "5",
+        "num_agents": "60"
+      },
+      "reasons": [
+        "admm_converged_frac: std/mean=0.57 > 0.5"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+architecture,num_agents,seed,throughput_per_s,safety_violation_ticks,mean_recovery_time_s,min_robustness_m,post_attack_violation_ticks_on,violation_episodes
+centralized,12,42,nan,0.0,nan,0.0,0.0,0.0
+decentralized_undefended,12,42,nan,0.0,nan,0.0,0.0,0.0
+hierarchical,12,42,nan,0.0,nan,0.0,0.0,0.0

@@ -20,6 +20,7 @@ from simulation.environment import build_corridors, corridor_of_position, corrid
 from simulation.interfaces import step_dynamics
 from simulation.overseer import GlobalOverseer, reset_default_overseer
 from simulation.schema import AgentState, GlobalStateSnapshot
+from simulation.telemetry import build_tick_info
 
 
 def run_centralized(
@@ -28,6 +29,7 @@ def run_centralized(
     loggers: list | None = None,
     attack_config: dict | None = None,
     overseer_link_config: dict | None = None,
+    telemetry: object | None = None,
 ) -> SimulationResult:
     """Execute forward simulation under a purely centralized architecture.
 
@@ -43,6 +45,9 @@ def run_centralized(
         Attack injection configuration. If None, defaults to config attack section.
     overseer_link_config : dict, optional
         Overseer link failure configuration. If None, defaults to {"enabled": False}.
+    telemetry : object, optional
+        Opt-in (Week 6) per-tick ``telemetry.on_tick(t, info)``; see
+        ``simulation.telemetry``. No ADMM runs in this architecture.
 
     Returns
     -------
@@ -307,6 +312,19 @@ def run_centralized(
         if loggers:
             for logger in loggers:
                 logger.log_state(t_next, current_agents)
+        if telemetry is not None:
+            telemetry.on_tick(
+                t_next,
+                build_tick_info(
+                    current_agents,
+                    corridors,
+                    malicious_ids=attack_state.malicious,
+                    overseer_link_up=not is_down,
+                    directive_age_s=(
+                        t_now - last_directive_time if last_directive_time is not None else float("nan")
+                    ),
+                ),
+            )
 
     layer_counts_final: dict[int, int] = {}
     for a in current_agents:

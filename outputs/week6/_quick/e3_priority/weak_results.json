@@ -1,0 +1,24 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "priority_compliance_rate",
+      "emergency_delay_s",
+      "lower_priority_delay_s"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": [
+    {
+      "group": {
+        "num_agents": "12"
+      },
+      "reasons": [
+        "priority_compliance_rate: n=1 < 3",
+        "emergency_delay_s: n=0 < 3",
+        "lower_priority_delay_s: n=0 < 3"
+      ]
+    }
+  ]
+}

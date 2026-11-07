@@ -13,7 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 import time
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 import numpy as np
 
 from config.load_config import get_config
@@ -64,6 +64,7 @@ def get_runner(name: str):
             loggers=None,
             attack_config=None,
             overseer_link_config=None,
+            telemetry=None,
         ):
             return run_simulation(
                 agents,
@@ -74,6 +75,7 @@ def get_runner(name: str):
                 attack_config=attack_config,
                 defended=True,
                 overseer_link_config=overseer_link_config,
+                telemetry=telemetry,
             )
 
         return run_hierarchical
@@ -163,8 +165,22 @@ def run_experiment(
     scenario: str = "custom",
     return_series: bool = False,
     attack_start_s: float | None = None,
+    agent_transform: Callable[[list], list] | None = None,
+    extra_loggers: Sequence[Any] | None = None,
+    extra_stats: dict | None = None,
+    telemetry: Any | None = None,
 ):
-    """Execute forward simulation for one experiment configuration."""
+    """Execute forward simulation for one experiment configuration.
+
+    ``agent_transform`` (optional, Week 6) maps the initial fleet to the fleet
+    that is actually simulated (e.g. emergency injection); the
+    initial-conditions hash is computed on the transformed fleet.
+    ``extra_loggers`` (optional, Week 6) are appended after the default loggers.
+    ``extra_stats`` (optional, Week 6) is a dict filled after the run with the
+    runner's ``result.stats`` plus ``overseer_calls``, ``overseer_failures``
+    and ``n_ticks``. ``telemetry`` (optional, Week 6) is passed to the runner.
+    All default to None, which leaves behaviour unchanged.
+    """
     reset_default_overseer()
     reset_local_behavior_cache()
 
@@ -173,6 +189,8 @@ def run_experiment(
         duration_s = float(cfg["simulation"]["duration_seconds"])
 
     agents = make_initial_agents(n_agents, seed=seed)
+    if agent_transform is not None:
+        agents = list(agent_transform(agents))
     h = initial_conditions_hash(agents)
 
     attack_config = {**cfg.get("attack", {}), "enabled": attack_enabled}
@@ -192,16 +210,32 @@ def run_experiment(
     monitor = LiveSTLMonitor(console_every_seconds=1e9)
     traj = TrajectoryLogger()
 
+    loggers = [traj, monitor]
+    if extra_loggers is not None:
+        loggers.extend(extra_loggers)
+
+    runner_kwargs: dict[str, Any] = {}
+    if telemetry is not None:
+        runner_kwargs["telemetry"] = telemetry
+
     runner = get_runner(architecture)
     start_time = time.perf_counter()
     result = runner(
         agents,
         duration_s=duration_s,
-        loggers=[traj, monitor],
+        loggers=loggers,
         attack_config=attack_config,
         overseer_link_config=overseer_link_config,
+        **runner_kwargs,
     )
     wall_time_s = time.perf_counter() - start_time
+
+    if extra_stats is not None:
+        stats = getattr(result, "stats", {})
+        extra_stats.update(stats if isinstance(stats, dict) else {})
+        extra_stats["overseer_calls"] = int(getattr(result, "overseer_calls", 0))
+        extra_stats["overseer_failures"] = int(getattr(result, "overseer_failures", 0))
+        extra_stats["n_ticks"] = int(max(0, len(result.times) - 1))
 
     metrics = compute_run_metrics(result, config=cfg)
     info = {

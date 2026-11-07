@@ -1,0 +1,24 @@
+scenario,condition,architecture,num_agents,seed,source,spec_hash,min_robustness_m,p5_robustness_m,violation_fraction,violation_episodes,mean_recovery_time_s,max_recovery_time_s,series_file
+e1_admm_scaling,ADMM limit 5,hierarchical,12,42,e1_admm_scaling,723a98283fda1173,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e1_admm_scaling/series/723a98283fda1173.npz
+e1_admm_scaling,ADMM limit 10,hierarchical,12,42,e1_admm_scaling,48286c8cf904709d,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e1_admm_scaling/series/48286c8cf904709d.npz
+e1_admm_scaling,ADMM limit 20,hierarchical,12,42,e1_admm_scaling,4208ca0f12d99c88,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e1_admm_scaling/series/4208ca0f12d99c88.npz
+e1_admm_scaling,nominal,hierarchical,12,42,e1_admm_scaling,09bc7eba450303d7,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e1_admm_scaling/series/09bc7eba450303d7.npz
+e1_admm_scaling,ADMM limit 100,hierarchical,12,42,e1_admm_scaling,124768d7eb6091a5,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e1_admm_scaling/series/124768d7eb6091a5.npz
+e2_formation,nominal,hierarchical,12,42,e2_formation,6e6ea563afb79e61,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e2_formation/series/6e6ea563afb79e61.npz
+e3_priority,emergency,hierarchical,12,42,e3_priority,4ed047065611807a,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e3_priority/series/4ed047065611807a.npz
+e3_priority,emergency control,hierarchical,12,42,e3_priority,f756db62c7c9cef9,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e3_priority/series/f756db62c7c9cef9.npz
+e4_resilience,attack 5 m,hierarchical,12,42,e4_resilience,f88033700a21d388,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/f88033700a21d388.npz
+e4_resilience,attack 10 m,hierarchical,12,42,e4_resilience,88a3c9f52fa34dbb,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/88a3c9f52fa34dbb.npz
+e4_resilience,attack 25 m,hierarchical,12,42,e4_resilience,b8e955aa63d94851,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/b8e955aa63d94851.npz
+e4_resilience,attack 50 m,hierarchical,12,42,e4_resilience,472e4178dabaf49a,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/472e4178dabaf49a.npz
+e4_resilience,attack 5 m,centralized,12,42,e4_resilience,0d91356171d82e88,1.4735734176909805,1.5773129662238787,0.0,0.0,nan,nan,../e4_resilience/series/0d91356171d82e88.npz
+e4_resilience,attack 10 m,centralized,12,42,e4_resilience,a34e16fd61a7a947,1.4735734176909805,1.5773129662238787,0.0,0.0,nan,nan,../e4_resilience/series/a34e16fd61a7a947.npz
+e4_resilience,attack 25 m,centralized,12,42,e4_resilience,fcc01b43160c389d,1.4735734176909805,1.5773129662238787,0.0,0.0,nan,nan,../e4_resilience/series/fcc01b43160c389d.npz
+e4_resilience,attack 50 m,centralized,12,42,e4_resilience,cfb88f8c9308db55,1.4735734176909805,1.5753588828114253,0.0,0.0,nan,nan,../e4_resilience/series/cfb88f8c9308db55.npz
+e4_resilience,attack 5 m,decentralized_undefended,12,42,e4_resilience,e86e1bae926a0b4f,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/e86e1bae926a0b4f.npz
+e4_resilience,attack 10 m,decentralized_undefended,12,42,e4_resilience,8d7bd0151b25f295,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/8d7bd0151b25f295.npz
+e4_resilience,attack 25 m,decentralized_undefended,12,42,e4_resilience,59ff16cdc7656c58,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/59ff16cdc7656c58.npz
+e4_resilience,attack 50 m,decentralized_undefended,12,42,e4_resilience,254d063447e70ce7,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/254d063447e70ce7.npz
+e4_resilience,nominal,hierarchical,12,42,e4_resilience,af3718fe4d2a5ac6,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/af3718fe4d2a5ac6.npz
+e4_resilience,nominal,centralized,12,42,e4_resilience,983796720da07bc0,1.4735734176909805,1.5773129662238787,0.0,0.0,nan,nan,../e4_resilience/series/983796720da07bc0.npz
+e4_resilience,nominal,decentralized_undefended,12,42,e4_resilience,563c92eac3cb106b,1.5671624442921974,1.5715126135199888,0.0,0.0,nan,nan,../e4_resilience/series/563c92eac3cb106b.npz

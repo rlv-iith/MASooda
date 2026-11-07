@@ -108,5 +108,160 @@ experiments:
   agent_counts: [30, 45, 60, 75]
   architectures: [hierarchical, centralized, decentralized_undefended]
   output_dir: outputs/week5
+  week6:
+    # While true, every Week 6 figure carries a "PROVISIONAL - pre-bug-fix" footer.
+    provisional: true
+    output_dir: outputs/week6
+    ci_level: 0.95             # t-distribution CI on per-group means
+    snapshot_period_s: 1.0     # fleet snapshot interval saved per run (frames/*.npz)
+    # Deterministic dashboard demo (scripts/dashboard.py --scenario demo), 180 s:
+    #   0-30 s corridor formation; ~30-90 s first merges in the merge zone; one
+    #   emergency agent (rear-most, injected) throughout; malicious agent from
+    #   t = 60 s; DTC (overseer) link down 90-120 s; recovery 120-180 s.
+    demo_scenario:
+      architecture: hierarchical
+      n_agents: 60
+      seed: 42
+      duration_s: 180.0
+      inject_emergency: true
+      attack_start_s: 60.0
+      link_down_s: [90.0, 120.0]
+      clips:                     # [start_s, end_s] windows for the short clips
+        formation_merge: [0.0, 75.0]
+        emergency_priority: [40.0, 160.0]
+        attack_dtc_outage: [55.0, 135.0]
+    # --quick smoke-test shrink (applied on top of a matrix)
+    quick:
+      n_seeds: 1
+      agent_counts: [12]
+      duration_s: 20.0
+      attack_start_s: 10.0     # only used by matrices with attack_enabled
+      subdir: _quick           # outputs/week6/_quick/<matrix>
+    default_group_by: [architecture, num_agents, attack_enabled, link_failure, emergency]
+    default_metrics: [throughput_per_s, safety_violation_ticks, violation_episodes,
+                      mean_recovery_time_s, min_robustness_m, min_separation_m,
+                      admm_events, admm_nonconverged_frac]
+    # "Weak" result groups (listed in weak_results.json, never auto re-run).
+    weak:
+      min_n: 3                 # fewer finite values than this -> weak
+      max_cv: 0.5              # std/|mean| above this -> weak
+    # Experiment matrices (Table 10). null -> experiments.seeds / agent_counts /
+    # architectures; duration_s null -> simulation.duration_seconds.
+    # admm_max_iterations / attack_offset_m equal to the config default are
+    # stored as "default", so matrices that share a folder also share runs.
+    matrices:
+      e1:                      # E1 ADMM scaling (P2)
+        output_subdir: e1_admm_scaling
+        scenario: e1_admm_scaling
+        architectures: [hierarchical]
+        agent_counts: [30, 45, 60, 75]
+        seeds: [42, 43, 44]
+        duration_s: null
+        group_by: [num_agents, admm_max_iterations]
+      e1_iter:                 # E1 convergence vs iteration limit, N = 60
+        output_subdir: e1_admm_scaling
+        scenario: e1_admm_scaling
+        architectures: [hierarchical]
+        agent_counts: [60]
+        seeds: [42, 43, 44]
+        duration_s: null
+        admm_max_iterations: [5, 10, 20, 50, 100]
+        group_by: [num_agents, admm_max_iterations]
+      e2:                      # E2 formation / merge / utilisation (P3)
+        output_subdir: e2_formation
+        scenario: e2_formation
+        architectures: [hierarchical]
+        agent_counts: [30, 45, 60, 75]
+        seeds: [42, 43, 44]
+        duration_s: null
+        group_by: [num_agents]
+      e3:                      # E3 emergency priority + paired control (P4)
+        output_subdir: e3_priority
+        scenario: e3_priority
+        architectures: [hierarchical]
+        agent_counts: [30, 45, 60, 75]
+        seeds: [42, 43, 44]
+        duration_s: null
+        emergency: [true]
+        emergency_control: [false, true]
+        group_by: [num_agents, emergency_control]
+      e4:                      # E4 resilience, attack off vs on (P5)
+        output_subdir: e4_resilience
+        scenario: e4_resilience
+        architectures: [hierarchical, centralized, decentralized_undefended]
+        agent_counts: [60]
+        seeds: [42, 43, 44, 45, 46]
+        duration_s: null
+        attack_enabled: [false, true]
+        group_by: [architecture, attack_enabled, attack_offset_m]
+      e4_offset:               # E4 offset sensitivity (attack on)
+        output_subdir: e4_resilience
+        scenario: e4_resilience
+        architectures: [hierarchical, centralized, decentralized_undefended]
+        agent_counts: [60]
+        seeds: [42, 43, 44]
+        duration_s: null
+        attack_enabled: [true]
+        attack_offset_m: sweep  # -> attack.sweep_offsets_meters
+        group_by: [architecture, attack_enabled, attack_offset_m]
+      e5:                      # E5 extra nominal runs (only combinations E1-E4 lack)
+        output_subdir: e5_stl
+        scenario: e5_stl
+        architectures: [centralized, decentralized_undefended]
+        agent_counts: [30, 45, 60, 75]
+        seeds: [42, 43, 44]
+        duration_s: null
+        group_by: [architecture, num_agents]
+      e6:                      # E6 graceful degradation (P4 + P1)
+        output_subdir: e6_degradation
+        scenario: e6_degradation
+        architectures: [hierarchical]
+        agent_counts: [60]
+        seeds: [42, 43, 44]
+        duration_s: null
+        link_failure: [false, true]
+        group_by: [link_failure]
+
+# Visualization-only settings (Week 6). Never read by the simulation
+# (workflow 5.3), so changing them never changes a result.
+visualization:
+  dpi: 300                    # PNG resolution for saved figures
+  font_family: DejaVu Sans    # ships with matplotlib on every platform
+  font_size: 10
+  title_size: 11
+  figure_size: [6.4, 4.0]     # inches, single-panel default
+  # Okabe-Ito / Tol colour-blind-safe palette. One fixed colour per
+  # architecture and per agent type, used by every figure and the dashboard.
+  colors:
+    architectures:
+      hierarchical: "#0072B2"
+      centralized: "#E69F00"
+      decentralized_undefended: "#009E73"
+    agent_types:
+      EMERGENCY: "#D55E00"
+      EVTOL: "#56B4E9"
+      DELIVERY: "#CC79A7"
+    events:
+      attack: "#AA3377"
+      link_down: "#7F7F7F"
+      violation: "#B2182B"
+    threshold: "#000000"
+    cycle: ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#56B4E9", "#CC79A7", "#F0E442", "#000000"]
+  labels:
+    architectures:
+      hierarchical: Hierarchical
+      centralized: Centralized
+      decentralized_undefended: Decentralized (undefended)
+    events:
+      attack: Attack active
+      link_down: DTC link down
+      violation: Safety violation
+  provisional_footer: "PROVISIONAL - pre-bug-fix results"
+  dashboard_refresh_ticks: 5  # --live: redraw the dashboard every N simulation ticks
+  dashboard:
+    figure_size: [15.0, 8.0]  # inches
+    dpi: 100                  # dashboard frames / videos
+    fps: 10                   # recorded GIF / MP4 frame rate
+    frame_stride_ticks: 5     # recorded videos: one frame every N ticks (0.5 s at dt = 0.1)
 
 

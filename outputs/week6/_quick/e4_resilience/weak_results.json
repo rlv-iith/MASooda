@@ -1,0 +1,194 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "throughput_per_s",
+      "safety_violation_ticks",
+      "min_robustness_m"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": [
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "False",
+        "attack_offset_m": "nan"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "True",
+        "attack_offset_m": "5.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "True",
+        "attack_offset_m": "10.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "True",
+        "attack_offset_m": "25.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "True",
+        "attack_offset_m": "50.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "False",
+        "attack_offset_m": "nan"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "5.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "10.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "25.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "50.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "hierarchical",
+        "attack_enabled": "False",
+        "attack_offset_m": "nan"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "hierarchical",
+        "attack_enabled": "True",
+        "attack_offset_m": "5.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "hierarchical",
+        "attack_enabled": "True",
+        "attack_offset_m": "10.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "hierarchical",
+        "attack_enabled": "True",
+        "attack_offset_m": "25.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "hierarchical",
+        "attack_enabled": "True",
+        "attack_offset_m": "50.0"
+      },
+      "reasons": [
+        "throughput_per_s: n=0 < 3",
+        "safety_violation_ticks: n=1 < 3",
+        "min_robustness_m: n=1 < 3"
+      ]
+    }
+  ]
+}

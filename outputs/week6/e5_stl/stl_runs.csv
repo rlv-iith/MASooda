@@ -1,0 +1,136 @@
+scenario,condition,architecture,num_agents,seed,source,spec_hash,min_robustness_m,p5_robustness_m,violation_fraction,violation_episodes,mean_recovery_time_s,max_recovery_time_s,series_file
+e1_admm_scaling,ADMM limit 5,hierarchical,60,42,e1_admm_scaling,9b338edda63fb3a2,-7.985383511902336,-7.768164774422535,0.9850083287062743,1.0,nan,nan,../e1_admm_scaling/series/9b338edda63fb3a2.npz
+e1_admm_scaling,ADMM limit 5,hierarchical,60,43,e1_admm_scaling,fe32cdddba6c383b,-7.989783831686418,-7.78173489948278,0.9861188228761799,1.0,nan,nan,../e1_admm_scaling/series/fe32cdddba6c383b.npz
+e1_admm_scaling,ADMM limit 5,hierarchical,60,44,e1_admm_scaling,51ce492b683b2e44,-7.9988462153233115,-7.776225495437328,0.9894503053858967,1.0,nan,nan,../e1_admm_scaling/series/51ce492b683b2e44.npz
+e1_admm_scaling,ADMM limit 10,hierarchical,60,42,e1_admm_scaling,f67c13a25e716cc3,-7.985383511902336,-7.71365432284272,0.9850083287062743,1.0,nan,nan,../e1_admm_scaling/series/f67c13a25e716cc3.npz
+e1_admm_scaling,ADMM limit 10,hierarchical,60,43,e1_admm_scaling,61ebcb4704fceb54,-7.989783831686418,-7.783749819398637,0.9861188228761799,1.0,nan,nan,../e1_admm_scaling/series/61ebcb4704fceb54.npz
+e1_admm_scaling,ADMM limit 10,hierarchical,60,44,e1_admm_scaling,8657fd7e92d3da56,-7.9988462153233115,-7.8287083364316805,0.9894503053858967,1.0,nan,nan,../e1_admm_scaling/series/8657fd7e92d3da56.npz
+e1_admm_scaling,ADMM limit 20,hierarchical,60,42,e1_admm_scaling,af7c3cc979a60258,-7.985383511902336,-7.695504327236231,0.9850083287062743,1.0,nan,nan,../e1_admm_scaling/series/af7c3cc979a60258.npz
+e1_admm_scaling,ADMM limit 20,hierarchical,60,43,e1_admm_scaling,a786df86f363059b,-7.998597078871626,-7.96454840553021,0.9861188228761799,1.0,nan,nan,../e1_admm_scaling/series/a786df86f363059b.npz
+e1_admm_scaling,ADMM limit 20,hierarchical,60,44,e1_admm_scaling,eddb9194435bcd63,-7.9988462153233115,-7.782278599508541,0.9888950583009439,1.0,nan,nan,../e1_admm_scaling/series/eddb9194435bcd63.npz
+e1_admm_scaling,nominal,hierarchical,60,42,e1_admm_scaling,d437ef06902e6731,-7.985383511902336,-7.695504327236231,0.9850083287062743,1.0,nan,nan,../e1_admm_scaling/series/d437ef06902e6731.npz
+e1_admm_scaling,nominal,hierarchical,60,43,e1_admm_scaling,d7af13c196af980b,-7.998597078871626,-7.96454840553021,0.9861188228761799,1.0,nan,nan,../e1_admm_scaling/series/d7af13c196af980b.npz
+e1_admm_scaling,nominal,hierarchical,60,44,e1_admm_scaling,54c5bde1d75b62f4,-7.9988462153233115,-7.791526411838537,0.9894503053858967,1.0,nan,nan,../e1_admm_scaling/series/54c5bde1d75b62f4.npz
+e1_admm_scaling,ADMM limit 100,hierarchical,60,42,e1_admm_scaling,d2cb8c53be446fb6,-7.985383511902336,-7.695504327236231,0.9850083287062743,1.0,nan,nan,../e1_admm_scaling/series/d2cb8c53be446fb6.npz
+e1_admm_scaling,ADMM limit 100,hierarchical,60,43,e1_admm_scaling,f16c44515aba3018,-7.998597078871626,-7.96454840553021,0.9861188228761799,1.0,nan,nan,../e1_admm_scaling/series/f16c44515aba3018.npz
+e1_admm_scaling,ADMM limit 100,hierarchical,60,44,e1_admm_scaling,2b8fcc02ec9079b7,-7.9988462153233115,-7.791526411838537,0.9894503053858967,1.0,nan,nan,../e1_admm_scaling/series/2b8fcc02ec9079b7.npz
+e1_admm_scaling,nominal,hierarchical,30,42,e1_admm_scaling,bcdc6642bc0d60d0,-7.978090118394865,-6.965659913334555,0.6418656302054414,4.0,28.900000000000002,61.1,../e1_admm_scaling/series/bcdc6642bc0d60d0.npz
+e1_admm_scaling,nominal,hierarchical,30,43,e1_admm_scaling,c42b4f32a41cb0e3,-7.989760487749187,-7.660384577956451,0.3775680177679067,3.0,22.666666666666668,61.4,../e1_admm_scaling/series/c42b4f32a41cb0e3.npz
+e1_admm_scaling,nominal,hierarchical,30,44,e1_admm_scaling,df302a69f0493264,-7.991911402423367,-7.434717676722613,0.3564686285397002,2.0,32.10000000000001,62.50000000000001,../e1_admm_scaling/series/df302a69f0493264.npz
+e1_admm_scaling,nominal,hierarchical,45,42,e1_admm_scaling,e396f39b39ef9a33,-7.941839109741861,-7.386178349618113,0.8645197112715158,5.0,25.075,75.2,../e1_admm_scaling/series/e396f39b39ef9a33.npz
+e1_admm_scaling,nominal,hierarchical,45,43,e1_admm_scaling,1f504539679c15f2,-7.959536115279174,-7.860260882478997,0.9838978345363687,1.0,nan,nan,../e1_admm_scaling/series/1f504539679c15f2.npz
+e1_admm_scaling,nominal,hierarchical,45,44,e1_admm_scaling,6726f73a3216d9da,-7.996565288787471,-7.715806444076861,0.9894503053858967,1.0,nan,nan,../e1_admm_scaling/series/6726f73a3216d9da.npz
+e1_admm_scaling,nominal,hierarchical,75,42,e1_admm_scaling,ca8578876a35b23a,-7.999967157643666,-7.977227923041164,0.9922265408106608,1.0,nan,nan,../e1_admm_scaling/series/ca8578876a35b23a.npz
+e1_admm_scaling,nominal,hierarchical,75,43,e1_admm_scaling,942ca62f2aaa3abd,-7.996503435852901,-7.936754850665238,0.9861188228761799,1.0,nan,nan,../e1_admm_scaling/series/942ca62f2aaa3abd.npz
+e1_admm_scaling,nominal,hierarchical,75,44,e1_admm_scaling,13a8932af0428b04,-7.997605887089531,-7.860724005965211,0.9894503053858967,1.0,nan,nan,../e1_admm_scaling/series/13a8932af0428b04.npz
+e2_formation,nominal,hierarchical,30,42,e2_formation,493de8fcca07ff41,-7.978090118394865,-6.965659913334555,0.6418656302054414,4.0,28.900000000000002,61.1,../e2_formation/series/493de8fcca07ff41.npz
+e2_formation,nominal,hierarchical,30,43,e2_formation,cc9b8b8b204ee86c,-7.989760487749187,-7.660384577956451,0.3775680177679067,3.0,22.666666666666668,61.4,../e2_formation/series/cc9b8b8b204ee86c.npz
+e2_formation,nominal,hierarchical,30,44,e2_formation,cd51e3f0d83ad062,-7.991911402423367,-7.434717676722613,0.3564686285397002,2.0,32.10000000000001,62.50000000000001,../e2_formation/series/cd51e3f0d83ad062.npz
+e2_formation,nominal,hierarchical,45,42,e2_formation,d2a92900aedbc059,-7.941839109741861,-7.386178349618113,0.8645197112715158,5.0,25.075,75.2,../e2_formation/series/d2a92900aedbc059.npz
+e2_formation,nominal,hierarchical,45,43,e2_formation,bb3bc8ef64f975df,-7.959536115279174,-7.860260882478997,0.9838978345363687,1.0,nan,nan,../e2_formation/series/bb3bc8ef64f975df.npz
+e2_formation,nominal,hierarchical,45,44,e2_formation,111622cf6fbb7433,-7.996565288787471,-7.715806444076861,0.9894503053858967,1.0,nan,nan,../e2_formation/series/111622cf6fbb7433.npz
+e2_formation,nominal,hierarchical,60,42,e2_formation,2be1506f9ffd5e3c,-7.985383511902336,-7.695504327236231,0.9850083287062743,1.0,nan,nan,../e2_formation/series/2be1506f9ffd5e3c.npz
+e2_formation,nominal,hierarchical,60,43,e2_formation,7e53dc2f153b75bf,-7.998597078871626,-7.96454840553021,0.9861188228761799,1.0,nan,nan,../e2_formation/series/7e53dc2f153b75bf.npz
+e2_formation,nominal,hierarchical,60,44,e2_formation,2f1c9f0b819bab0b,-7.9988462153233115,-7.791526411838537,0.9894503053858967,1.0,nan,nan,../e2_formation/series/2f1c9f0b819bab0b.npz
+e2_formation,nominal,hierarchical,75,42,e2_formation,e3df38b7781264b0,-7.999967157643666,-7.977227923041164,0.9922265408106608,1.0,nan,nan,../e2_formation/series/e3df38b7781264b0.npz
+e2_formation,nominal,hierarchical,75,43,e2_formation,432812ffb8f46764,-7.996503435852901,-7.936754850665238,0.9861188228761799,1.0,nan,nan,../e2_formation/series/432812ffb8f46764.npz
+e2_formation,nominal,hierarchical,75,44,e2_formation,5ac29759279d1581,-7.997605887089531,-7.860724005965211,0.9894503053858967,1.0,nan,nan,../e2_formation/series/5ac29759279d1581.npz
+e3_priority,emergency,hierarchical,30,42,e3_priority,e1d3de0a3e71e6c9,-7.985890575869648,-6.416725191213419,0.3348139922265408,7.0,8.7,41.0,../e3_priority/series/e1d3de0a3e71e6c9.npz
+e3_priority,emergency,hierarchical,30,43,e3_priority,88693c1f0c5e6532,-7.984077725683806,-6.819776929928529,0.4586340921710161,5.0,16.700000000000003,43.10000000000001,../e3_priority/series/88693c1f0c5e6532.npz
+e3_priority,emergency,hierarchical,30,44,e3_priority,19ad87f505c6c159,-7.996982000313052,-6.740964959260944,0.29650194336479735,2.0,26.900000000000002,41.2,../e3_priority/series/19ad87f505c6c159.npz
+e3_priority,emergency control,hierarchical,30,42,e3_priority,72672bf39ae5bc2e,-0.5594891368939416,0.15232304199196456,0.028317601332593003,3.0,1.6999999999999957,2.8999999999999915,../e3_priority/series/72672bf39ae5bc2e.npz
+e3_priority,emergency control,hierarchical,30,43,e3_priority,f5dc25305935c8d6,-0.36091384104341184,0.9168089545948845,0.00832870627429206,2.0,1.25,2.0,../e3_priority/series/f5dc25305935c8d6.npz
+e3_priority,emergency control,hierarchical,30,44,e3_priority,366bc26923590f6d,-0.11182926192042064,0.8428759772333727,0.002220988339811216,1.0,0.3999999999999986,0.3999999999999986,../e3_priority/series/366bc26923590f6d.npz
+e3_priority,emergency,hierarchical,45,42,e3_priority,7aae9f73bbff6713,-7.969850229288111,-6.294827540949546,0.3781232648528595,11.0,6.3090909090909095,34.0,../e3_priority/series/7aae9f73bbff6713.npz
+e3_priority,emergency,hierarchical,45,43,e3_priority,f798508b763fcf14,-7.938374989677704,-6.59990605011679,0.470294280955025,8.0,10.612499999999999,34.2,../e3_priority/series/f798508b763fcf14.npz
+e3_priority,emergency,hierarchical,45,44,e3_priority,8a57065d15d62ffc,-7.927715433071048,-6.490224550205534,0.4042198778456413,6.0,12.300000000000002,40.7,../e3_priority/series/8a57065d15d62ffc.npz
+e3_priority,emergency control,hierarchical,45,42,e3_priority,a24ddc80f4ee23f2,-0.6911326238673343,-0.11895683293544135,0.059966685174902834,5.0,2.5799999999999983,5.200000000000003,../e3_priority/series/a24ddc80f4ee23f2.npz
+e3_priority,emergency control,hierarchical,45,43,e3_priority,1fd90d3452125509,-2.5377638794202957,-0.30513545631014427,0.06329816768461966,4.0,2.849999999999996,3.5999999999999943,../e3_priority/series/1fd90d3452125509.npz
+e3_priority,emergency control,hierarchical,45,44,e3_priority,18f43e10bb89a3a0,-0.6577355959793865,0.4968684679436617,0.020544142143253747,2.0,2.1999999999999993,3.700000000000003,../e3_priority/series/18f43e10bb89a3a0.npz
+e3_priority,emergency,hierarchical,60,42,e3_priority,cea3bf114b7281d1,-7.993811890573686,-7.792265441095036,0.9333703498056635,3.0,46.949999999999996,93.1,../e3_priority/series/cea3bf114b7281d1.npz
+e3_priority,emergency,hierarchical,60,43,e3_priority,4e916d7fbb916a97,-7.996599127754531,-7.788298339162827,0.9838978345363687,1.0,nan,nan,../e3_priority/series/4e916d7fbb916a97.npz
+e3_priority,emergency,hierarchical,60,44,e3_priority,d481ce8ae6a7951c,-7.992497509326584,-7.7579642336218,0.9872293170460855,1.0,nan,nan,../e3_priority/series/d481ce8ae6a7951c.npz
+e3_priority,emergency control,hierarchical,60,42,e3_priority,0f3a28c37cdfdc56,-7.9936355013628315,-7.830100589358245,0.9950027762354248,1.0,nan,nan,../e3_priority/series/0f3a28c37cdfdc56.npz
+e3_priority,emergency control,hierarchical,60,43,e3_priority,865a7284e74ec58f,-7.998461689248398,-7.702768068792207,0.9838978345363687,1.0,nan,nan,../e3_priority/series/865a7284e74ec58f.npz
+e3_priority,emergency control,hierarchical,60,44,e3_priority,a0603fe82c6e4da0,-7.992497509326584,-7.780270951578739,0.9872293170460855,1.0,nan,nan,../e3_priority/series/a0603fe82c6e4da0.npz
+e3_priority,emergency,hierarchical,75,42,e3_priority,ad29957360925840,-7.9985041392899365,-7.749509816351634,0.9866740699611327,1.0,nan,nan,../e3_priority/series/ad29957360925840.npz
+e3_priority,emergency,hierarchical,75,43,e3_priority,49c976c67a603b51,-7.99846914757978,-7.76519083612685,0.9844530816213215,1.0,nan,nan,../e3_priority/series/49c976c67a603b51.npz
+e3_priority,emergency,hierarchical,75,44,e3_priority,79abac0d469a3966,-7.999544183226135,-7.884544087569566,0.9905607995558023,1.0,nan,nan,../e3_priority/series/79abac0d469a3966.npz
+e3_priority,emergency control,hierarchical,75,42,e3_priority,4c6ec1fa5ca7ae50,-7.999636696245602,-7.961449893810912,0.9950027762354248,1.0,nan,nan,../e3_priority/series/4c6ec1fa5ca7ae50.npz
+e3_priority,emergency control,hierarchical,75,43,e3_priority,2a1cbe074731bd50,-7.999738965474535,-7.950306377525009,0.9844530816213215,1.0,nan,nan,../e3_priority/series/2a1cbe074731bd50.npz
+e3_priority,emergency control,hierarchical,75,44,e3_priority,3666059ad656af4e,-7.950166913904779,-7.662298757543295,0.9905607995558023,1.0,nan,nan,../e3_priority/series/3666059ad656af4e.npz
+e4_resilience,attack 5 m,hierarchical,60,42,e4_resilience,4d0ae6bde642d65c,-7.985383511902336,-7.68002042475267,0.9850083287062743,1.0,nan,nan,../e4_resilience/series/4d0ae6bde642d65c.npz
+e4_resilience,attack 5 m,hierarchical,60,43,e4_resilience,93cd6020c3ed62d2,-7.989783831686418,-7.7863374080395324,0.9861188228761799,1.0,nan,nan,../e4_resilience/series/93cd6020c3ed62d2.npz
+e4_resilience,attack 5 m,hierarchical,60,44,e4_resilience,ba621341956850d4,-7.9988462153233115,-7.791028294213634,0.9894503053858967,1.0,nan,nan,../e4_resilience/series/ba621341956850d4.npz
+e4_resilience,attack 10 m,hierarchical,60,42,e4_resilience,7062ef655f8528b7,-7.994781216439126,-7.769358556080038,0.9850083287062743,1.0,nan,nan,../e4_resilience/series/7062ef655f8528b7.npz
+e4_resilience,attack 10 m,hierarchical,60,43,e4_resilience,6616a9db99ac5f28,-7.989783831686418,-7.785884167545948,0.9861188228761799,1.0,nan,nan,../e4_resilience/series/6616a9db99ac5f28.npz
+e4_resilience,attack 10 m,hierarchical,60,44,e4_resilience,39e8f2b67eb6002c,-7.9988462153233115,-7.7776785612498305,0.9894503053858967,1.0,nan,nan,../e4_resilience/series/39e8f2b67eb6002c.npz
+e4_resilience,attack 25 m,hierarchical,60,42,e4_resilience,0c42ad3890d1329d,-7.998984016314195,-7.762261027622962,0.9850083287062743,1.0,nan,nan,../e4_resilience/series/0c42ad3890d1329d.npz
+e4_resilience,attack 25 m,hierarchical,60,43,e4_resilience,7c7346cdac272363,-7.989783831686418,-7.78557565589825,0.9861188228761799,1.0,nan,nan,../e4_resilience/series/7c7346cdac272363.npz
+e4_resilience,attack 25 m,hierarchical,60,44,e4_resilience,65de877b1143b03d,-7.9988462153233115,-7.777837115999904,0.9894503053858967,1.0,nan,nan,../e4_resilience/series/65de877b1143b03d.npz
+e4_resilience,attack 50 m,hierarchical,60,42,e4_resilience,e5a9d21ba121b89c,-7.985383511902336,-7.724689962677073,0.9850083287062743,1.0,nan,nan,../e4_resilience/series/e5a9d21ba121b89c.npz
+e4_resilience,attack 50 m,hierarchical,60,43,e4_resilience,aa995600f48fa689,-7.989783831686418,-7.785414814921427,0.9861188228761799,1.0,nan,nan,../e4_resilience/series/aa995600f48fa689.npz
+e4_resilience,attack 50 m,hierarchical,60,44,e4_resilience,dd920c4d147da6f7,-7.9988462153233115,-7.784856639846449,0.9894503053858967,1.0,nan,nan,../e4_resilience/series/dd920c4d147da6f7.npz
+e4_resilience,attack 5 m,centralized,60,42,e4_resilience,3c937dd347df53b1,-1.9611701337633454,-0.9511782567097846,0.11327040533037201,5.0,4.24,9.799999999999997,../e4_resilience/series/3c937dd347df53b1.npz
+e4_resilience,attack 5 m,centralized,60,43,e4_resilience,f2131162167465cd,-2.7851380039969973,-0.2644098867167868,0.059966685174902834,3.0,3.7999999999999985,5.899999999999999,../e4_resilience/series/f2131162167465cd.npz
+e4_resilience,attack 5 m,centralized,60,44,e4_resilience,7280a2fa892bffc5,-1.4247391822854363,0.051135525659196546,0.03886729594669628,5.0,1.7200000000000017,4.800000000000001,../e4_resilience/series/7280a2fa892bffc5.npz
+e4_resilience,attack 10 m,centralized,60,42,e4_resilience,fefb36d779db5e78,-1.9611701337633454,-0.9511782567097846,0.11327040533037201,5.0,4.24,9.799999999999997,../e4_resilience/series/fefb36d779db5e78.npz
+e4_resilience,attack 10 m,centralized,60,43,e4_resilience,3f068a9bf439903d,-2.7851380039969973,-0.2644098867167868,0.059966685174902834,3.0,3.7999999999999985,5.899999999999999,../e4_resilience/series/3f068a9bf439903d.npz
+e4_resilience,attack 10 m,centralized,60,44,e4_resilience,b3b0784da2a28362,-1.4247391822854363,0.051135525659196546,0.03886729594669628,5.0,1.7200000000000017,4.800000000000001,../e4_resilience/series/b3b0784da2a28362.npz
+e4_resilience,attack 25 m,centralized,60,42,e4_resilience,399312dc69a65749,-1.9611701337633454,-0.9511782567097846,0.11327040533037201,5.0,4.24,9.799999999999997,../e4_resilience/series/399312dc69a65749.npz
+e4_resilience,attack 25 m,centralized,60,43,e4_resilience,ccd27377f830c69b,-2.7851380039969973,-0.2644098867167868,0.059966685174902834,3.0,3.7999999999999985,5.899999999999999,../e4_resilience/series/ccd27377f830c69b.npz
+e4_resilience,attack 25 m,centralized,60,44,e4_resilience,6091441fb94931f1,-2.5066176362474737,-0.09637980953814207,0.06052193225985564,6.0,2.0833333333333357,4.800000000000001,../e4_resilience/series/6091441fb94931f1.npz
+e4_resilience,attack 50 m,centralized,60,42,e4_resilience,5280f5f1c4ceac8e,-1.9611701337633454,-0.9511782567097846,0.11327040533037201,5.0,4.24,9.799999999999997,../e4_resilience/series/5280f5f1c4ceac8e.npz
+e4_resilience,attack 50 m,centralized,60,43,e4_resilience,bd9c7872e49b7e84,-2.7851380039969973,-0.2644098867167868,0.059966685174902834,3.0,3.7999999999999985,5.899999999999999,../e4_resilience/series/bd9c7872e49b7e84.npz
+e4_resilience,attack 50 m,centralized,60,44,e4_resilience,514fd0de7c1dbdbf,-1.4247391822854363,0.051135525659196546,0.03886729594669628,5.0,1.7200000000000017,4.800000000000001,../e4_resilience/series/514fd0de7c1dbdbf.npz
+e4_resilience,attack 5 m,decentralized_undefended,60,42,e4_resilience,dd5398d5e79dc0a3,0.04156207179811666,1.5556422169431787,0.0,0.0,nan,nan,../e4_resilience/series/dd5398d5e79dc0a3.npz
+e4_resilience,attack 5 m,decentralized_undefended,60,43,e4_resilience,7df971fe34248b5b,0.008305410203732322,1.0935493007016497,0.0,0.0,nan,nan,../e4_resilience/series/7df971fe34248b5b.npz
+e4_resilience,attack 5 m,decentralized_undefended,60,44,e4_resilience,936b99b7fd0c50a8,0.06104292085900731,1.0304340534035212,0.0,0.0,nan,nan,../e4_resilience/series/936b99b7fd0c50a8.npz
+e4_resilience,attack 10 m,decentralized_undefended,60,42,e4_resilience,adb3c0fe1d9ef28a,0.04156207179811666,1.5556422169431787,0.0,0.0,nan,nan,../e4_resilience/series/adb3c0fe1d9ef28a.npz
+e4_resilience,attack 10 m,decentralized_undefended,60,43,e4_resilience,488970f48700ffff,0.008305410203732322,0.41858197583766454,0.0,0.0,nan,nan,../e4_resilience/series/488970f48700ffff.npz
+e4_resilience,attack 10 m,decentralized_undefended,60,44,e4_resilience,15edec344c0497ed,0.050114778882614175,0.31967203648491527,0.0,0.0,nan,nan,../e4_resilience/series/15edec344c0497ed.npz
+e4_resilience,attack 25 m,decentralized_undefended,60,42,e4_resilience,60c6e2f4292b93ee,0.04156207179811666,1.5556422169431787,0.0,0.0,nan,nan,../e4_resilience/series/60c6e2f4292b93ee.npz
+e4_resilience,attack 25 m,decentralized_undefended,60,43,e4_resilience,6e8238d8711b4baf,0.008305410203732322,0.443871596192178,0.0,0.0,nan,nan,../e4_resilience/series/6e8238d8711b4baf.npz
+e4_resilience,attack 25 m,decentralized_undefended,60,44,e4_resilience,11dbaede0510290b,-0.6270088173695223,-0.3959498370462047,0.21043864519711272,2.0,19.049999999999997,28.30000000000001,../e4_resilience/series/11dbaede0510290b.npz
+e4_resilience,attack 50 m,decentralized_undefended,60,42,e4_resilience,3b2b9edcd6c7b5ca,-1.391984605842027,-1.3919846058420173,0.4714047751249306,1.0,nan,nan,../e4_resilience/series/3b2b9edcd6c7b5ca.npz
+e4_resilience,attack 50 m,decentralized_undefended,60,43,e4_resilience,7bb598fde43c5e33,0.008305410203732322,1.139496437037872,0.0,0.0,nan,nan,../e4_resilience/series/7bb598fde43c5e33.npz
+e4_resilience,attack 50 m,decentralized_undefended,60,44,e4_resilience,7a04fcbd8c220b60,-0.5727801812805842,-0.4952371550691623,0.24764019988895059,2.0,0.5,0.5,../e4_resilience/series/7a04fcbd8c220b60.npz
+e4_resilience,nominal,hierarchical,60,42,e4_resilience,e3c3f5d07963b880,-7.985383511902336,-7.695504327236231,0.9850083287062743,1.0,nan,nan,../e4_resilience/series/e3c3f5d07963b880.npz
+e4_resilience,nominal,hierarchical,60,43,e4_resilience,f30b9f38845555ed,-7.998597078871626,-7.96454840553021,0.9861188228761799,1.0,nan,nan,../e4_resilience/series/f30b9f38845555ed.npz
+e4_resilience,nominal,hierarchical,60,44,e4_resilience,248a9ccde9a3b752,-7.9988462153233115,-7.791526411838537,0.9894503053858967,1.0,nan,nan,../e4_resilience/series/248a9ccde9a3b752.npz
+e4_resilience,nominal,hierarchical,60,45,e4_resilience,ed5c215afcd2232c,-7.999733823389761,-7.968642840367465,0.9838978345363687,1.0,nan,nan,../e4_resilience/series/ed5c215afcd2232c.npz
+e4_resilience,nominal,hierarchical,60,46,e4_resilience,a659e56b90e76856,-7.99768463037783,-7.755401026752128,0.9894503053858967,1.0,nan,nan,../e4_resilience/series/a659e56b90e76856.npz
+e4_resilience,attack 25 m,hierarchical,60,45,e4_resilience,3f17f7772ec728b8,-7.999603629994973,-7.977208962386385,0.9838978345363687,1.0,nan,nan,../e4_resilience/series/3f17f7772ec728b8.npz
+e4_resilience,attack 25 m,hierarchical,60,46,e4_resilience,77b52be70711c3a3,-7.99768463037783,-7.75415381750052,0.9894503053858967,1.0,nan,nan,../e4_resilience/series/77b52be70711c3a3.npz
+e4_resilience,nominal,centralized,60,42,e4_resilience,e096914663366450,-1.9611701337633454,-0.9511782567097846,0.11327040533037201,5.0,4.24,9.799999999999997,../e4_resilience/series/e096914663366450.npz
+e4_resilience,nominal,centralized,60,43,e4_resilience,64fd6e696d713b28,-2.7851380039969973,-0.2644098867167868,0.059966685174902834,3.0,3.7999999999999985,5.899999999999999,../e4_resilience/series/64fd6e696d713b28.npz
+e4_resilience,nominal,centralized,60,44,e4_resilience,e18704c8461857d3,-1.4247391822854363,0.051135525659196546,0.03886729594669628,5.0,1.7200000000000017,4.800000000000001,../e4_resilience/series/e18704c8461857d3.npz
+e4_resilience,nominal,centralized,60,45,e4_resilience,4dd4dc588dd3566e,-1.1220760199983086,0.0015840341960711157,0.04997223764575236,4.0,2.55,4.100000000000001,../e4_resilience/series/4dd4dc588dd3566e.npz
+e4_resilience,nominal,centralized,60,46,e4_resilience,9ca96fa70a1d7dbe,-1.859306246788857,-0.37012685583166594,0.06385341476957246,4.0,2.875000000000001,5.5,../e4_resilience/series/9ca96fa70a1d7dbe.npz
+e4_resilience,attack 25 m,centralized,60,45,e4_resilience,05533bb36a11b77b,-2.4888995910622658,-0.2984116930304541,0.07051637978900611,5.0,2.7800000000000002,4.100000000000001,../e4_resilience/series/05533bb36a11b77b.npz
+e4_resilience,attack 25 m,centralized,60,46,e4_resilience,565efdbf7394fcdb,-2.6406914612120502,-0.6872493855396105,0.08717379233759023,5.0,3.1400000000000015,5.5,../e4_resilience/series/565efdbf7394fcdb.npz
+e4_resilience,nominal,decentralized_undefended,60,42,e4_resilience,62f61870e82cc8ee,0.04156207179811666,1.5556422169431787,0.0,0.0,nan,nan,../e4_resilience/series/62f61870e82cc8ee.npz
+e4_resilience,nominal,decentralized_undefended,60,43,e4_resilience,71b2a405e7a7a8ad,0.008305410203732322,1.8508121075605395,0.0,0.0,nan,nan,../e4_resilience/series/71b2a405e7a7a8ad.npz
+e4_resilience,nominal,decentralized_undefended,60,44,e4_resilience,7c5eb379f254ea4c,0.06104292085900731,1.5429092005161813,0.0,0.0,nan,nan,../e4_resilience/series/7c5eb379f254ea4c.npz
+e4_resilience,nominal,decentralized_undefended,60,45,e4_resilience,1f036f65149d6c5c,0.09434476987318519,1.5696409043516226,0.0,0.0,nan,nan,../e4_resilience/series/1f036f65149d6c5c.npz
+e4_resilience,nominal,decentralized_undefended,60,46,e4_resilience,a3e89b1d1bf22dc2,0.01765817036073969,1.9421814126576606,0.0,0.0,nan,nan,../e4_resilience/series/a3e89b1d1bf22dc2.npz
+e4_resilience,attack 25 m,decentralized_undefended,60,45,e4_resilience,e4bc7736202189ab,0.09434476987318519,1.4466923631760231,0.0,0.0,nan,nan,../e4_resilience/series/e4bc7736202189ab.npz
+e4_resilience,attack 25 m,decentralized_undefended,60,46,e4_resilience,743efc51a0f14d16,0.01765817036073969,1.9421814126576606,0.0,0.0,nan,nan,../e4_resilience/series/743efc51a0f14d16.npz
+e5_stl,nominal,centralized,30,42,e5_stl,605fc9afa3516c32,-3.1988239369857494,0.041862747015054325,0.04441976679622432,4.0,2.4250000000000007,5.200000000000003,../e5_stl/series/605fc9afa3516c32.npz
+e5_stl,nominal,centralized,30,43,e5_stl,e9ec6fa1aa03aa7c,-1.1013458873119237,0.40494096647031874,0.026651860077734593,2.0,3.4499999999999984,3.799999999999999,../e5_stl/series/e9ec6fa1aa03aa7c.npz
+e5_stl,nominal,centralized,30,44,e5_stl,3389f231ca03ba0b,-0.8450628626809769,0.6095601118337513,0.02220988339811216,3.0,1.333333333333334,1.4000000000000021,../e5_stl/series/3389f231ca03ba0b.npz
+e5_stl,nominal,decentralized_undefended,30,42,e5_stl,6bdad74ee42b1dc5,0.04156207179811666,3.4533387581390915,0.0,0.0,nan,nan,../e5_stl/series/6bdad74ee42b1dc5.npz
+e5_stl,nominal,decentralized_undefended,30,43,e5_stl,3a6cd380f60de343,0.17396828462856462,3.3383021456102373,0.0,0.0,nan,nan,../e5_stl/series/3a6cd380f60de343.npz
+e5_stl,nominal,decentralized_undefended,30,44,e5_stl,42942a347f0c1480,0.20465017834528076,3.6420977257097196,0.0,0.0,nan,nan,../e5_stl/series/42942a347f0c1480.npz
+e5_stl,nominal,centralized,45,42,e5_stl,e775880d384d8913,-1.1541294675033056,0.37569705640244955,0.029983342587451417,3.0,2.1333333333333333,4.0,../e5_stl/series/e775880d384d8913.npz
+e5_stl,nominal,centralized,45,43,e5_stl,f1b1cbeb8951af89,-2.6511933615786196,0.2908332751793239,0.021654636313159357,2.0,2.8000000000000016,3.4000000000000004,../e5_stl/series/f1b1cbeb8951af89.npz
+e5_stl,nominal,centralized,45,44,e5_stl,493e544f956f6847,-2.717231318810639,0.050885478208689605,0.04386451971127152,3.0,2.6333333333333324,6.299999999999997,../e5_stl/series/493e544f956f6847.npz
+e5_stl,nominal,decentralized_undefended,45,42,e5_stl,0c99ec91e3b8fe56,0.04156207179811666,1.7834766779098157,0.0,0.0,nan,nan,../e5_stl/series/0c99ec91e3b8fe56.npz
+e5_stl,nominal,decentralized_undefended,45,43,e5_stl,2b945229cf1150c2,0.008305410203732322,1.779340278674832,0.0,0.0,nan,nan,../e5_stl/series/2b945229cf1150c2.npz
+e5_stl,nominal,decentralized_undefended,45,44,e5_stl,bcc88e1b601cc023,0.06104292085900731,1.8267928248644605,0.0,0.0,nan,nan,../e5_stl/series/bcc88e1b601cc023.npz
+e5_stl,nominal,centralized,75,42,e5_stl,a05c857ccbd68138,-4.702660719302367,-0.6133487362800834,0.1116046640755136,4.0,5.975000000000001,12.300000000000004,../e5_stl/series/a05c857ccbd68138.npz
+e5_stl,nominal,centralized,75,43,e5_stl,209c68e130a06256,-1.8393635975384939,-0.6029756413396505,0.11382565241532482,8.0,2.6125,13.899999999999999,../e5_stl/series/209c68e130a06256.npz
+e5_stl,nominal,centralized,75,44,e5_stl,b53b9614ac6aead1,-1.8243416325972985,-0.4457075781724802,0.08106607440310938,4.0,3.925,7.199999999999999,../e5_stl/series/b53b9614ac6aead1.npz
+e5_stl,nominal,decentralized_undefended,75,42,e5_stl,51ee0d2e919877bf,0.04156207179811666,1.5868742175724346,0.0,0.0,nan,nan,../e5_stl/series/51ee0d2e919877bf.npz
+e5_stl,nominal,decentralized_undefended,75,43,e5_stl,6d26e50d38ebd971,0.008305410203732322,1.5698517455130663,0.0,0.0,nan,nan,../e5_stl/series/6d26e50d38ebd971.npz
+e5_stl,nominal,decentralized_undefended,75,44,e5_stl,e93a54ab57f976df,0.06104292085900731,1.618733530647111,0.0,0.0,nan,nan,../e5_stl/series/e93a54ab57f976df.npz

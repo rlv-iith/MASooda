@@ -35,6 +35,20 @@ TYPE_STYLES = {
     AgentType.DELIVERY: {"color": "#E9C46A", "marker": "s", "label": "Delivery (P2)", "size": 80},
 }
 
+def _type_style(agent_type: Any) -> dict:
+    """TYPE_STYLES entry with the colour taken from config visualization.colors.agent_types.
+
+    Keeps every figure (plots, dashboard, renderer) on one palette; falls back
+    to the built-in colour when the config has no entry.
+    """
+    base = dict(TYPE_STYLES.get(agent_type, {"color": "#E2E8F0", "marker": "o", "label": str(agent_type), "size": 80}))
+    name = getattr(agent_type, "name", str(agent_type)).split(".")[-1].upper()
+    colors = ((get_config().get("visualization", {}) or {}).get("colors", {}) or {}).get("agent_types", {}) or {}
+    if name in colors:
+        base["color"] = str(colors[name])
+    return base
+
+
 LAYER_COLORS = {
     0: "#2A9D8F",  # Layer 0: Sea Green
     1: "#F4A261",  # Layer 1: Coral
@@ -148,7 +162,7 @@ def render_top_down(
         vx, vy = float(agent.velocity[0]), float(agent.velocity[1])
         layer = int(agent.altitude_layer)
         layer_color = LAYER_COLORS.get(layer, "#CBD5E0")
-        style = TYPE_STYLES.get(agent.type, {"color": "#E2E8F0", "marker": "o", "label": str(agent.type), "size": 80})
+        style = _type_style(agent.type)
 
         # Draw layer halo
         ax.scatter(
@@ -340,7 +354,13 @@ def animate_simulation(
     )
 
     # Initial scatter for agents
-    colors = ["#E63946" if aid % 3 == 0 else "#457B9D" if aid % 3 == 1 else "#E9C46A" for aid in result.agent_ids]
+    # Colour by agent type (config visualization colours) when the result carries
+    # types; otherwise keep the previous id-based assignment, in the same palette.
+    agent_types = getattr(result, "agent_types", None)
+    if agent_types is None:
+        agent_types = [AgentType.EMERGENCY if aid % 3 == 0 else AgentType.EVTOL if aid % 3 == 1 else AgentType.DELIVERY
+                       for aid in result.agent_ids]
+    colors = [_type_style(ty)["color"] for ty in agent_types]
     init_xy = result.positions[0, :, :2] if len(result.positions) > 0 else np.empty((0, 2))
     sc = ax.scatter(
         init_xy[:, 0] if len(init_xy) > 0 else [],

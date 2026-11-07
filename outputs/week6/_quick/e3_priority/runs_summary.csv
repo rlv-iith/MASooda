@@ -1,0 +1,3 @@
+num_agents,emergency_control,throughput_per_s_mean,throughput_per_s_std,throughput_per_s_n,throughput_per_s_ci_lo,throughput_per_s_ci_hi,safety_violation_ticks_mean,safety_violation_ticks_std,safety_violation_ticks_n,safety_violation_ticks_ci_lo,safety_violation_ticks_ci_hi,min_robustness_m_mean,min_robustness_m_std,min_robustness_m_n,min_robustness_m_ci_lo,min_robustness_m_ci_hi,admm_events_mean,admm_events_std,admm_events_n,admm_events_ci_lo,admm_events_ci_hi
+12,False,nan,nan,0,nan,nan,0.0,nan,1,nan,nan,1.5671624442921974,nan,1,nan,nan,0.0,nan,1,nan,nan
+12,True,nan,nan,0,nan,nan,0.0,nan,1,nan,nan,1.5671624442921974,nan,1,nan,nan,0.0,nan,1,nan,nan

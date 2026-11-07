@@ -1,0 +1,83 @@
+{
+  "agent_counts": [
+    12
+  ],
+  "command": "python.exe scripts/week6_e5_build.py --quick --run-missing",
+  "config_hash": "e4509b11210199a7",
+  "config_section": {
+    "experiments.week6.matrices.e5": {
+      "agent_counts": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "architectures": [
+        "centralized",
+        "decentralized_undefended"
+      ],
+      "duration_s": null,
+      "group_by": [
+        "architecture",
+        "num_agents"
+      ],
+      "output_subdir": "e5_stl",
+      "scenario": "e5_stl",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "csv": "stl_runs.csv",
+  "git_commit": "285920f04b0213b0a66c759be8aa05a5e340c090-dirty",
+  "missing_before": [],
+  "quick": true,
+  "runs_added": 0,
+  "seeds": [
+    42
+  ],
+  "sources": [
+    "e1_admm_scaling",
+    "e2_formation",
+    "e3_priority",
+    "e4_resilience",
+    "e5_stl"
+  ],
+  "stl_runs_csv": {
+    "file": "stl_runs.csv",
+    "rows": 23
+  },
+  "stl_summary_csv": {
+    "file": "stl_summary.csv",
+    "group_by": [
+      "scenario",
+      "condition",
+      "architecture",
+      "num_agents"
+    ],
+    "metrics": [
+      "min_robustness_m",
+      "p5_robustness_m",
+      "violation_fraction",
+      "violation_episodes",
+      "mean_recovery_time_s",
+      "max_recovery_time_s"
+    ]
+  },
+  "stl_summary_pooled_csv": {
+    "file": "stl_summary_pooled.csv",
+    "group_by": [
+      "architecture",
+      "num_agents"
+    ],
+    "note": "nominal runs of all experiments, one per (architecture, N, seed)"
+  },
+  "timestamp": "2026-11-07T01:07:18+0530",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "python": "3.14.3"
+  }
+}

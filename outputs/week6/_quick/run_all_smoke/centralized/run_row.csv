@@ -1,0 +1,2 @@
+architecture,scenario,seed,num_agents,duration_s,attack_enabled,link_failure,initial_conditions_hash,throughput_per_s,arrivals,safety_violation_ticks,violation_episodes,mean_recovery_time_s,max_recovery_time_s,min_robustness_m,min_separation_m,admm_events,admm_nonconverged,reports_dropped,overseer_calls,overseer_failures,wall_time_s
+centralized,mvp,42,12,2.0,True,True,24cb6cf3117b91a6d3a725d2745d69b53480b6264eee31f196fc78812ca0945f,0.0,0,0,0,nan,nan,1.5728710533773302,9.57287105337733,0,0,0,1,0,0.012419899983797222

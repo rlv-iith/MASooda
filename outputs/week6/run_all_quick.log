@@ -1,0 +1,421 @@
+
+===== run_all 2026-11-07 01:07:07 =====
+
+--- stage env ---
+python 3.14.3 (C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe)
+numpy 2.5.3, matplotlib 3.11.2, pyyaml 6.0.3
+ffmpeg available: True
+platform: Windows-11-10.0.26300-SP0
+--- env: exit 0, 0.4 s ---
+
+--- stage smoke_hierarchical ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe main.py --architecture hierarchical --scenario mvp --agents 12 --duration 2 --out C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\run_all_smoke\hierarchical --telemetry
+=== Simulation Summary (MVP) ===
+Architecture: hierarchical
+Agents: 12
+Duration: 2.0 s
+Min Robustness: 1.567 m
+Safety Violations: 0
+ADMM Events: 0
+Malicious IDs: []
+Reports Dropped: 0
+Overseer Dropped: 0
+--- smoke_hierarchical: exit 0, 1.5 s ---
+
+--- stage smoke_centralized ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe main.py --architecture centralized --scenario mvp --agents 12 --duration 2 --out C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\run_all_smoke\centralized --telemetry
+=== Simulation Summary (MVP) ===
+Architecture: centralized
+Agents: 12
+Duration: 2.0 s
+Min Robustness: 1.573 m
+Safety Violations: 0
+ADMM Events: 0
+Malicious IDs: []
+Reports Dropped: 0
+Overseer Dropped: 0
+--- smoke_centralized: exit 0, 1.5 s ---
+
+--- stage smoke_decentralized_undefended ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe main.py --architecture decentralized_undefended --scenario mvp --agents 12 --duration 2 --out C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\run_all_smoke\decentralized_undefended --telemetry
+=== Simulation Summary (MVP) ===
+Architecture: decentralized_undefended
+Agents: 12
+Duration: 2.0 s
+Min Robustness: 1.567 m
+Safety Violations: 0
+ADMM Events: 0
+Malicious IDs: []
+Reports Dropped: 0
+Overseer Dropped: 0
+--- smoke_decentralized_undefended: exit 0, 1.5 s ---
+
+--- stage run_e1 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e1_run.py --quick
+[week6] matrix e1: 1 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling
+[week6] 1 runs, 1 already done, 0 to run, workers=16
+[week6] matrix e1_iter: 5 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling
+[week6] 5 runs, 5 already done, 0 to run, workers=16
+[e1] 5 runs, 0 solver calls, 5 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling
+--- run_e1: exit 0, 1.2 s ---
+
+--- stage run_e2 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e2_run.py --quick
+[week6] matrix e2: 1 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e2_formation
+[week6] 1 runs, 1 already done, 0 to run, workers=16
+[e2] 1 runs, 1 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e2_formation
+--- run_e2: exit 0, 0.9 s ---
+
+--- stage run_e3 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e3_run.py --quick
+[week6] matrix e3: 2 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority
+[week6] 2 runs, 2 already done, 0 to run, workers=16
+[e3] 2 runs, 1 pairs, 1 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority
+--- run_e3: exit 0, 1.3 s ---
+
+--- stage run_e4 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e4_run.py --quick
+[week6] matrix e4: 6 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience
+[week6] 6 runs, 6 already done, 0 to run, workers=16
+[week6] matrix e4_offset: 12 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience
+[week6] 12 runs, 12 already done, 0 to run, workers=16
+[e4] 15 runs in summary, identical IC: True, 15 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience
+--- run_e4: exit 0, 1.3 s ---
+
+--- stage run_e6 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e6_run.py --quick
+[week6] matrix e6: 2 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation
+[week6] 2 runs, 2 already done, 0 to run, workers=16
+[e6] 2 runs, 1 pairs, 2 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation
+--- run_e6: exit 0, 1.1 s ---
+
+--- stage run_e5 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e5_build.py --quick --run-missing
+[e5] 23 saved runs; missing nominal combinations: none
+[e5] 0 runs needed; estimated 0.0 CPU-min, ~0.5 min wall with 1 workers
+[e5] wrote C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e5_stl\stl_runs.csv (23 rows) and stl_summary.csv
+--- run_e5: exit 0, 0.9 s ---
+
+--- stage plot_e1 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e1_plot.py --quick
+[e1] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling\README.md
+--- plot_e1: exit 0, 4.6 s ---
+
+--- stage plot_e2 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e2_plot.py --quick
+[e2] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e2_formation\README.md
+--- plot_e2: exit 0, 4.5 s ---
+
+--- stage plot_e3 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e3_plot.py --quick
+[e3] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority\README.md
+--- plot_e3: exit 0, 3.9 s ---
+
+--- stage plot_e4 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e4_plot.py --quick
+[e4] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience\README.md
+--- plot_e4: exit 0, 6.1 s ---
+
+--- stage plot_e5 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e5_plot.py --quick
+[e5] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e5_stl\README.md
+--- plot_e5: exit 0, 5.2 s ---
+
+--- stage plot_e6 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e6_plot.py --quick
+[e6] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation\README.md
+--- plot_e6: exit 0, 3.7 s ---
+
+--- stage summary ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_summary.py --quick
+[summary] wrote C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\RESULTS.md; table mismatches: 0
+--- summary: exit 0, 0.7 s ---
+
+--- stage video ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/dashboard.py --record C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\demo\fallback_demo.gif --scenario demo --agents 12 --duration 10 --stride 10
+[dashboard] 11 frames -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\demo\fallback_demo.gif
+--- video: exit 0, 5.1 s ---
+
+--- artifacts ---
+present  outputs\week6\_quick\run_all_smoke\hierarchical\run_row.csv
+present  outputs\week6\_quick\run_all_smoke\hierarchical\telemetry.csv
+present  outputs\week6\_quick\run_all_smoke\centralized\run_row.csv
+present  outputs\week6\_quick\run_all_smoke\centralized\telemetry.csv
+present  outputs\week6\_quick\run_all_smoke\decentralized_undefended\run_row.csv
+present  outputs\week6\_quick\run_all_smoke\decentralized_undefended\telemetry.csv
+present  outputs\week6\_quick\e1_admm_scaling\runs.csv
+present  outputs\week6\_quick\e1_admm_scaling\summary.csv
+present  outputs\week6\_quick\e1_admm_scaling\manifest.json
+present  outputs\week6\_quick\e2_formation\runs.csv
+present  outputs\week6\_quick\e2_formation\summary.csv
+present  outputs\week6\_quick\e2_formation\manifest.json
+present  outputs\week6\_quick\e3_priority\runs.csv
+present  outputs\week6\_quick\e3_priority\summary.csv
+present  outputs\week6\_quick\e3_priority\manifest.json
+present  outputs\week6\_quick\e4_resilience\runs.csv
+present  outputs\week6\_quick\e4_resilience\summary.csv
+present  outputs\week6\_quick\e4_resilience\manifest.json
+present  outputs\week6\_quick\e6_degradation\runs.csv
+present  outputs\week6\_quick\e6_degradation\summary.csv
+present  outputs\week6\_quick\e6_degradation\manifest.json
+present  outputs\week6\_quick\e5_stl\stl_runs.csv
+present  outputs\week6\_quick\e5_stl\stl_summary.csv
+present  outputs\week6\_quick\e1_admm_scaling\README.md
+present  outputs\week6\_quick\figures\e1_iterations_vs_N.png
+present  outputs\week6\_quick\figures\e1_solve_time_vs_N.png
+present  outputs\week6\_quick\figures\e1_convergence_rate_vs_N.png
+present  outputs\week6\_quick\figures\e1_time_per_tick_vs_N.png
+present  outputs\week6\_quick\figures\e1_convergence_vs_iteration_limit.png
+present  outputs\week6\_quick\figures\e1_iterations_distribution.png
+present  outputs\week6\_quick\e2_formation\README.md
+present  outputs\week6\_quick\figures\e2_merge_success_vs_N.png
+present  outputs\week6\_quick\figures\e2_throughput_vs_N.png
+present  outputs\week6\_quick\figures\e2_utilization_vs_N.png
+present  outputs\week6\_quick\figures\e2_utilization_heatmap_N60.png
+present  outputs\week6\_quick\figures\e2_formation_snapshot_N60.png
+present  outputs\week6\_quick\e3_priority\README.md
+present  outputs\week6\_quick\figures\e3_compliance_vs_N.png
+present  outputs\week6\_quick\figures\e3_emergency_delay_vs_N.png
+present  outputs\week6\_quick\figures\e3_imposed_delay_vs_N.png
+present  outputs\week6\_quick\figures\e3_emergency_track_N60.png
+present  outputs\week6\_quick\e4_resilience\README.md
+present  outputs\week6\_quick\figures\e4_main_comparison.png
+present  outputs\week6\_quick\figures\e4_attack_effect.png
+present  outputs\week6\_quick\figures\e4_robustness_timeseries.png
+present  outputs\week6\_quick\figures\e4_offset_sensitivity.png
+present  outputs\week6\_quick\e5_stl\README.md
+present  outputs\week6\_quick\figures\e5_robustness_distribution.png
+present  outputs\week6\_quick\figures\e5_violation_fraction_vs_N.png
+present  outputs\week6\_quick\figures\e5_recovery_time.png
+present  outputs\week6\_quick\figures\e5_robustness_heatmap.png
+present  outputs\week6\_quick\e6_degradation\README.md
+present  outputs\week6\_quick\figures\e6_violations_normal_vs_failure.png
+present  outputs\week6\_quick\figures\e6_throughput_normal_vs_failure.png
+present  outputs\week6\_quick\figures\e6_directive_age_timeline.png
+present  outputs\week6\_quick\figures\e6_degradation_score.png
+present  outputs\week6\_quick\RESULTS.md
+present  outputs\week6\_quick\demo\fallback_demo.gif
+--- total 45.4 s; failed stages: []; missing artifacts: 0 ---
+
+===== run_all 2026-11-07 01:08:01 =====
+
+--- stage env ---
+python 3.14.3 (C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe)
+numpy 2.5.3, matplotlib 3.11.2, pyyaml 6.0.3
+ffmpeg available: True
+platform: Windows-11-10.0.26300-SP0
+--- env: exit 0, 0.3 s ---
+
+--- stage smoke_hierarchical ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe main.py --architecture hierarchical --scenario mvp --agents 12 --duration 2 --out C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\run_all_smoke\hierarchical --telemetry
+=== Simulation Summary (MVP) ===
+Architecture: hierarchical
+Agents: 12
+Duration: 2.0 s
+Min Robustness: 1.567 m
+Safety Violations: 0
+ADMM Events: 0
+Malicious IDs: []
+Reports Dropped: 0
+Overseer Dropped: 0
+--- smoke_hierarchical: exit 0, 1.4 s ---
+
+--- stage smoke_centralized ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe main.py --architecture centralized --scenario mvp --agents 12 --duration 2 --out C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\run_all_smoke\centralized --telemetry
+=== Simulation Summary (MVP) ===
+Architecture: centralized
+Agents: 12
+Duration: 2.0 s
+Min Robustness: 1.573 m
+Safety Violations: 0
+ADMM Events: 0
+Malicious IDs: []
+Reports Dropped: 0
+Overseer Dropped: 0
+--- smoke_centralized: exit 0, 1.3 s ---
+
+--- stage smoke_decentralized_undefended ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe main.py --architecture decentralized_undefended --scenario mvp --agents 12 --duration 2 --out C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\run_all_smoke\decentralized_undefended --telemetry
+=== Simulation Summary (MVP) ===
+Architecture: decentralized_undefended
+Agents: 12
+Duration: 2.0 s
+Min Robustness: 1.567 m
+Safety Violations: 0
+ADMM Events: 0
+Malicious IDs: []
+Reports Dropped: 0
+Overseer Dropped: 0
+--- smoke_decentralized_undefended: exit 0, 1.3 s ---
+
+--- stage run_e1 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e1_run.py --quick --fresh
+[week6] matrix e1: 1 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling
+[week6] 1 runs, 0 already done, 1 to run, workers=16
+[week6] 1/1 hierarchical N=12 seed=42 0.5s  elapsed 0m01s  ETA 0m00s
+[week6] matrix e1_iter: 5 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling
+[week6] 5 runs, 1 already done, 4 to run, workers=16
+[week6] 1/4 hierarchical N=12 seed=42 iters=5 0.5s  elapsed 0m01s  ETA 0m03s
+[week6] 2/4 hierarchical N=12 seed=42 iters=10 0.5s  elapsed 0m01s  ETA 0m01s
+[week6] 3/4 hierarchical N=12 seed=42 iters=20 0.5s  elapsed 0m01s  ETA 0m00s
+[week6] 4/4 hierarchical N=12 seed=42 iters=100 0.5s  elapsed 0m01s  ETA 0m00s
+[e1] 5 runs, 0 solver calls, 5 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling
+--- run_e1: exit 0, 2.9 s ---
+
+--- stage run_e2 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e2_run.py --quick --fresh
+[week6] matrix e2: 1 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e2_formation
+[week6] 1 runs, 0 already done, 1 to run, workers=16
+[week6] 1/1 hierarchical N=12 seed=42 0.6s  elapsed 0m01s  ETA 0m00s
+[e2] 1 runs, 1 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e2_formation
+--- run_e2: exit 0, 1.7 s ---
+
+--- stage run_e3 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e3_run.py --quick --fresh
+[week6] matrix e3: 2 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority
+[week6] 2 runs, 0 already done, 2 to run, workers=16
+[week6] 1/2 hierarchical N=12 seed=42 emergency 0.5s  elapsed 0m01s  ETA 0m01s
+[week6] 2/2 hierarchical N=12 seed=42 emergency-control 0.5s  elapsed 0m01s  ETA 0m00s
+[e3] 2 runs, 1 pairs, 1 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority
+--- run_e3: exit 0, 2.3 s ---
+
+--- stage run_e4 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e4_run.py --quick --fresh
+[week6] matrix e4: 6 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience
+[week6] 6 runs, 0 already done, 6 to run, workers=16
+[week6] 1/6 centralized N=12 seed=42 0.2s  elapsed 0m01s  ETA 0m04s
+[week6] 2/6 centralized N=12 seed=42 attack 0.2s  elapsed 0m01s  ETA 0m02s
+[week6] 3/6 decentralized_undefended N=12 seed=42 0.5s  elapsed 0m01s  ETA 0m01s
+[week6] 4/6 hierarchical N=12 seed=42 0.6s  elapsed 0m01s  ETA 0m01s
+[week6] 5/6 hierarchical N=12 seed=42 attack 0.6s  elapsed 0m01s  ETA 0m00s
+[week6] 6/6 decentralized_undefended N=12 seed=42 attack 0.5s  elapsed 0m01s  ETA 0m00s
+[week6] matrix e4_offset: 12 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience
+[week6] 12 runs, 3 already done, 9 to run, workers=16
+[week6] 1/9 centralized N=12 seed=42 attack offset=50 0.3s  elapsed 0m01s  ETA 0m08s
+[week6] 2/9 centralized N=12 seed=42 attack offset=5 0.3s  elapsed 0m01s  ETA 0m04s
+[week6] 3/9 centralized N=12 seed=42 attack offset=10 0.3s  elapsed 0m01s  ETA 0m02s
+[week6] 4/9 hierarchical N=12 seed=42 attack offset=5 0.8s  elapsed 0m01s  ETA 0m02s
+[week6] 5/9 decentralized_undefended N=12 seed=42 attack offset=5 0.7s  elapsed 0m01s  ETA 0m01s
+[week6] 6/9 decentralized_undefended N=12 seed=42 attack offset=50 0.7s  elapsed 0m01s  ETA 0m01s
+[week6] 7/9 hierarchical N=12 seed=42 attack offset=10 0.8s  elapsed 0m01s  ETA 0m00s
+[week6] 8/9 hierarchical N=12 seed=42 attack offset=50 0.8s  elapsed 0m01s  ETA 0m00s
+[week6] 9/9 decentralized_undefended N=12 seed=42 attack offset=10 0.7s  elapsed 0m01s  ETA 0m00s
+[e4] 15 runs in summary, identical IC: True, 15 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience
+--- run_e4: exit 0, 4.1 s ---
+
+--- stage run_e6 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e6_run.py --quick --fresh
+[week6] matrix e6: 2 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation
+[week6] 2 runs, 0 already done, 2 to run, workers=16
+[week6] 1/2 hierarchical N=12 seed=42 0.5s  elapsed 0m01s  ETA 0m01s
+[week6] 2/2 hierarchical N=12 seed=42 linkfail 0.5s  elapsed 0m01s  ETA 0m00s
+[e6] 2 runs, 1 pairs, 2 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation
+--- run_e6: exit 0, 2.4 s ---
+
+--- stage run_e5 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e5_build.py --quick --run-missing
+[e5] 23 saved runs; missing nominal combinations: none
+[e5] 0 runs needed; estimated 0.0 CPU-min, ~0.5 min wall with 1 workers
+[e5] wrote C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e5_stl\stl_runs.csv (23 rows) and stl_summary.csv
+--- run_e5: exit 0, 0.6 s ---
+
+--- stage plot_e1 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e1_plot.py --quick
+[e1] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e1_admm_scaling\README.md
+--- plot_e1: exit 0, 5.0 s ---
+
+--- stage plot_e2 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e2_plot.py --quick
+[e2] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e2_formation\README.md
+--- plot_e2: exit 0, 4.9 s ---
+
+--- stage plot_e3 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e3_plot.py --quick
+[e3] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority\README.md
+--- plot_e3: exit 0, 4.6 s ---
+
+--- stage plot_e4 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e4_plot.py --quick
+[e4] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e4_resilience\README.md
+--- plot_e4: exit 0, 6.8 s ---
+
+--- stage plot_e5 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e5_plot.py --quick
+[e5] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e5_stl\README.md
+--- plot_e5: exit 0, 4.6 s ---
+
+--- stage plot_e6 ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_e6_plot.py --quick
+[e6] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation\README.md
+--- plot_e6: exit 0, 4.2 s ---
+
+--- stage summary ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/week6_summary.py --quick
+[summary] wrote C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\RESULTS.md; table mismatches: 0
+--- summary: exit 0, 0.7 s ---
+
+--- stage video ---
+$ C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\.venv\Scripts\python.exe scripts/dashboard.py --record C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\demo\fallback_demo.gif --scenario demo --agents 12 --duration 10 --stride 10
+[dashboard] 11 frames -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\demo\fallback_demo.gif
+--- video: exit 0, 4.8 s ---
+
+--- artifacts ---
+present  outputs\week6\_quick\run_all_smoke\hierarchical\run_row.csv
+present  outputs\week6\_quick\run_all_smoke\hierarchical\telemetry.csv
+present  outputs\week6\_quick\run_all_smoke\centralized\run_row.csv
+present  outputs\week6\_quick\run_all_smoke\centralized\telemetry.csv
+present  outputs\week6\_quick\run_all_smoke\decentralized_undefended\run_row.csv
+present  outputs\week6\_quick\run_all_smoke\decentralized_undefended\telemetry.csv
+present  outputs\week6\_quick\e1_admm_scaling\runs.csv
+present  outputs\week6\_quick\e1_admm_scaling\summary.csv
+present  outputs\week6\_quick\e1_admm_scaling\manifest.json
+present  outputs\week6\_quick\e2_formation\runs.csv
+present  outputs\week6\_quick\e2_formation\summary.csv
+present  outputs\week6\_quick\e2_formation\manifest.json
+present  outputs\week6\_quick\e3_priority\runs.csv
+present  outputs\week6\_quick\e3_priority\summary.csv
+present  outputs\week6\_quick\e3_priority\manifest.json
+present  outputs\week6\_quick\e4_resilience\runs.csv
+present  outputs\week6\_quick\e4_resilience\summary.csv
+present  outputs\week6\_quick\e4_resilience\manifest.json
+present  outputs\week6\_quick\e6_degradation\runs.csv
+present  outputs\week6\_quick\e6_degradation\summary.csv
+present  outputs\week6\_quick\e6_degradation\manifest.json
+present  outputs\week6\_quick\e5_stl\stl_runs.csv
+present  outputs\week6\_quick\e5_stl\stl_summary.csv
+present  outputs\week6\_quick\e1_admm_scaling\README.md
+present  outputs\week6\_quick\figures\e1_iterations_vs_N.png
+present  outputs\week6\_quick\figures\e1_solve_time_vs_N.png
+present  outputs\week6\_quick\figures\e1_convergence_rate_vs_N.png
+present  outputs\week6\_quick\figures\e1_time_per_tick_vs_N.png
+present  outputs\week6\_quick\figures\e1_convergence_vs_iteration_limit.png
+present  outputs\week6\_quick\figures\e1_iterations_distribution.png
+present  outputs\week6\_quick\e2_formation\README.md
+present  outputs\week6\_quick\figures\e2_merge_success_vs_N.png
+present  outputs\week6\_quick\figures\e2_throughput_vs_N.png
+present  outputs\week6\_quick\figures\e2_utilization_vs_N.png
+present  outputs\week6\_quick\figures\e2_utilization_heatmap_N60.png
+present  outputs\week6\_quick\figures\e2_formation_snapshot_N60.png
+present  outputs\week6\_quick\e3_priority\README.md
+present  outputs\week6\_quick\figures\e3_compliance_vs_N.png
+present  outputs\week6\_quick\figures\e3_emergency_delay_vs_N.png
+present  outputs\week6\_quick\figures\e3_imposed_delay_vs_N.png
+present  outputs\week6\_quick\figures\e3_emergency_track_N60.png
+present  outputs\week6\_quick\e4_resilience\README.md
+present  outputs\week6\_quick\figures\e4_main_comparison.png
+present  outputs\week6\_quick\figures\e4_attack_effect.png
+present  outputs\week6\_quick\figures\e4_robustness_timeseries.png
+present  outputs\week6\_quick\figures\e4_offset_sensitivity.png
+present  outputs\week6\_quick\e5_stl\README.md
+present  outputs\week6\_quick\figures\e5_robustness_distribution.png
+present  outputs\week6\_quick\figures\e5_violation_fraction_vs_N.png
+present  outputs\week6\_quick\figures\e5_recovery_time.png
+present  outputs\week6\_quick\figures\e5_robustness_heatmap.png
+present  outputs\week6\_quick\e6_degradation\README.md
+present  outputs\week6\_quick\figures\e6_violations_normal_vs_failure.png
+present  outputs\week6\_quick\figures\e6_throughput_normal_vs_failure.png
+present  outputs\week6\_quick\figures\e6_directive_age_timeline.png
+present  outputs\week6\_quick\figures\e6_degradation_score.png
+present  outputs\week6\_quick\RESULTS.md
+present  outputs\week6\_quick\demo\fallback_demo.gif
+--- total 53.9 s; failed stages: []; missing artifacts: 0 ---

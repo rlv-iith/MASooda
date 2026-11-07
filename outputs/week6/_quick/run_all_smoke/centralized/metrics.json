@@ -1,0 +1,30 @@
+{
+  "duration_s": 2.0,
+  "num_agents": 12,
+  "arrivals": 0,
+  "throughput_per_s": 0.0,
+  "min_separation_m": 9.57287105337733,
+  "min_robustness_m": 1.5728710533773302,
+  "min_robustness": 1.5728710533773302,
+  "safety_violation_ticks": 0,
+  "violation_episodes": 0,
+  "unrecovered_episodes": 0,
+  "mean_recovery_time_s": NaN,
+  "max_recovery_time_s": NaN,
+  "overseer_calls": 1,
+  "overseer_failures": 0,
+  "admm_events": 0,
+  "admm_nonconverged": 0,
+  "admm_time_s": 0.0,
+  "component_failures": 0,
+  "attack_active_ticks": 0,
+  "malicious_ids": [],
+  "reports_dropped": 0,
+  "overseer_dropped": 0,
+  "max_directive_staleness_s": 1.9,
+  "layer_counts_final": {
+    "0": 12
+  },
+  "layer_changes": 0,
+  "architecture": "centralized"
+}

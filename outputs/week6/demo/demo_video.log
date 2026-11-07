@@ -1,0 +1,2 @@
+[demo] {'fallback_demo': 'outputs\\week6\\demo\\fallback_demo.mp4', 'clip_formation_merge': 'outputs\\week6\\demo\\clip_formation_merge.mp4', 'clip_emergency_priority': 'outputs\\week6\\demo\\clip_emergency_priority.mp4', 'clip_attack_dtc_outage': 'outputs\\week6\\demo\\clip_attack_dtc_outage.mp4'} in 255 s
+EXIT 0

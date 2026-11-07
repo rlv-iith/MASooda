@@ -1,0 +1,4 @@
+seed,num_agents,violations_normal,violations_failure,graceful_degradation_score,throughput_normal,throughput_failure,outage_start_s,outage_end_s,directive_age_max_in_outage_s,directive_refreshed_in_outage,max_position_diff_m,first_divergence_s,normal_spec_hash,failure_spec_hash
+42,60,1774,1774,1.0,0.3333333333333333,0.3333333333333333,90.0,120.0,31.799999999999997,False,0.0,nan,35672e52b202db69,95bc72b0b4afe8ad
+43,60,1776,1776,1.0,0.28888888888888886,0.28888888888888886,90.0,120.0,31.799999999999997,False,0.0,nan,a22e7c48f15ae818,e7809680632c7177
+44,60,1782,1782,1.0,0.3333333333333333,0.3333333333333333,90.0,120.0,31.799999999999997,False,0.0,nan,a5dc1f249dd70af2,bbacb0b6a18490c0

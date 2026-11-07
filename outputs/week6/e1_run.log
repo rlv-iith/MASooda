@@ -1,0 +1,6 @@
+[week6] matrix e1: 12 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e1_admm_scaling
+[week6] 12 runs, 0 already done, 12 to run, workers=12
+[week6] matrix e1_iter: 15 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e1_admm_scaling
+[week6] 15 runs, 3 already done, 12 to run, workers=12
+[e1] 24 runs, 40486 solver calls, 1 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e1_admm_scaling
+EXIT 0

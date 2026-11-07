@@ -88,25 +88,80 @@ The repository is organized around the simulation, coordination algorithms, resi
 - Make experiments reproducible by recording parameters, traffic density, random seeds, and observed metrics.
 - Keep core simulation logic separate from rendering and dashboard code.
 
-## Week 1 status
+## Status and how to run
 
-Week 1 integrates the six team members' first deliverables behind the shared interfaces in `simulation/interfaces.py`.
+**Week 6 — provisional results.** All experiments E1–E6 run end to end (141 simulations); the
+safety metric, attack and compliance fixes are pending, so every number is marked provisional.
 
-| Owner | Week 1 deliverable | State |
-|-------|--------------------|-------|
-| P1 | 2.5D dynamics, mock data, top-down renderer, config loader | Real |
-| P2 | ADMM solver in `conflict_resolution/`, `resolve_conflict` | Real, priorities ignored until Week 3 |
-| P3 | Boids and corridor formulation (`docs/`), `local_behavior` config | Stub: `update_local_behavior` heads for the destination |
-| P4 | `overseer_update` | Mock directive |
-| P5 | Threat model (`docs/`), `AttackState`, `inject_attack` | No-op stub; `wmsr_filter` raises `NotImplementedError("Week 3")` |
-| P6 | STL monitor in `verification/` | Real |
+### Architecture
 
-Corridor ids are 0, 1, 2 everywhere; their geometry is read from the `corridors:` section of `configs/base_config.yaml`.
+Two tiers: a global overseer (`simulation/overseer.py`) assigns corridors and altitude layers
+every 2 s; each agent runs boids-style local behaviour with corridor merging
+(`local_behavior/`) and ADMM conflict mitigation in the merge zone (`conflict_resolution/`),
+filters neighbour reports with W-MSR (`resilience/`), and is monitored against the STL
+specification G(d_ij ≥ d_min) (`verification/`). All parameters live in
+`configs/base_config.yaml`.
 
-Run the checks from the repository root:
+Three architectures share one engine and one runner (`experiments/runner.py`):
+
+| Architecture | Overseer | Local behaviour + ADMM | Report filter |
+|---|---|---|---|
+| `hierarchical` | yes | yes | W-MSR + range check |
+| `centralized` | one controller commands every velocity | no | no |
+| `decentralized_undefended` | no | yes | no |
+
+### Run a scenario
 
 ```bash
-uv run pytest -q
-uv run python scripts/week1_check.py
+python main.py --architecture hierarchical --scenario mvp --agents 60 --duration 180 --out outputs/mvp --telemetry
 ```
 
+Writes `metrics.json`, `run_row.csv`, `trajectory.csv`, `stl_robustness.csv`, `telemetry.csv`
+and `final_frame.png` (`--gif` adds an animation).
+
+### Dashboard
+
+```bash
+python scripts/dashboard.py --live --scenario demo
+```
+
+```bash
+python scripts/dashboard.py --replay outputs/mvp --out outputs/mvp/dashboard.gif
+```
+
+Left: the airspace (agents by type, emergency highlighted, malicious agent with its falsified
+"ghost" report). Right: STL robustness, emergency progress and priority compliance, ADMM events
+and iterations, and an attack / link-down / violation strip. Demo script: `docs/DEMO_SCRIPT.md`.
+
+### Reproduce everything
+
+```bash
+scripts/run_all.sh
+```
+
+≈ 17 min on a 12-core laptop (`--quick`: under a minute; Windows: `scripts\run_all.ps1`).
+Details in `docs/REPRODUCIBILITY.md`; consolidated results in `outputs/week6/RESULTS.md`.
+
+| ID | Experiment | Results |
+|---|---|---|
+| E1 | ADMM scaling and convergence | `outputs/week6/e1_admm_scaling/README.md` |
+| E2 | Formation, merge success, throughput, utilisation | `outputs/week6/e2_formation/README.md` |
+| E3 | Emergency priority compliance | `outputs/week6/e3_priority/README.md` |
+| E4 | Resilience under attack, three architectures | `outputs/week6/e4_resilience/README.md` |
+| E5 | STL robustness across architectures | `outputs/week6/e5_stl/README.md` |
+| E6 | Graceful degradation (overseer link failure) | `outputs/week6/e6_degradation/README.md` |
+
+### Tests
+
+```bash
+python -m pytest -q
+```
+
+### Known limitations
+
+- The separation metric uses planar distance over all pairs, including agents on different
+  altitude layers, so hierarchical runs show near-constant violations (fix pending).
+- The E2 merge-success definition is under review (success rate ≈ 0 at every N).
+- The E6 outage (90–120 s) changed no trajectory in these runs.
+- One adversary, constant offset; 3–5 seeds per point.
+- ADMM is conflict mitigation, not a safety guarantee.

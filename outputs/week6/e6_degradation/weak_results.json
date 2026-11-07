@@ -1,0 +1,12 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "safety_violation_ticks",
+      "throughput_per_s"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": []
+}

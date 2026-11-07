@@ -16,6 +16,21 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "base
 
 _CONFIG_CACHE: dict[str, Any] = {}
 
+# Path.resolve() is a filesystem call (slow on Windows) and get_config() runs
+# thousands of times per simulated second, so the resolution of absolute paths
+# is memoized. Relative paths are still resolved on every call (they depend on
+# the working directory). The cached config itself is unchanged.
+_RESOLVED_PATHS: dict[Path, str] = {}
+
+
+def _resolved_key(path: Path) -> str:
+    if not path.is_absolute():
+        return str(path.resolve())
+    key = _RESOLVED_PATHS.get(path)
+    if key is None:
+        key = _RESOLVED_PATHS[path] = str(path.resolve())
+    return key
+
 
 def load_config(config_path: str | Path | None = None, reload: bool = False) -> dict[str, Any]:
     """Load configuration from a YAML file.
@@ -33,7 +48,7 @@ def load_config(config_path: str | Path | None = None, reload: bool = False) -> 
         Dictionary representation of configuration parameters.
     """
     path = Path(config_path) if config_path is not None else DEFAULT_CONFIG_PATH
-    resolved_path = str(path.resolve())
+    resolved_path = _resolved_key(path)
 
     if not reload and resolved_path in _CONFIG_CACHE:
         return _CONFIG_CACHE[resolved_path]

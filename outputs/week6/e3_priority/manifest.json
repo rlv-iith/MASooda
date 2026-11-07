@@ -1,0 +1,268 @@
+{
+  "agent_counts": [
+    30,
+    45,
+    60,
+    75
+  ],
+  "architectures": [
+    "hierarchical"
+  ],
+  "command": "python.exe scripts/week6_e3_run.py --workers 12",
+  "config_hash": "e4509b11210199a7",
+  "config_section": {
+    "experiments.week6.matrices.e3": {
+      "agent_counts": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "duration_s": null,
+      "emergency": [
+        true
+      ],
+      "emergency_control": [
+        false,
+        true
+      ],
+      "group_by": [
+        "num_agents",
+        "emergency_control"
+      ],
+      "output_subdir": "e3_priority",
+      "scenario": "e3_priority",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "config_section_resolved": {
+    "e3": {
+      "admm_max_iterations": [
+        null
+      ],
+      "agent_counts": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "attack_enabled": [
+        false
+      ],
+      "attack_offset_m": [
+        null
+      ],
+      "attack_start_s": [
+        null
+      ],
+      "duration_s": 180.0,
+      "emergency": [
+        true
+      ],
+      "emergency_control": [
+        false,
+        true
+      ],
+      "group_by": [
+        "num_agents",
+        "emergency_control"
+      ],
+      "link_failure": [
+        false
+      ],
+      "output_subdir": "e3_priority",
+      "overrides": {},
+      "scenario": "e3_priority",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "csv": "runs.csv",
+  "failures": [],
+  "git_commit": "285920f04b0213b0a66c759be8aa05a5e340c090-dirty",
+  "hardware": {
+    "cpu_count": 16,
+    "machine": "AMD64",
+    "os": "Windows 11",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "python": "3.14.3"
+  },
+  "identical_initial_conditions": {
+    "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+    "ok": true
+  },
+  "matrices": [
+    "e3"
+  ],
+  "n_specs_unique": 24,
+  "pairs_csv": {
+    "file": "pairs.csv",
+    "rows": 12,
+    "source": "runs.csv paired by (N, seed)"
+  },
+  "pending_after_this_call": 0,
+  "per_matrix": {
+    "e3": {
+      "failures": [],
+      "identical_initial_conditions": {
+        "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+        "ok": true
+      },
+      "n_run": 24,
+      "n_skipped_resume": 0,
+      "n_specs": 24,
+      "per_run_wall_time_s": [
+        {
+          "label": "hierarchical N=30 seed=42 emergency",
+          "wall_s": 32.814
+        },
+        {
+          "label": "hierarchical N=30 seed=44 emergency",
+          "wall_s": 33.05
+        },
+        {
+          "label": "hierarchical N=30 seed=43 emergency-control",
+          "wall_s": 33.323
+        },
+        {
+          "label": "hierarchical N=30 seed=43 emergency",
+          "wall_s": 34.13
+        },
+        {
+          "label": "hierarchical N=30 seed=44 emergency-control",
+          "wall_s": 34.141
+        },
+        {
+          "label": "hierarchical N=30 seed=42 emergency-control",
+          "wall_s": 34.769
+        },
+        {
+          "label": "hierarchical N=45 seed=43 emergency",
+          "wall_s": 55.763
+        },
+        {
+          "label": "hierarchical N=45 seed=42 emergency",
+          "wall_s": 56.819
+        },
+        {
+          "label": "hierarchical N=45 seed=44 emergency-control",
+          "wall_s": 56.791
+        },
+        {
+          "label": "hierarchical N=45 seed=43 emergency-control",
+          "wall_s": 58.822
+        },
+        {
+          "label": "hierarchical N=45 seed=44 emergency",
+          "wall_s": 59.29
+        },
+        {
+          "label": "hierarchical N=45 seed=42 emergency-control",
+          "wall_s": 59.269
+        },
+        {
+          "label": "hierarchical N=60 seed=44 emergency-control",
+          "wall_s": 73.059
+        },
+        {
+          "label": "hierarchical N=60 seed=44 emergency",
+          "wall_s": 76.513
+        },
+        {
+          "label": "hierarchical N=60 seed=43 emergency",
+          "wall_s": 77.551
+        },
+        {
+          "label": "hierarchical N=60 seed=42 emergency",
+          "wall_s": 79.063
+        },
+        {
+          "label": "hierarchical N=60 seed=42 emergency-control",
+          "wall_s": 77.868
+        },
+        {
+          "label": "hierarchical N=60 seed=43 emergency-control",
+          "wall_s": 77.838
+        },
+        {
+          "label": "hierarchical N=75 seed=43 emergency",
+          "wall_s": 80.886
+        },
+        {
+          "label": "hierarchical N=75 seed=44 emergency-control",
+          "wall_s": 79.818
+        },
+        {
+          "label": "hierarchical N=75 seed=42 emergency",
+          "wall_s": 83.45
+        },
+        {
+          "label": "hierarchical N=75 seed=44 emergency",
+          "wall_s": 82.466
+        },
+        {
+          "label": "hierarchical N=75 seed=42 emergency-control",
+          "wall_s": 81.012
+        },
+        {
+          "label": "hierarchical N=75 seed=43 emergency-control",
+          "wall_s": 81.63
+        }
+      ],
+      "wall_time_s": 142.479
+    }
+  },
+  "provisional": true,
+  "quick": false,
+  "runs_summary_csv": {
+    "file": "runs_summary.csv",
+    "group_by": [
+      "num_agents",
+      "emergency_control"
+    ]
+  },
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "summary_csv": {
+    "file": "summary.csv",
+    "group_by": [
+      "num_agents"
+    ],
+    "metrics": [
+      "priority_compliance_rate",
+      "emergency_delay_s",
+      "time_saved_vs_control_s",
+      "lower_priority_delay_s",
+      "emergency_travel_time_s",
+      "control_travel_time_s"
+    ],
+    "source": "pairs.csv"
+  },
+  "timestamp": "2026-11-07T00:47:31+0530",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "python": "3.14.3"
+  },
+  "wall_time_s": 142.506,
+  "weak_results": {
+    "file": "weak_results.json",
+    "groups": 4
+  }
+}

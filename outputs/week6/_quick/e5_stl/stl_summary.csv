@@ -1,0 +1,24 @@
+scenario,condition,architecture,num_agents,min_robustness_m_mean,min_robustness_m_std,min_robustness_m_n,min_robustness_m_ci_lo,min_robustness_m_ci_hi,p5_robustness_m_mean,p5_robustness_m_std,p5_robustness_m_n,p5_robustness_m_ci_lo,p5_robustness_m_ci_hi,violation_fraction_mean,violation_fraction_std,violation_fraction_n,violation_fraction_ci_lo,violation_fraction_ci_hi,violation_episodes_mean,violation_episodes_std,violation_episodes_n,violation_episodes_ci_lo,violation_episodes_ci_hi,mean_recovery_time_s_mean,mean_recovery_time_s_std,mean_recovery_time_s_n,mean_recovery_time_s_ci_lo,mean_recovery_time_s_ci_hi,max_recovery_time_s_mean,max_recovery_time_s_std,max_recovery_time_s_n,max_recovery_time_s_ci_lo,max_recovery_time_s_ci_hi
+e1_admm_scaling,ADMM limit 10,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e1_admm_scaling,ADMM limit 100,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e1_admm_scaling,ADMM limit 20,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e1_admm_scaling,ADMM limit 5,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e1_admm_scaling,nominal,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e2_formation,nominal,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e3_priority,emergency,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e3_priority,emergency control,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 10 m,centralized,12,1.4735734176909805,nan,1,nan,nan,1.5773129662238787,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 10 m,decentralized_undefended,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 10 m,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 25 m,centralized,12,1.4735734176909805,nan,1,nan,nan,1.5773129662238787,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 25 m,decentralized_undefended,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 25 m,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 5 m,centralized,12,1.4735734176909805,nan,1,nan,nan,1.5773129662238787,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 5 m,decentralized_undefended,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 5 m,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 50 m,centralized,12,1.4735734176909805,nan,1,nan,nan,1.5753588828114253,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 50 m,decentralized_undefended,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,attack 50 m,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,nominal,centralized,12,1.4735734176909805,nan,1,nan,nan,1.5773129662238787,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,nominal,decentralized_undefended,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan
+e4_resilience,nominal,hierarchical,12,1.5671624442921974,nan,1,nan,nan,1.5715126135199888,nan,1,nan,nan,0.0,nan,1,nan,nan,0.0,nan,1,nan,nan,nan,nan,0,nan,nan,nan,nan,0,nan,nan

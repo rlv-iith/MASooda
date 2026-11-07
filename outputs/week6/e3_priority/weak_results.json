@@ -1,0 +1,50 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "priority_compliance_rate",
+      "emergency_delay_s",
+      "lower_priority_delay_s"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": [
+    {
+      "group": {
+        "num_agents": "30"
+      },
+      "reasons": [
+        "emergency_delay_s: std/mean=1.03 > 0.5",
+        "lower_priority_delay_s: std/mean=48.60 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "num_agents": "45"
+      },
+      "reasons": [
+        "emergency_delay_s: std/mean=1.03 > 0.5",
+        "lower_priority_delay_s: std/mean=13.94 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "num_agents": "60"
+      },
+      "reasons": [
+        "emergency_delay_s: std/mean=1.03 > 0.5",
+        "lower_priority_delay_s: std/mean=2.57 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "num_agents": "75"
+      },
+      "reasons": [
+        "emergency_delay_s: std/mean=1.03 > 0.5",
+        "lower_priority_delay_s: std/mean=9.54 > 0.5"
+      ]
+    }
+  ]
+}

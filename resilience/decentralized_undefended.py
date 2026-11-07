@@ -11,6 +11,7 @@ def run_decentralized_undefended(
     loggers: list | None = None,
     attack_config: dict | None = None,
     overseer_link_config: dict | None = None,
+    telemetry: object | None = None,
 ) -> SimulationResult:
     """Run the fleet with local boids and ADMM but no overseer and no defence.
 
@@ -23,6 +24,7 @@ def run_decentralized_undefended(
 
     ``overseer_link_config`` is accepted only so every architecture shares one
     signature; it is ignored because there is no overseer link to fail.
+    ``telemetry`` (optional, Week 6) is passed through to ``run_simulation``.
     """
     return run_simulation(
         agents,
@@ -33,4 +35,5 @@ def run_decentralized_undefended(
         attack_config=attack_config,
         defended=False,
         overseer_link_config={"enabled": False},
+        telemetry=telemetry,
     )

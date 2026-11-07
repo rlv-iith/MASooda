@@ -1,0 +1,12 @@
+[e3] 2 runs, 1 pairs, 1 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority
+[e3] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e3_priority\README.md
+[e6] 2 runs, 1 pairs, 2 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation
+[e6] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\_quick\e6_degradation\README.md
+[week6] matrix e3: 24 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e3_priority
+[week6] 24 runs, 0 already done, 24 to run, workers=12
+[e3] 24 runs, 12 pairs, 4 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e3_priority
+[e3] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e3_priority\README.md
+[week6] matrix e6: 6 specs -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e6_degradation
+[week6] 6 runs, 0 already done, 6 to run, workers=12
+[e6] 6 runs, 3 pairs, 0 weak group(s) -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e6_degradation
+[e6] figures -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\figures; README -> C:\Users\5520\Documents\IITH BTECH ENGINEERING\SEM 7\MAS\PROJECT\MASooda\outputs\week6\e6_degradation\README.md

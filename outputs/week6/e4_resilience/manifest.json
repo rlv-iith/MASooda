@@ -1,0 +1,273 @@
+{
+  "agent_counts": [
+    60
+  ],
+  "architectures": [
+    "centralized",
+    "decentralized_undefended",
+    "hierarchical"
+  ],
+  "attack_effect_csv": {
+    "definition": "attack on (default offset) minus attack off, same seed",
+    "file": "attack_effect.csv",
+    "pairs": 15
+  },
+  "attack_effect_summary_csv": {
+    "file": "attack_effect_summary.csv",
+    "group_by": [
+      "architecture"
+    ]
+  },
+  "command": "python.exe scripts/week6_e4_run.py --workers 12",
+  "config_hash": "e4509b11210199a7",
+  "config_section": {
+    "experiments.week6.matrices.e4": {
+      "agent_counts": [
+        60
+      ],
+      "architectures": [
+        "hierarchical",
+        "centralized",
+        "decentralized_undefended"
+      ],
+      "attack_enabled": [
+        false,
+        true
+      ],
+      "duration_s": null,
+      "group_by": [
+        "architecture",
+        "attack_enabled",
+        "attack_offset_m"
+      ],
+      "output_subdir": "e4_resilience",
+      "scenario": "e4_resilience",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ]
+    },
+    "experiments.week6.matrices.e4_offset": {
+      "agent_counts": [
+        60
+      ],
+      "architectures": [
+        "hierarchical",
+        "centralized",
+        "decentralized_undefended"
+      ],
+      "attack_enabled": [
+        true
+      ],
+      "attack_offset_m": "sweep",
+      "duration_s": null,
+      "group_by": [
+        "architecture",
+        "attack_enabled",
+        "attack_offset_m"
+      ],
+      "output_subdir": "e4_resilience",
+      "scenario": "e4_resilience",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "config_section_resolved": {
+    "e4": {
+      "admm_max_iterations": [
+        null
+      ],
+      "agent_counts": [
+        60
+      ],
+      "architectures": [
+        "hierarchical",
+        "centralized",
+        "decentralized_undefended"
+      ],
+      "attack_enabled": [
+        false,
+        true
+      ],
+      "attack_offset_m": [
+        null
+      ],
+      "attack_start_s": [
+        null
+      ],
+      "duration_s": 180.0,
+      "emergency": [
+        false
+      ],
+      "emergency_control": [
+        false
+      ],
+      "group_by": [
+        "architecture",
+        "attack_enabled",
+        "attack_offset_m"
+      ],
+      "link_failure": [
+        false
+      ],
+      "output_subdir": "e4_resilience",
+      "overrides": {},
+      "scenario": "e4_resilience",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ]
+    },
+    "e4_offset": {
+      "admm_max_iterations": [
+        null
+      ],
+      "agent_counts": [
+        60
+      ],
+      "architectures": [
+        "hierarchical",
+        "centralized",
+        "decentralized_undefended"
+      ],
+      "attack_enabled": [
+        true
+      ],
+      "attack_offset_m": [
+        5.0,
+        10.0,
+        25.0,
+        50.0
+      ],
+      "attack_start_s": [
+        null
+      ],
+      "duration_s": 180.0,
+      "emergency": [
+        false
+      ],
+      "emergency_control": [
+        false
+      ],
+      "group_by": [
+        "architecture",
+        "attack_enabled",
+        "attack_offset_m"
+      ],
+      "link_failure": [
+        false
+      ],
+      "output_subdir": "e4_resilience",
+      "overrides": {},
+      "scenario": "e4_resilience",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "csv": "runs.csv",
+  "failures": [],
+  "git_commit": "285920f04b0213b0a66c759be8aa05a5e340c090-dirty",
+  "hardware": {
+    "cpu_count": 16,
+    "machine": "AMD64",
+    "os": "Windows 11",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "python": "3.14.3"
+  },
+  "identical_initial_conditions": {
+    "checked_with": "experiments.runner.check_identical_conditions",
+    "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+    "ok": true
+  },
+  "matrices": [
+    "e4",
+    "e4_offset"
+  ],
+  "matrices_present": [
+    "e4",
+    "e4_offset"
+  ],
+  "n_specs_unique": 57,
+  "pending_after_this_call": 0,
+  "per_matrix": {
+    "e4": {
+      "failures": [],
+      "identical_initial_conditions": {
+        "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+        "ok": true
+      },
+      "n_run": 0,
+      "n_skipped_resume": 30,
+      "n_specs": 30,
+      "per_run_wall_time_s": [],
+      "wall_time_s": 0.275
+    },
+    "e4_offset": {
+      "failures": [],
+      "identical_initial_conditions": {
+        "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+        "ok": true
+      },
+      "n_run": 0,
+      "n_skipped_resume": 36,
+      "n_specs": 36,
+      "per_run_wall_time_s": [],
+      "wall_time_s": 0.143
+    }
+  },
+  "provisional": true,
+  "quick": false,
+  "rows_in_summary": 57,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "summary_csv": {
+    "file": "summary.csv",
+    "group_by": [
+      "architecture",
+      "attack_enabled",
+      "attack_offset_m"
+    ],
+    "groups": 15,
+    "metrics": [
+      "throughput_per_s",
+      "arrivals",
+      "safety_violation_ticks",
+      "violation_episodes",
+      "mean_recovery_time_s",
+      "max_recovery_time_s",
+      "min_robustness_m",
+      "post_attack_violation_ticks",
+      "reports_dropped",
+      "attack_active_ticks",
+      "admm_events"
+    ]
+  },
+  "timestamp": "2026-11-07T00:53:41+0530",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "python": "3.14.3"
+  },
+  "wall_time_s": 0.441,
+  "weak_results": {
+    "file": "weak_results.json",
+    "groups": 8
+  }
+}

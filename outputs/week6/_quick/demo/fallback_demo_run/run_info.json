@@ -1,0 +1,30 @@
+{
+  "architecture": "hierarchical",
+  "scenario": "demo",
+  "n_agents": 12,
+  "seed": 42,
+  "duration_s": 10.0,
+  "attack_cfg": {
+    "enabled": true,
+    "malicious_ids": [],
+    "start_time_seconds": 60.0,
+    "mode": "constant",
+    "delivery": "common",
+    "offset_magnitude_meters": 25.0,
+    "ramp_rate_meters_per_second": 1.0,
+    "direction_deg": null,
+    "sweep_offsets_meters": [
+      5.0,
+      10.0,
+      25.0,
+      50.0
+    ],
+    "consensus_steps": 50
+  },
+  "link_cfg": {
+    "enabled": true,
+    "down_start_seconds": 90.0,
+    "down_end_seconds": 120.0
+  },
+  "inject_emergency": true
+}

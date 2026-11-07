@@ -1,0 +1,163 @@
+{
+  "agent_counts": [
+    12
+  ],
+  "architectures": [
+    "hierarchical"
+  ],
+  "command": "python.exe scripts/week6_e6_run.py --quick --fresh",
+  "config_hash": "e4509b11210199a7",
+  "config_section": {
+    "experiments.week6.matrices.e6": {
+      "agent_counts": [
+        60
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "duration_s": null,
+      "group_by": [
+        "link_failure"
+      ],
+      "link_failure": [
+        false,
+        true
+      ],
+      "output_subdir": "e6_degradation",
+      "scenario": "e6_degradation",
+      "seeds": [
+        42,
+        43,
+        44
+      ]
+    }
+  },
+  "config_section_resolved": {
+    "e6": {
+      "admm_max_iterations": [
+        null
+      ],
+      "agent_counts": [
+        12
+      ],
+      "architectures": [
+        "hierarchical"
+      ],
+      "attack_enabled": [
+        false
+      ],
+      "attack_offset_m": [
+        null
+      ],
+      "attack_start_s": [
+        null
+      ],
+      "duration_s": 20.0,
+      "emergency": [
+        false
+      ],
+      "emergency_control": [
+        false
+      ],
+      "group_by": [
+        "link_failure"
+      ],
+      "link_failure": [
+        false,
+        true
+      ],
+      "output_subdir": "e6_degradation",
+      "overrides": {},
+      "scenario": "e6_degradation",
+      "seeds": [
+        42
+      ]
+    }
+  },
+  "csv": "runs.csv",
+  "degradation_csv": {
+    "file": "degradation.csv",
+    "infinite_scores": 0,
+    "rows": 1
+  },
+  "degradation_summary_csv": {
+    "file": "degradation_summary.csv",
+    "source": "degradation.csv"
+  },
+  "failures": [],
+  "git_commit": "285920f04b0213b0a66c759be8aa05a5e340c090-dirty",
+  "hardware": {
+    "cpu_count": 16,
+    "machine": "AMD64",
+    "os": "Windows 11",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "python": "3.14.3"
+  },
+  "identical_initial_conditions": {
+    "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+    "ok": true
+  },
+  "matrices": [
+    "e6"
+  ],
+  "n_specs_unique": 2,
+  "pending_after_this_call": 0,
+  "per_matrix": {
+    "e6": {
+      "failures": [],
+      "identical_initial_conditions": {
+        "message": "All groups with matching (seed, num_agents) have identical initial conditions.",
+        "ok": true
+      },
+      "n_run": 2,
+      "n_skipped_resume": 0,
+      "n_specs": 2,
+      "per_run_wall_time_s": [
+        {
+          "label": "hierarchical N=12 seed=42",
+          "wall_s": 0.495
+        },
+        {
+          "label": "hierarchical N=12 seed=42 linkfail",
+          "wall_s": 0.506
+        }
+      ],
+      "wall_time_s": 1.288
+    }
+  },
+  "provisional": true,
+  "quick": true,
+  "seeds": [
+    42
+  ],
+  "summary_csv": {
+    "file": "summary.csv",
+    "group_by": [
+      "link_failure"
+    ],
+    "metrics": [
+      "safety_violation_ticks",
+      "violation_episodes",
+      "throughput_per_s",
+      "arrivals",
+      "min_robustness_m",
+      "mean_recovery_time_s",
+      "overseer_calls",
+      "overseer_failures",
+      "overseer_dropped",
+      "max_directive_staleness_s",
+      "layer_changes"
+    ]
+  },
+  "timestamp": "2026-11-07T01:08:18+0530",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "python": "3.14.3"
+  },
+  "wall_time_s": 1.309,
+  "weak_results": {
+    "file": "weak_results.json",
+    "groups": 2
+  }
+}

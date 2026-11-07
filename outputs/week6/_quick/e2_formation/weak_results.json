@@ -1,0 +1,22 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "merge_success_rate",
+      "throughput_per_s"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": [
+    {
+      "group": {
+        "num_agents": "12"
+      },
+      "reasons": [
+        "merge_success_rate: n=0 < 3",
+        "throughput_per_s: n=0 < 3"
+      ]
+    }
+  ]
+}

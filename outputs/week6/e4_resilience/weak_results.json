@@ -1,0 +1,96 @@
+{
+  "action": "listed only; not re-run",
+  "criteria": {
+    "max_cv": 0.5,
+    "metrics": [
+      "throughput_per_s",
+      "safety_violation_ticks",
+      "min_robustness_m"
+    ],
+    "min_n": 3
+  },
+  "weak_groups": [
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "True",
+        "attack_offset_m": "5.0"
+      },
+      "reasons": [
+        "safety_violation_ticks: std/mean=0.54 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "True",
+        "attack_offset_m": "10.0"
+      },
+      "reasons": [
+        "safety_violation_ticks: std/mean=0.54 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "centralized",
+        "attack_enabled": "True",
+        "attack_offset_m": "50.0"
+      },
+      "reasons": [
+        "safety_violation_ticks: std/mean=0.54 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "False",
+        "attack_offset_m": "nan"
+      },
+      "reasons": [
+        "min_robustness_m: std/mean=0.78 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "5.0"
+      },
+      "reasons": [
+        "min_robustness_m: std/mean=0.72 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "10.0"
+      },
+      "reasons": [
+        "min_robustness_m: std/mean=0.66 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "25.0"
+      },
+      "reasons": [
+        "safety_violation_ticks: std/mean=2.24 > 0.5",
+        "min_robustness_m: std/mean=3.23 > 0.5"
+      ]
+    },
+    {
+      "group": {
+        "architecture": "decentralized_undefended",
+        "attack_enabled": "True",
+        "attack_offset_m": "50.0"
+      },
+      "reasons": [
+        "safety_violation_ticks: std/mean=0.98 > 0.5",
+        "min_robustness_m: std/mean=1.08 > 0.5"
+      ]
+    }
+  ]
+}
