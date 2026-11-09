@@ -100,8 +100,11 @@ def test_custom_drones_reproduce_and_apply_their_settings(prepared):
     ids = [f.agent_id for f in prepared["flights"]]
     k101, k99 = ids.index(101), ids.index(99)
     up = [f for f in a if f["status"][k101] == 1]
-    assert up and all(f["layer"][k101] in (0, 1) for f in up)
+    emergency_layer = int(prepared["config"]["airspace"]["emergency_layer"])
+    assert up and all(f["layer"][k101] != emergency_layer for f in up)
     assert up[0]["layer"][k101] == 1                      # requested layer at departure
+    # non-cooperative: the DTC and the V2V agreement never move it; only one-layer tactical shifts
+    assert all(abs(b["layer"][k101] - a_["layer"][k101]) <= 1 for a_, b in zip(up, up[1:]))
     flying = [f for f in a if f["status"][k99] == 1]
     assert flying and all("99" in f["spoof"] for f in flying)
     assert all(f["spoof"]["99"]["err_rep"] == pytest.approx(30.0, abs=0.15) for f in flying)

@@ -151,6 +151,9 @@ class GlobalStateSnapshot:
     agent_ids: list[int] = field(default_factory=list)  # list of agents
     agent_types: dict[int, AgentType] = field(default_factory=dict)  # agent_id -> agent_type
     agent_priorities: dict[int, int] = field(default_factory=dict)  # agent_id -> priority
+    # agent_id -> course direction for the semicircular layer rule (0 eastbound -> even layers,
+    # 1 westbound -> odd layers). Agents without one may use any non-emergency layer.
+    agent_directions: dict[int, int] = field(default_factory=dict)
 
 
 @dataclass

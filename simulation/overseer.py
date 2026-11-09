@@ -122,12 +122,24 @@ class GlobalOverseer:
                 altitude_map[agent_id] = 0
         elif active_policy == "priority_aware":
             # Every agent in the snapshot is re-placed, so loads start from 0 here.
-            # Capacity counts per (corridor, layer); layer 2 is reserved for EMERGENCY.
+            # Capacity counts per (corridor, layer); the emergency layer is reserved for EMERGENCY.
+            # Normal agents may use every other layer; with a course direction they keep the
+            # semicircular rule (eastbound even layers, westbound odd layers).
             emergency_layer = int(self.airspace_config.get("emergency_layer", 2))
+            num_layers = max(int(self.airspace_config.get("num_layers", 3)), emergency_layer + 1)
+            normal_layers = [L for L in range(num_layers) if L != emergency_layer] or [0]
+            directions = global_state_snapshot.agent_directions or {}
+
+            def allowed_layers(agent_id: int) -> list[int]:
+                d = directions.get(agent_id)
+                if d is None:
+                    return normal_layers
+                return [L for L in normal_layers if L % 2 == int(d) % 2] or normal_layers
+
             occ: dict[tuple[int, int], int] = {
                 (c, layer): 0
                 for c in available_corridors
-                for layer in (0, 1, emergency_layer)
+                for layer in range(num_layers)
             }
             ordered_agent_ids = sorted(
                 global_state_snapshot.agent_ids,
@@ -153,16 +165,16 @@ class GlobalOverseer:
                     else:
                         corridor = emptiest(layer)
                 else:
+                    allowed = allowed_layers(agent_id)
                     candidates: list[tuple[int, int]] = []
-                    if previous_corridor in available_corridors and previous_layer in (0, 1):
-                        candidates.append((previous_corridor, previous_layer))
-                    candidates.append((emptiest(0), 0))
-                    candidates.append((emptiest(1), 1))
+                    if previous_corridor in available_corridors and previous_layer in allowed:
+                        candidates.append((previous_corridor, previous_layer))   # sticky: keep the agreed layer
+                    candidates.extend((emptiest(L), L) for L in allowed)         # else fill lower layers first
                     for corridor, layer in candidates:
                         if occ[(corridor, layer)] < self.capacity:
                             break
-                    else:
-                        corridor, layer = emptiest(1), 1
+                    else:   # every allowed layer full: least-loaded one (reported as overflow)
+                        corridor, layer = min(((emptiest(L), L) for L in allowed), key=lambda cl: (occ[cl], cl[1]))
                         self.last_overflow += 1
                 occ[(corridor, layer)] += 1
                 corridor_map[agent_id] = corridor

@@ -2,6 +2,7 @@
 
 from collections import Counter
 
+from config.load_config import get_config
 from simulation.overseer import GlobalOverseer
 from simulation.schema import AgentType, GlobalStateSnapshot
 
@@ -34,7 +35,8 @@ def test_mixed_fleet_layers():
     overseer = GlobalOverseer(policy="priority_aware")
     d = overseer.update(make_snapshot(types))
 
-    assert all(d.altitude_map[a] == 2 for a, t in types.items() if t == AgentType.EMERGENCY)
+    emergency_layer = int(get_config()["airspace"]["emergency_layer"])
+    assert all(d.altitude_map[a] == emergency_layer for a, t in types.items() if t == AgentType.EMERGENCY)
     loads = Counter((d.corridor_map[a], d.altitude_map[a]) for a in types)
     assert all(n <= CAPACITY for n in loads.values())
     normal = [a for a, t in types.items() if t != AgentType.EMERGENCY]
