@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#060d18">
+  <meta name="theme-color" content="#ffffff">
   <title>MASooda Live Airspace</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
@@ -103,7 +103,7 @@
           </dl>
           <canvas id="hCells" aria-label="Per-cell voltages"></canvas>
           <canvas id="hChart" aria-label="SoC and temperature over time"></canvas>
-          <div class="net-legend"><span><i style="background:#2fe0a0"></i>SoC %</span><span><i style="background:#ff8a4c"></i>Max temp °C</span><span class="muted" id="hNote"></span></div>
+          <div class="net-legend"><span><i style="background:#059669"></i>SoC %</span><span><i style="background:#ea580c"></i>Max temp °C</span><span class="muted" id="hNote"></span></div>
         </div>
         <div class="card-head sub"><h3>Events for this drone</h3><span class="muted" id="dEvCount">0</span></div>
         <ol id="dEvents" class="dev"></ol>
@@ -295,7 +295,7 @@
         </div>
       </div>
       <canvas id="battGrid" aria-label="Battery state of charge of every drone over time"></canvas>
-      <div class="net-legend"><span><i style="background:#2fe0a0"></i>SoC ≥ 30 %</span><span><i style="background:#f6bd4b"></i>below 30 % / BMS warning</span><span><i style="background:#ff3b5c"></i>below 15 % / critical / fault</span><span class="muted">tile graph = SoC over the last 2 min · dim = on the ground · click a tile to open its Health tab</span></div>
+      <div class="net-legend"><span><i style="background:#059669"></i>SoC ≥ 30 %</span><span><i style="background:#d97706"></i>below 30 % / BMS warning</span><span><i style="background:#e11d48"></i>below 15 % / critical / fault</span><span class="muted">tile graph = SoC over the last 2 min · dim = on the ground · click a tile to open its Health tab</span></div>
       <div id="battTip" class="tip" hidden></div>
     </section>
     <section class="card chart-card">
@@ -320,7 +320,7 @@
         <canvas id="admmChart" aria-label="ADMM iterations and solve time over time"></canvas>
         <dl class="kv" id="admmStats"></dl>
       </div>
-      <div class="net-legend"><span><i style="background:#37d7f2"></i>Iterations · mean</span><span><i style="background:#2fe0a0"></i>Iterations · max</span><span><i style="background:#f6bd4b"></i>Solve ms · mean (right axis)</span><span><i style="background:#ff5f72"></i>Fallback (not converged)</span></div>
+      <div class="net-legend"><span><i style="background:#0891b2"></i>Iterations · mean</span><span><i style="background:#059669"></i>Iterations · max</span><span><i style="background:#d97706"></i>Solve ms · mean (right axis)</span><span><i style="background:#e11d48"></i>Fallback (not converged)</span></div>
     </section>
     </div>
   </main>

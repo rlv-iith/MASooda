@@ -5,10 +5,10 @@
  * No external dependencies. */
 'use strict';
 const $ = (s) => document.querySelector(s);
-const COLORS = {EMERGENCY: '#ff5f72', EVTOL: '#37d7f2', DELIVERY: '#f6bd4b'};
+const COLORS = {EMERGENCY: '#e11d48', EVTOL: '#0891b2', DELIVERY: '#d97706'};
 const TYPE_SHORT = {EMERGENCY: 'EMG', EVTOL: 'eVTOL', DELIVERY: 'DEL'};
 const STATUS = ['queued', 'airborne', 'landed', 'crashed', 'forced landing'];
-const BMS = ['NORMAL', 'WARNING', 'CRITICAL', 'FAULT'], BMS_COL = ['#2fe0a0', '#f6bd4b', '#ff3b5c', '#ff3b5c'];
+const BMS = ['NORMAL', 'WARNING', 'CRITICAL', 'FAULT'], BMS_COL = ['#059669', '#d97706', '#e11d48', '#e11d48'];
 const SECTOR_COLS = 3, SECTOR_ROWS = 2;
 
 const SCENES = {
@@ -40,12 +40,12 @@ const ADVANCED = [
   ['simulation.timestep_seconds', 'Timestep (s)'],
 ];
 const NET_SERIES = [
-  {key: 'cover', label: 'DTC coverage', color: '#a98bff'},
-  {key: 'trans', label: 'Transitivity', color: '#2fe0a0'},
-  {key: 'deg', label: 'Avg degree (norm.)', color: '#37d7f2'},
-  {key: 'cent', label: 'Max degree centrality', color: '#f6bd4b'},
-  {key: 'giant', label: 'Largest component', color: '#e6f0fa'},
-  {key: 'stale', label: 'Directive age (norm.)', color: '#ff5f72'},
+  {key: 'cover', label: 'DTC coverage', color: '#6d4fe0'},
+  {key: 'trans', label: 'Transitivity', color: '#059669'},
+  {key: 'deg', label: 'Avg degree (norm.)', color: '#0891b2'},
+  {key: 'cent', label: 'Max degree centrality', color: '#d97706'},
+  {key: 'giant', label: 'Largest component', color: '#0f172a'},
+  {key: 'stale', label: 'Directive age (norm.)', color: '#e11d48'},
 ];
 
 let baseConfig = null, LIMITS = null, MAP = null, MAPS = [], mapId = null, RUN = null, frames = [], done = false;
@@ -169,7 +169,7 @@ const idxOf = (id) => RUN.flights.findIndex((f) => f.id === id);
 // ------------------------------------------------------------------ main map
 function drawMap() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
-  screenTransform(); ctx.fillStyle = '#050c17'; ctx.fillRect(0, 0, w, h);
+  screenTransform(); ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, w, h);
   if (!MAP) return;
   const s = RUN && frames.length ? frameAt(simT) : null;
   if (follow && s && selected !== null && s.f0.status[selected] === 1) { const p = posOf(s, selected); view.cx = p[0]; view.cy = p[1]; }
@@ -177,26 +177,26 @@ function drawMap() {
   if (base && backdropImg?.complete && MAP.backdrop) {
     const [x0, y0, x1, y1] = MAP.backdrop.bounds;
     ctx.globalAlpha = 0.9; ctx.drawImage(backdropImg, sx(x0), sy(y1), (x1 - x0) * view.s, (y1 - y0) * view.s); ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(5,12,23,0.38)'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(0, 0, w, h);
   }
   // geofence
-  ctx.strokeStyle = '#ff9f43aa'; ctx.setLineDash([7, 5]); ctx.lineWidth = 1.5; ctx.beginPath();
+  ctx.strokeStyle = '#ea580cbb'; ctx.setLineDash([7, 5]); ctx.lineWidth = 1.5; ctx.beginPath();
   if (MAP.geofence) MAP.geofence.forEach((p, i) => i ? ctx.lineTo(sx(p[0]), sy(p[1])) : ctx.moveTo(sx(p[0]), sy(p[1])));
   else { const [x0, y0, x1, y1] = MAP.bounds; ctx.rect(sx(x0), sy(y1), (x1 - x0) * view.s, (y1 - y0) * view.s); }
   ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
 
   worldTransform(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (base && !MAP.backdrop) { ctx.strokeStyle = '#1d2f45'; ctx.lineWidth = 1 / view.s; ctx.stroke(ctxPaths.context); }
+  if (base && !MAP.backdrop) { ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1 / view.s; ctx.stroke(ctxPaths.context); }
   const width = RUN?.limits.corridor_width ?? baseConfig?.corridors.width_meters ?? 20;
-  ctx.strokeStyle = 'rgba(122,98,255,0.24)'; ctx.lineWidth = Math.max(width, 2.5 / view.s); ctx.stroke(ctxPaths.corridors);
-  ctx.strokeStyle = 'rgba(190,165,255,0.75)'; ctx.lineWidth = 1 / view.s; ctx.stroke(ctxPaths.corridors);
+  ctx.strokeStyle = 'rgba(109,79,224,0.16)'; ctx.lineWidth = Math.max(width, 2.5 / view.s); ctx.stroke(ctxPaths.corridors);
+  ctx.strokeStyle = 'rgba(109,79,224,0.6)'; ctx.lineWidth = 1 / view.s; ctx.stroke(ctxPaths.corridors);
   screenTransform();
   if ($('#tgSectors').checked) drawSectors();
   if (RUN && s && $('#tgRoutes').checked) { ctx.lineWidth = 1; RUN.flights.forEach((f, n) => { if (s.f0.status[n] !== 1) return; ctx.strokeStyle = COLORS[f.type] + '50'; drawRoute(f.route); }); }
   if (RUN && selected !== null) {
     const f = RUN.flights[selected];
     worldTransform(); ctx.strokeStyle = COLORS[f.type] + '40'; ctx.lineWidth = Math.max(RUN.limits.corridor_width, 3 / view.s); ctx.stroke(linesPath([f.route])); screenTransform();
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.8; drawRoute(f.route);
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1.8; drawRoute(f.route);
   }
   drawVertiports(s);
   if (s) { drawJunctions(s); drawDrones(s); drawSpoof(s); }
@@ -207,7 +207,7 @@ function drawJunctions(s) {
   const js = s.f0.merge?.junctions; if (!js?.length) return;
   for (const [x, y, blocked] of js) {
     const X = sx(x), Y = sy(y); ctx.lineWidth = blocked ? 2.4 : 1.4;
-    ctx.strokeStyle = blocked ? '#f6bd4b' : 'rgba(55,215,242,0.75)'; ctx.fillStyle = blocked ? 'rgba(246,189,75,0.18)' : 'rgba(55,215,242,0.08)';
+    ctx.strokeStyle = blocked ? '#d97706' : 'rgba(8,145,178,0.75)'; ctx.fillStyle = blocked ? 'rgba(217,119,6,0.16)' : 'rgba(8,145,178,0.08)';
     ctx.beginPath(); ctx.arc(X, Y, Math.max(7, 9 * Math.min(2, view.s)), 0, 7); ctx.fill(); ctx.stroke();
   }
 }
@@ -218,26 +218,26 @@ function drawSpoof(s) {
   for (const [id, v] of Object.entries(sp)) {
     const n = idxOf(+id); if (n < 0 || s.f0.status[n] !== 1) continue;
     const t = posOf(s, n), T = [sx(t[0]), sy(t[1])], R = [sx(v.rep[0]), sy(v.rep[1])];
-    ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = '#9333ea'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 3]);
     ctx.beginPath(); ctx.moveTo(...T); ctx.lineTo(...R); ctx.stroke();
     ctx.beginPath(); ctx.arc(R[0], R[1], 7, 0, 7); ctx.stroke(); ctx.setLineDash([]);
-    const label = (txt, X, Y, col) => { ctx.font = '600 10px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(txt, X, Y); ctx.fillStyle = col; ctx.fillText(txt, X, Y); };
-    label(`D-${id} reported (${fmt(v.err_rep, 0)} m off)`, R[0] + 9, R[1] - 6, '#d8b4fe');
+    const label = (txt, X, Y, col) => { ctx.font = '600 10px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.strokeText(txt, X, Y); ctx.fillStyle = col; ctx.fillText(txt, X, Y); };
+    label(`D-${id} reported (${fmt(v.err_rep, 0)} m off)`, R[0] + 9, R[1] - 6, '#7e22ce');
     if (v.est) {
       const E = [sx(v.est[0]), sy(v.est[1])];
-      ctx.strokeStyle = '#2fe0a0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(E[0] - 5, E[1] - 5); ctx.lineTo(E[0] + 5, E[1] + 5); ctx.moveTo(E[0] + 5, E[1] - 5); ctx.lineTo(E[0] - 5, E[1] + 5); ctx.stroke();
+      ctx.strokeStyle = '#059669'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(E[0] - 5, E[1] - 5); ctx.lineTo(E[0] + 5, E[1] + 5); ctx.moveTo(E[0] + 5, E[1] - 5); ctx.lineTo(E[0] - 5, E[1] + 5); ctx.stroke();
       ctx.setLineDash([2, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(...E); ctx.lineTo(...T); ctx.stroke(); ctx.setLineDash([]);
-      label(`W-MSR est. (${fmt(v.err_est, 1)} m off, ${v.n} rcv)`, E[0] + 9, E[1] + 12, '#2fe0a0');
+      label(`W-MSR est. (${fmt(v.err_est, 1)} m off, ${v.n} rcv)`, E[0] + 9, E[1] + 12, '#059669');
     }
   }
 }
 function drawRoute(route) { ctx.beginPath(); route.forEach((p, i) => i ? ctx.lineTo(sx(p[0]), sy(p[1])) : ctx.moveTo(sx(p[0]), sy(p[1]))); ctx.stroke(); }
 function drawSectors() {
   const [x0, y0, x1, y1] = MAP.bounds;
-  ctx.strokeStyle = '#3d6488'; ctx.lineWidth = 1; ctx.setLineDash([2, 6]);
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.setLineDash([2, 6]);
   for (let c = 1; c < SECTOR_COLS; c++) { const x = x0 + (x1 - x0) * c / SECTOR_COLS; ctx.beginPath(); ctx.moveTo(sx(x), sy(y0)); ctx.lineTo(sx(x), sy(y1)); ctx.stroke(); }
   for (let r = 1; r < SECTOR_ROWS; r++) { const y = y0 + (y1 - y0) * r / SECTOR_ROWS; ctx.beginPath(); ctx.moveTo(sx(x0), sy(y)); ctx.lineTo(sx(x1), sy(y)); ctx.stroke(); }
-  ctx.setLineDash([]); ctx.fillStyle = '#6f93b8'; ctx.font = '600 11px system-ui';
+  ctx.setLineDash([]); ctx.fillStyle = '#64748b'; ctx.font = '600 11px system-ui';
   for (let r = 0; r < SECTOR_ROWS; r++) for (let c = 0; c < SECTOR_COLS; c++)
     ctx.fillText(`S${r * SECTOR_COLS + c}`, sx(x0 + (x1 - x0) * c / SECTOR_COLS) + 6, sy(y0 + (y1 - y0) * (r + 1) / SECTOR_ROWS) + 14);
 }
@@ -246,27 +246,27 @@ function drawVertiports(s) {
   if (s && RUN) RUN.flights.forEach((f, n) => { const st = s.f0.status[n]; if (st === 0) waiting[f.origin] = (waiting[f.origin] || 0) + 1; if (st === 2) landed[f.destination] = (landed[f.destination] || 0) + 1; });
   for (const v of MAP.vertiports) {
     const px = sx(v.x), py = sy(v.y);
-    ctx.strokeStyle = '#c9d8e8'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sx(v.jx), sy(v.jy)); ctx.stroke(); ctx.setLineDash([]);
-    const r = 9, col = v.role === 'hospital' ? '#ff5f72' : v.role === 'depot' ? '#f6bd4b' : '#37d7f2';
-    ctx.fillStyle = '#081525'; ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.strokeStyle = '#64748b'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sx(v.jx), sy(v.jy)); ctx.stroke(); ctx.setLineDash([]);
+    const r = 9, col = v.role === 'hospital' ? '#e11d48' : v.role === 'depot' ? '#d97706' : '#0891b2';
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = col; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.rect(px - r, py - r, 2 * r, 2 * r); ctx.fill(); ctx.stroke();
     ctx.fillStyle = col; ctx.font = '700 11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(v.role === 'hospital' ? '+' : v.role === 'depot' ? 'D' : 'H', px, py + 0.5);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.font = '600 11px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(v.name, px + 13, py - 3); ctx.fillStyle = '#eef5ff'; ctx.fillText(v.name, px + 13, py - 3);
+    ctx.font = '600 11px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.strokeText(v.name, px + 13, py - 3); ctx.fillStyle = '#0f172a'; ctx.fillText(v.name, px + 13, py - 3);
     const q = waiting[v.id] || 0, l = landed[v.id] || 0;
-    if (q || l) { const t = `${q ? q + ' queued' : ''}${q && l ? ' · ' : ''}${l ? l + ' landed' : ''}`; ctx.font = '10.5px system-ui'; ctx.strokeText(t, px + 13, py + 10); ctx.fillStyle = '#b8c7d8'; ctx.fillText(t, px + 13, py + 10); }
+    if (q || l) { const t = `${q ? q + ' queued' : ''}${q && l ? ' · ' : ''}${l ? l + ' landed' : ''}`; ctx.font = '10.5px system-ui'; ctx.strokeText(t, px + 13, py + 10); ctx.fillStyle = '#475569'; ctx.fillText(t, px + 13, py + 10); }
   }
 }
 function drawDrones(s) {
   const f0 = s.f0, n = RUN.flights.length, dmin = RUN.limits.d_min, mal = new Set(f0.attack ? RUN.attack.malicious_ids : []);
   const pos = []; for (let k = 0; k < n; k++) pos.push(f0.status[k] === 1 ? posOf(s, k) : null);
-  if ($('#tgLinks').checked && f0.edges) { ctx.strokeStyle = 'rgba(55,215,242,0.35)'; ctx.lineWidth = 1; ctx.beginPath(); for (const [a, b] of f0.edges) { if (!pos[a] || !pos[b]) continue; ctx.moveTo(sx(pos[a][0]), sy(pos[a][1])); ctx.lineTo(sx(pos[b][0]), sy(pos[b][1])); } ctx.stroke(); }
+  if ($('#tgLinks').checked && f0.edges) { ctx.strokeStyle = 'rgba(8,145,178,0.35)'; ctx.lineWidth = 1; ctx.beginPath(); for (const [a, b] of f0.edges) { if (!pos[a] || !pos[b]) continue; ctx.moveTo(sx(pos[a][0]), sy(pos[a][1])); ctx.lineTo(sx(pos[b][0]), sy(pos[b][1])); } ctx.stroke(); }
   ctx.setLineDash([4, 3]); ctx.lineWidth = 1.6;
   for (let a = 0; a < n; a++) { if (!pos[a]) continue; for (let b = a + 1; b < n; b++) {
     if (!pos[b] || f0.layer[a] !== f0.layer[b]) continue;
     const d = Math.hypot(pos[a][0] - pos[b][0], pos[a][1] - pos[b][1]);
-    if (d < 1.5 * dmin) { ctx.strokeStyle = d < dmin ? '#ff5f72' : '#f6bd4bcc'; ctx.beginPath(); ctx.moveTo(sx(pos[a][0]), sy(pos[a][1])); ctx.lineTo(sx(pos[b][0]), sy(pos[b][1])); ctx.stroke(); }
+    if (d < 1.5 * dmin) { ctx.strokeStyle = d < dmin ? '#e11d48' : '#d97706cc'; ctx.beginPath(); ctx.moveTo(sx(pos[a][0]), sy(pos[a][1])); ctx.lineTo(sx(pos[b][0]), sy(pos[b][1])); ctx.stroke(); }
   } }
   ctx.setLineDash([]);
   const trailStart = indexAtTime(f0.t - 6);
@@ -280,32 +280,32 @@ function drawDrones(s) {
   for (let k = 0; k < n; k++) {
     const st = f0.status[k];
     if (st === 4) { // forced landing in place
-      const X = sx(f0.x[k]), Y = sy(f0.y[k]); ctx.strokeStyle = '#ff8a4c'; ctx.lineWidth = 2.2;
+      const X = sx(f0.x[k]), Y = sy(f0.y[k]); ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 2.2;
       ctx.beginPath(); ctx.arc(X, Y, 7, 0, 7); ctx.moveTo(X - 5, Y + 5); ctx.lineTo(X + 5, Y - 5); ctx.stroke();
-      ctx.fillStyle = '#ffb38a'; ctx.font = '700 10px system-ui'; ctx.fillText(`FORCED D-${RUN.flights[k].id}`, X + 9, Y - 6); continue;
+      ctx.fillStyle = '#c2410c'; ctx.font = '700 10px system-ui'; ctx.fillText(`FORCED D-${RUN.flights[k].id}`, X + 9, Y - 6); continue;
     }
     if (st === 3) { // crash marker
-      const X = sx(f0.x[k]), Y = sy(f0.y[k]); ctx.strokeStyle = '#ff2f4a'; ctx.lineWidth = 3;
+      const X = sx(f0.x[k]), Y = sy(f0.y[k]); ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(X - 7, Y - 7); ctx.lineTo(X + 7, Y + 7); ctx.moveTo(X + 7, Y - 7); ctx.lineTo(X - 7, Y + 7); ctx.stroke();
-      ctx.fillStyle = '#ff5f72'; ctx.font = '700 10px system-ui'; ctx.fillText(`CRASH D-${RUN.flights[k].id}`, X + 9, Y - 6); continue;
+      ctx.fillStyle = '#e11d48'; ctx.font = '700 10px system-ui'; ctx.fillText(`CRASH D-${RUN.flights[k].id}`, X + 9, Y - 6); continue;
     }
     if (!pos[k]) continue;
     const f = RUN.flights[k], L = f0.layer[k], dim = layerFilter !== 'all' && L !== Number(layerFilter);
     const X = sx(pos[k][0]), Y = sy(pos[k][1]), hd = headingOf(s, k), r = size * (0.85 + 0.12 * L);
     ctx.save(); ctx.translate(X, Y); ctx.rotate(-hd); ctx.globalAlpha = dim ? 0.18 : 1;
-    ctx.fillStyle = COLORS[f.type]; ctx.strokeStyle = '#03070d'; ctx.lineWidth = 1.2;
+    ctx.fillStyle = COLORS[f.type]; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(r * 1.35, 0); ctx.lineTo(-r * 0.8, r * 0.75); ctx.lineTo(-r * 0.35, 0); ctx.lineTo(-r * 0.8, -r * 0.75); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
-    if (!dim && view.s > 0.45) { ctx.font = '9.5px ui-monospace,monospace'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(`L${L}`, X + r + 2, Y - r); ctx.fillStyle = '#e6f0fa'; ctx.fillText(`L${L}`, X + r + 2, Y - r); }
+    if (!dim && view.s > 0.45) { ctx.font = '9.5px ui-monospace,monospace'; ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.strokeText(`L${L}`, X + r + 2, Y - r); ctx.fillStyle = '#0f172a'; ctx.fillText(`L${L}`, X + r + 2, Y - r); }
     const hb = f0.h?.bms?.[k] ?? 0, hs = f0.h?.soc?.[k];
     if (!dim && hb > 0) { ctx.strokeStyle = BMS_COL[hb]; ctx.lineWidth = hb >= 2 ? 2.4 : 1.6; ctx.beginPath(); ctx.arc(X, Y, r + 3.5, 0, 7); ctx.stroke(); }
     if (!dim && hs !== undefined && hs < 30) { // low-battery glyph
-      ctx.fillStyle = '#050c17'; ctx.fillRect(X - r - 12, Y - 4, 9, 6); ctx.strokeStyle = hs < 15 ? '#ff3b5c' : '#f6bd4b'; ctx.lineWidth = 1; ctx.strokeRect(X - r - 12, Y - 4, 9, 6);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(X - r - 12, Y - 4, 9, 6); ctx.strokeStyle = hs < 15 ? '#e11d48' : '#d97706'; ctx.lineWidth = 1; ctx.strokeRect(X - r - 12, Y - 4, 9, 6);
       ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(X - r - 11, Y - 3, Math.max(1, 7 * hs / 100), 4); ctx.fillRect(X - r - 3, Y - 2, 1.5, 2);
     }
-    if (mal.has(f.id)) { ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 5 + 2 * Math.sin(performance.now() / 180), 0, 7); ctx.stroke(); }
-    if (k === selected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 8, 0, 7); ctx.stroke();
-      ctx.font = '700 11.5px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); ctx.fillStyle = '#fff'; ctx.fillText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); }
+    if (mal.has(f.id)) { ctx.strokeStyle = '#9333ea'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 5 + 2 * Math.sin(performance.now() / 180), 0, 7); ctx.stroke(); }
+    if (k === selected) { ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 8, 0, 7); ctx.stroke();
+      ctx.font = '700 11.5px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.strokeText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); ctx.fillStyle = '#0f172a'; ctx.fillText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); }
   }
 }
 
@@ -313,7 +313,7 @@ function drawDrones(s) {
 function draw25(s) {
   const w = v25.clientWidth, h = v25.clientHeight; screenTransform(vctx); vctx.clearRect(0, 0, w, h);
   if (w < 40 || h < 40) return;   // Health tab open: the 2.5D view is hidden
-  if (!RUN || !s || selected === null) { vctx.fillStyle = '#5c7088'; vctx.font = '12px system-ui'; vctx.fillText('Select a drone on the map or network graph.', 12, 24); return; }
+  if (!RUN || !s || selected === null) { vctx.fillStyle = '#64748b'; vctx.font = '12px system-ui'; vctx.fillText('Select a drone on the map or network graph.', 12, 24); return; }
   const f0 = s.f0, n = selected, L = RUN.limits.num_layers, H = RUN.limits.layer_height, st = f0.status[n];
   const c = st === 1 ? posOf(s, n) : [f0.x[n], f0.y[n]];
   const R = 120, zk = Math.max(18, Math.min(34, (h * 0.42) / Math.max(1, L)));
@@ -324,20 +324,20 @@ function draw25(s) {
   const inWin = (x, y) => Math.abs(x - c[0]) < R && Math.abs(y - c[1]) < R;
   // ground diamond + corridor centrelines
   const corner = (dx, dy) => G(c[0] + dx, c[1] + dy);
-  vctx.fillStyle = '#0a1726'; vctx.strokeStyle = '#1e3550'; vctx.lineWidth = 1; vctx.beginPath();
+  vctx.fillStyle = '#f1f5f9'; vctx.strokeStyle = '#cbd5e1'; vctx.lineWidth = 1; vctx.beginPath();
   [[-R, -R], [R, -R], [R, R], [-R, R]].forEach(([a, b], i) => { const p = corner(a, b); i ? vctx.lineTo(...p) : vctx.moveTo(...p); }); vctx.closePath(); vctx.fill(); vctx.stroke();
-  vctx.strokeStyle = 'rgba(169,139,255,0.55)'; vctx.lineWidth = 1;
+  vctx.strokeStyle = 'rgba(109,79,224,0.5)'; vctx.lineWidth = 1;
   for (const line of MAP.corridors) for (let i = 1; i < line.length; i++) {
     const a = line[i - 1], b = line[i]; if (!inWin(a[0], a[1]) && !inWin(b[0], b[1])) continue;
     vctx.beginPath(); vctx.moveTo(...G(Math.max(c[0] - R, Math.min(c[0] + R, a[0])), Math.max(c[1] - R, Math.min(c[1] + R, a[1])))); vctx.lineTo(...G(Math.max(c[0] - R, Math.min(c[0] + R, b[0])), Math.max(c[1] - R, Math.min(c[1] + R, b[1])))); vctx.stroke();
   }
-  for (const v of MAP.vertiports) if (inWin(v.x, v.y)) { const p = G(v.x, v.y); vctx.fillStyle = '#e8f2ff'; vctx.fillRect(p[0] - 4, p[1] - 3, 8, 6); vctx.font = '9px system-ui'; vctx.fillText(v.name, p[0] + 6, p[1] + 3); }
+  for (const v of MAP.vertiports) if (inWin(v.x, v.y)) { const p = G(v.x, v.y); vctx.fillStyle = '#334155'; vctx.fillRect(p[0] - 4, p[1] - 3, 8, 6); vctx.font = '9px system-ui'; vctx.fillText(v.name, p[0] + 6, p[1] + 3); }
   // layer planes
   for (let l = 0; l < L; l++) {
-    vctx.fillStyle = l === RUN.limits.emergency_layer ? 'rgba(255,95,114,0.06)' : 'rgba(55,215,242,0.05)';
-    vctx.strokeStyle = l === f0.layer[n] ? 'rgba(255,255,255,0.45)' : 'rgba(110,150,190,0.25)';
+    vctx.fillStyle = l === RUN.limits.emergency_layer ? 'rgba(225,29,72,0.06)' : 'rgba(8,145,178,0.05)';
+    vctx.strokeStyle = l === f0.layer[n] ? 'rgba(15,23,42,0.45)' : 'rgba(100,116,139,0.28)';
     vctx.beginPath(); [[-R, -R], [R, -R], [R, R], [-R, R]].forEach(([a, b], i) => { const p = P(c[0] + a, c[1] + b, l); i ? vctx.lineTo(...p) : vctx.moveTo(...p); }); vctx.closePath(); vctx.fill(); vctx.stroke();
-    const lab = P(c[0] + R, c[1] - R, l); vctx.fillStyle = l === f0.layer[n] ? '#e6f0fa' : '#8fa3ba'; vctx.font = '10px ui-monospace,monospace';
+    const lab = P(c[0] + R, c[1] - R, l); vctx.fillStyle = l === f0.layer[n] ? '#0f172a' : '#64748b'; vctx.font = '10px ui-monospace,monospace';
     vctx.fillText(`L${l} ${(l + 1) * H}m${l === RUN.limits.emergency_layer ? '⚕' : ''}`, lab[0] + 4, lab[1] + 3);
   }
   // selected route on its layer
@@ -349,17 +349,17 @@ function draw25(s) {
   list.sort((a, b) => (b[1][0] + b[1][1]) - (a[1][0] + a[1][1]));
   for (const [m, p] of list) {
     const g = RUN.flights[m], lay = f0.layer[m], top = P(p[0], p[1], lay), gr = G(p[0], p[1]), sel = m === n, crashed = f0.status[m] === 3;
-    vctx.strokeStyle = sel ? '#ffffffaa' : '#ffffff30'; vctx.lineWidth = 1; vctx.setLineDash([2, 3]); vctx.beginPath(); vctx.moveTo(...gr); vctx.lineTo(...top); vctx.stroke(); vctx.setLineDash([]);
-    vctx.fillStyle = '#00000080'; vctx.beginPath(); vctx.ellipse(gr[0], gr[1], 4, 2, 0, 0, 7); vctx.fill();
-    if (sel) { vctx.strokeStyle = '#ffffff70'; vctx.beginPath(); vctx.ellipse(top[0], top[1], RUN.limits.d_min * 0.99 * k, RUN.limits.d_min * 0.51 * k, 0, 0, 7); vctx.stroke(); }
-    if (crashed) { vctx.strokeStyle = '#ff2f4a'; vctx.lineWidth = 2.5; vctx.beginPath(); vctx.moveTo(gr[0] - 6, gr[1] - 6); vctx.lineTo(gr[0] + 6, gr[1] + 6); vctx.moveTo(gr[0] + 6, gr[1] - 6); vctx.lineTo(gr[0] - 6, gr[1] + 6); vctx.stroke(); continue; }
-    vctx.fillStyle = COLORS[g.type]; vctx.strokeStyle = sel ? '#fff' : '#03070d'; vctx.lineWidth = sel ? 2 : 1;
+    vctx.strokeStyle = sel ? '#0f172aaa' : '#0f172a30'; vctx.lineWidth = 1; vctx.setLineDash([2, 3]); vctx.beginPath(); vctx.moveTo(...gr); vctx.lineTo(...top); vctx.stroke(); vctx.setLineDash([]);
+    vctx.fillStyle = '#0f172a40'; vctx.beginPath(); vctx.ellipse(gr[0], gr[1], 4, 2, 0, 0, 7); vctx.fill();
+    if (sel) { vctx.strokeStyle = '#0f172a70'; vctx.beginPath(); vctx.ellipse(top[0], top[1], RUN.limits.d_min * 0.99 * k, RUN.limits.d_min * 0.51 * k, 0, 0, 7); vctx.stroke(); }
+    if (crashed) { vctx.strokeStyle = '#dc2626'; vctx.lineWidth = 2.5; vctx.beginPath(); vctx.moveTo(gr[0] - 6, gr[1] - 6); vctx.lineTo(gr[0] + 6, gr[1] + 6); vctx.moveTo(gr[0] + 6, gr[1] - 6); vctx.lineTo(gr[0] - 6, gr[1] + 6); vctx.stroke(); continue; }
+    vctx.fillStyle = COLORS[g.type]; vctx.strokeStyle = sel ? '#0f172a' : '#1e293b'; vctx.lineWidth = sel ? 2 : 1;
     vctx.beginPath(); vctx.arc(top[0], top[1], sel ? 6.5 : 4.5, 0, 7); vctx.fill(); vctx.stroke();
-    if (sel && f0.status[m] === 1) { const hd = headingOf(s, m), tip = P(p[0] + Math.cos(hd) * 22, p[1] + Math.sin(hd) * 22, lay); vctx.strokeStyle = '#fff'; vctx.lineWidth = 2; vctx.beginPath(); vctx.moveTo(...top); vctx.lineTo(...tip); vctx.stroke(); }
-    vctx.fillStyle = sel ? '#fff' : '#b8c7d8'; vctx.font = sel ? '700 11px system-ui' : '9.5px system-ui'; vctx.fillText(`D-${g.id}`, top[0] + 7, top[1] - 6);
+    if (sel && f0.status[m] === 1) { const hd = headingOf(s, m), tip = P(p[0] + Math.cos(hd) * 22, p[1] + Math.sin(hd) * 22, lay); vctx.strokeStyle = '#0f172a'; vctx.lineWidth = 2; vctx.beginPath(); vctx.moveTo(...top); vctx.lineTo(...tip); vctx.stroke(); }
+    vctx.fillStyle = sel ? '#0f172a' : '#475569'; vctx.font = sel ? '700 11px system-ui' : '9.5px system-ui'; vctx.fillText(`D-${g.id}`, top[0] + 7, top[1] - 6);
   }
-  vctx.fillStyle = '#5c7088'; vctx.font = '10px system-ui'; vctx.fillText(`${2 * R} m window · ring = d_min · stems to ground`, 8, h - 6);
-  if (st !== 1) { vctx.fillStyle = st === 3 ? '#ff5f72' : '#8fa3ba'; vctx.font = '600 12px system-ui'; vctx.fillText(st === 3 ? 'CRASHED' : st === 0 ? 'On the pad — waiting to depart' : 'Landed', 10, 18); }
+  vctx.fillStyle = '#64748b'; vctx.font = '10px system-ui'; vctx.fillText(`${2 * R} m window · ring = d_min · stems to ground`, 8, h - 6);
+  if (st !== 1) { vctx.fillStyle = st === 3 ? '#e11d48' : '#64748b'; vctx.font = '600 12px system-ui'; vctx.fillText(st === 3 ? 'CRASHED' : st === 0 ? 'On the pad — waiting to depart' : 'Landed', 10, 18); }
 }
 
 // ------------------------------------------------------------------ panels
@@ -418,7 +418,7 @@ function updateOccupancy(s) {
   const L = RUN.limits.num_layers, cap = RUN.limits.capacity, occ = Array.from({length: SECTOR_COLS * SECTOR_ROWS}, () => Array(L).fill(0));
   RUN.flights.forEach((_, n) => { if (s.f0.status[n] === 1) occ[sectorOf(s.f0.x[n], s.f0.y[n])][s.f0.layer[n]]++; });
   let html = '<tr><th>Sector</th>' + Array.from({length: L}, (_, l) => `<th>L${l}${l === RUN.limits.emergency_layer ? ' ⚕' : ''}</th>`).join('') + '</tr>';
-  occ.forEach((row, sid) => { html += `<tr><td>S${sid}</td>` + row.map((v) => { const u = v / cap, bg = v === 0 ? 'transparent' : u >= 1 ? '#5a1a26' : u > 0.6 ? '#4a3a12' : '#103347'; return `<td style="background:${bg}">${v}</td>`; }).join('') + '</tr>'; });
+  occ.forEach((row, sid) => { html += `<tr><td>S${sid}</td>` + row.map((v) => { const u = v / cap, bg = v === 0 ? 'transparent' : u >= 1 ? '#fecdd3' : u > 0.6 ? '#fde68a' : '#cffafe'; return `<td style="background:${bg}">${v}</td>`; }).join('') + '</tr>'; });
   $('#occ').innerHTML = html; $('#capLabel').textContent = `capacity ${cap} per cell · ⚕ emergency`;
 }
 function updateDrone(s) {
@@ -502,31 +502,31 @@ function select(n, add = false) {
 // ------------------------------------------------------------------ STL chart
 function drawChart() {
   const w = chart.clientWidth, h = chart.clientHeight; screenTransform(cctx); cctx.clearRect(0, 0, w, h);
-  if (!RUN || !frames.length) { cctx.fillStyle = '#5c7088'; cctx.font = '12px system-ui'; cctx.fillText('Launch a simulation to monitor G(d ≥ d_min).', 12, 24); return; }
+  if (!RUN || !frames.length) { cctx.fillStyle = '#64748b'; cctx.font = '12px system-ui'; cctx.fillText('Launch a simulation to monitor G(d ≥ d_min).', 12, 24); return; }
   const L = 36, R = w - 10, T = 10, B = h - 22, lo = -RUN.limits.d_min, hi = 40;
   const X = (t) => L + (t / RUN.duration_s) * (R - L), Y = (v) => B - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * (B - T);
-  cctx.strokeStyle = '#16283e'; cctx.lineWidth = 1; cctx.fillStyle = '#5c7088'; cctx.font = '10px system-ui';
+  cctx.strokeStyle = '#e2e8f0'; cctx.lineWidth = 1; cctx.fillStyle = '#64748b'; cctx.font = '10px system-ui';
   for (const v of [lo, 0, 10, 20, 30, 40]) { cctx.beginPath(); cctx.moveTo(L, Y(v)); cctx.lineTo(R, Y(v)); cctx.stroke(); cctx.fillText(String(v), 6, Y(v) + 3); }
-  cctx.fillStyle = 'rgba(255,95,114,0.08)'; cctx.fillRect(L, Y(0), R - L, B - Y(0));
+  cctx.fillStyle = 'rgba(225,29,72,0.07)'; cctx.fillRect(L, Y(0), R - L, B - Y(0));
   shadeEvents(cctx, X, T, B);
-  cctx.strokeStyle = '#ff5f72aa'; cctx.setLineDash([4, 4]); cctx.beginPath(); cctx.moveTo(L, Y(0)); cctx.lineTo(R, Y(0)); cctx.stroke(); cctx.setLineDash([]);
+  cctx.strokeStyle = '#e11d48aa'; cctx.setLineDash([4, 4]); cctx.beginPath(); cctx.moveTo(L, Y(0)); cctx.lineTo(R, Y(0)); cctx.stroke(); cctx.setLineDash([]);
   cctx.lineWidth = 1.6; cctx.beginPath(); let pen = false, worst = Infinity;
   for (const f of frames) { if (f.rho === null) { pen = false; continue; } worst = Math.min(worst, f.rho); pen ? cctx.lineTo(X(f.t), Y(f.rho)) : cctx.moveTo(X(f.t), Y(f.rho)); pen = true; }
-  cctx.strokeStyle = worst < 0 ? '#ff5f72' : '#2fe0a0'; cctx.stroke();
-  for (const f of frames) for (const e of f.events) if (e.kind === 'crash') { cctx.fillStyle = '#ff2f4a'; cctx.font = '700 12px system-ui'; cctx.fillText('✕', X(e.t) - 4, B - 2); }
-  cctx.strokeStyle = '#e6f0fa'; cctx.lineWidth = 1; cctx.beginPath(); cctx.moveTo(X(simT), T); cctx.lineTo(X(simT), B); cctx.stroke();
-  cctx.fillStyle = '#5c7088'; cctx.fillText('0 s', L, h - 6); cctx.textAlign = 'right'; cctx.fillText(`${RUN.duration_s} s`, R, h - 6); cctx.textAlign = 'left';
+  cctx.strokeStyle = worst < 0 ? '#e11d48' : '#059669'; cctx.stroke();
+  for (const f of frames) for (const e of f.events) if (e.kind === 'crash') { cctx.fillStyle = '#dc2626'; cctx.font = '700 12px system-ui'; cctx.fillText('✕', X(e.t) - 4, B - 2); }
+  cctx.strokeStyle = '#0f172a'; cctx.lineWidth = 1; cctx.beginPath(); cctx.moveTo(X(simT), T); cctx.lineTo(X(simT), B); cctx.stroke();
+  cctx.fillStyle = '#64748b'; cctx.fillText('0 s', L, h - 6); cctx.textAlign = 'right'; cctx.fillText(`${RUN.duration_s} s`, R, h - 6); cctx.textAlign = 'left';
 }
 function shadeEvents(c, X, T, B) {
-  if (RUN.outage.enabled) { c.fillStyle = 'rgba(169,139,255,0.10)'; c.fillRect(X(RUN.outage.start_s), T, X(RUN.outage.end_s) - X(RUN.outage.start_s), B - T); c.fillStyle = '#a98bff'; c.font = '10px system-ui'; c.fillText('DTC link down', X(RUN.outage.start_s) + 4, T + 10); }
-  if (RUN.attack.enabled) { c.strokeStyle = '#c084fc'; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(RUN.attack.start_s), T); c.lineTo(X(RUN.attack.start_s), B); c.stroke(); c.setLineDash([]); c.fillStyle = '#c084fc'; c.font = '10px system-ui'; c.fillText('attack', X(RUN.attack.start_s) + 4, B - 4); }
+  if (RUN.outage.enabled) { c.fillStyle = 'rgba(109,79,224,0.10)'; c.fillRect(X(RUN.outage.start_s), T, X(RUN.outage.end_s) - X(RUN.outage.start_s), B - T); c.fillStyle = '#6d4fe0'; c.font = '10px system-ui'; c.fillText('DTC link down', X(RUN.outage.start_s) + 4, T + 10); }
+  if (RUN.attack.enabled) { c.strokeStyle = '#9333ea'; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(RUN.attack.start_s), T); c.lineTo(X(RUN.attack.start_s), B); c.stroke(); c.setLineDash([]); c.fillStyle = '#9333ea'; c.font = '10px system-ui'; c.fillText('attack', X(RUN.attack.start_s) + 4, B - 4); }
 }
 
 // ------------------------------------------------------------------ network theory panel
 function drawNetwork(s) {
   const w = netG.clientWidth, h = netG.clientHeight; screenTransform(nctx); nctx.clearRect(0, 0, w, h);
   netPositions = null;
-  if (!RUN || !s) { nctx.fillStyle = '#5c7088'; nctx.font = '12px system-ui'; nctx.fillText('Network appears once drones are airborne.', 12, 24); return; }
+  if (!RUN || !s) { nctx.fillStyle = '#64748b'; nctx.font = '12px system-ui'; nctx.fillText('Network appears once drones are airborne.', 12, 24); return; }
   const f0 = s.f0, [x0, y0, x1, y1] = MAP.bounds, pad = 16, top = 46;
   const k = Math.min((w - 2 * pad) / (x1 - x0), (h - top - pad) / (y1 - y0));
   const ox = (w - (x1 - x0) * k) / 2, oy = top + (h - top - pad - (y1 - y0) * k) / 2;
@@ -535,24 +535,24 @@ function drawNetwork(s) {
   const pos = RUN.flights.map((_, n) => f0.status[n] === 1 ? P(...posOf(s, n)) : null);
   netPositions = pos;
   // campus outline
-  if (MAP.geofence) { nctx.strokeStyle = '#1e3550'; nctx.lineWidth = 1; nctx.beginPath(); MAP.geofence.forEach((p, i) => i ? nctx.lineTo(...P(p[0], p[1])) : nctx.moveTo(...P(p[0], p[1]))); nctx.closePath(); nctx.stroke(); }
+  if (MAP.geofence) { nctx.strokeStyle = '#cbd5e1'; nctx.lineWidth = 1; nctx.beginPath(); MAP.geofence.forEach((p, i) => i ? nctx.lineTo(...P(p[0], p[1])) : nctx.moveTo(...P(p[0], p[1]))); nctx.closePath(); nctx.stroke(); }
   // DTC -> drone directive links
   if (RUN.switches.use_overseer) {
-    nctx.lineWidth = 0.7; nctx.strokeStyle = linkUp ? 'rgba(169,139,255,0.22)' : 'rgba(255,95,114,0.28)'; if (!linkUp) nctx.setLineDash([3, 4]);
+    nctx.lineWidth = 0.7; nctx.strokeStyle = linkUp ? 'rgba(109,79,224,0.22)' : 'rgba(225,29,72,0.28)'; if (!linkUp) nctx.setLineDash([3, 4]);
     nctx.beginPath(); for (const p of pos) if (p) { nctx.moveTo(...hub); nctx.lineTo(...p); } nctx.stroke(); nctx.setLineDash([]);
   }
   // V2V edges
-  nctx.strokeStyle = 'rgba(55,215,242,0.85)'; nctx.lineWidth = 1.4; nctx.beginPath();
+  nctx.strokeStyle = 'rgba(8,145,178,0.8)'; nctx.lineWidth = 1.4; nctx.beginPath();
   for (const [a, b] of f0.edges || []) if (pos[a] && pos[b]) { nctx.moveTo(...pos[a]); nctx.lineTo(...pos[b]); } nctx.stroke();
   const deg = new Array(RUN.flights.length).fill(0); for (const [a, b] of f0.edges || []) { deg[a]++; deg[b]++; }
   pos.forEach((p, n) => { if (!p) return; const f = RUN.flights[n]; nctx.fillStyle = COLORS[f.type]; nctx.beginPath(); nctx.arc(p[0], p[1], 2.5 + Math.min(5, deg[n] * 1.2), 0, 7); nctx.fill();
-    if (n === selected) { nctx.strokeStyle = '#fff'; nctx.lineWidth = 2; nctx.beginPath(); nctx.arc(p[0], p[1], 9, 0, 7); nctx.stroke(); }
-    if (f0.net?.hub === f.id) { nctx.strokeStyle = '#f6bd4b'; nctx.lineWidth = 1.5; nctx.beginPath(); nctx.arc(p[0], p[1], 12, 0, 7); nctx.stroke(); } });
+    if (n === selected) { nctx.strokeStyle = '#0f172a'; nctx.lineWidth = 2; nctx.beginPath(); nctx.arc(p[0], p[1], 9, 0, 7); nctx.stroke(); }
+    if (f0.net?.hub === f.id) { nctx.strokeStyle = '#d97706'; nctx.lineWidth = 1.5; nctx.beginPath(); nctx.arc(p[0], p[1], 12, 0, 7); nctx.stroke(); } });
   // DTC hub node
-  nctx.fillStyle = !RUN.switches.use_overseer ? '#3a4656' : linkUp ? '#a98bff' : '#ff5f72';
+  nctx.fillStyle = !RUN.switches.use_overseer ? '#94a3b8' : linkUp ? '#6d4fe0' : '#e11d48';
   nctx.beginPath(); nctx.arc(hub[0], hub[1], 12, 0, 7); nctx.fill();
-  nctx.fillStyle = '#04121c'; nctx.font = '800 9px system-ui'; nctx.textAlign = 'center'; nctx.fillText('DTC', hub[0], hub[1] + 3); nctx.textAlign = 'left';
-  nctx.fillStyle = '#b8c7d8'; nctx.font = '10.5px system-ui';
+  nctx.fillStyle = '#ffffff'; nctx.font = '800 9px system-ui'; nctx.textAlign = 'center'; nctx.fillText('DTC', hub[0], hub[1] + 3); nctx.textAlign = 'left';
+  nctx.fillStyle = '#475569'; nctx.font = '10.5px system-ui';
   nctx.fillText(!RUN.switches.use_overseer ? 'DTC disabled (decentralized)' : linkUp ? `DTC link UP · ${dtc.connected} drones under control` : `DTC link DOWN · drones on cached directive (${fmt(dtc.staleness_s, 0)} s old)`, hub[0] + 18, hub[1] + 4);
   // stats
   const m = f0.net || {};
@@ -590,7 +590,7 @@ function drawNetChart() {
   const w = netC.clientWidth, h = netC.clientHeight; screenTransform(ncctx); ncctx.clearRect(0, 0, w, h);
   if (!RUN || !frames.length) return;
   const L = 30, R = w - 10, T = 8, B = h - 20, X = (t) => L + (t / RUN.duration_s) * (R - L), Y = (v) => B - v * (B - T);
-  ncctx.strokeStyle = '#16283e'; ncctx.fillStyle = '#5c7088'; ncctx.font = '10px system-ui';
+  ncctx.strokeStyle = '#e2e8f0'; ncctx.fillStyle = '#64748b'; ncctx.font = '10px system-ui';
   for (const v of [0, 0.5, 1]) { ncctx.beginPath(); ncctx.moveTo(L, Y(v)); ncctx.lineTo(R, Y(v)); ncctx.stroke(); ncctx.fillText(v.toFixed(1), 4, Y(v) + 3); }
   shadeEvents(ncctx, X, T, B);
   const rows = netRows(), maxDeg = netCache.maxDeg, step = Math.max(1, Math.floor(rows.length / 700));
@@ -599,8 +599,8 @@ function drawNetChart() {
     for (let i = 0; i < rows.length; i += step) { const v = rows[i][ser.key]; if (v === null || v === undefined) { pen = false; continue; } pen ? ncctx.lineTo(X(rows[i].t), Y(v)) : ncctx.moveTo(X(rows[i].t), Y(v)); pen = true; }
     ncctx.stroke();
   }
-  ncctx.strokeStyle = '#e6f0fa'; ncctx.lineWidth = 1; ncctx.beginPath(); ncctx.moveTo(X(simT), T); ncctx.lineTo(X(simT), B); ncctx.stroke();
-  ncctx.fillStyle = '#5c7088'; ncctx.fillText('0 s', L, h - 5); ncctx.textAlign = 'right'; ncctx.fillText(`${RUN.duration_s} s · max avg degree ${maxDeg.toFixed(1)}`, R, h - 5); ncctx.textAlign = 'left';
+  ncctx.strokeStyle = '#0f172a'; ncctx.lineWidth = 1; ncctx.beginPath(); ncctx.moveTo(X(simT), T); ncctx.lineTo(X(simT), B); ncctx.stroke();
+  ncctx.fillStyle = '#64748b'; ncctx.fillText('0 s', L, h - 5); ncctx.textAlign = 'right'; ncctx.fillText(`${RUN.duration_s} s · max avg degree ${maxDeg.toFixed(1)}`, R, h - 5); ncctx.textAlign = 'left';
 }
 
 // ------------------------------------------------------------------ P2 ADMM convergence timer
@@ -610,7 +610,7 @@ function drawAdmm() {
   const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
   if (!RUN || !s) { $('#admmStats').innerHTML = ''; return; }
   if (!RUN.switches.use_admm) {
-    actx.fillStyle = '#5c7088'; actx.font = '12px system-ui'; actx.fillText(RUN.architecture === 'centralized' ? 'Centralized architecture: the DTC computes velocities, no ADMM.' : 'ADMM is switched off for this run.', 12, 24);
+    actx.fillStyle = '#64748b'; actx.font = '12px system-ui'; actx.fillText(RUN.architecture === 'centralized' ? 'Centralized architecture: the DTC computes velocities, no ADMM.' : 'ADMM is switched off for this run.', 12, 24);
     $('#admmStats').innerHTML = ''; return;
   }
   const L = 30, R = w - 40, T = 8, B = h - 20, X = (t) => L + (t / RUN.duration_s) * (R - L);
@@ -619,17 +619,17 @@ function drawAdmm() {
   for (const f of frames) { if (f.admm?.it_max) itMax = Math.max(itMax, f.admm.it_max); if (f.admm?.ms_mean) msMax = Math.max(msMax, f.admm.ms_mean); }
   itMax = Math.ceil(itMax * 1.15); msMax *= 1.15;
   const Yi = (v) => B - (v / itMax) * (B - T), Ym = (v) => B - (v / msMax) * (B - T);
-  actx.strokeStyle = '#16283e'; actx.fillStyle = '#5c7088'; actx.font = '10px system-ui'; actx.lineWidth = 1;
+  actx.strokeStyle = '#e2e8f0'; actx.fillStyle = '#64748b'; actx.font = '10px system-ui'; actx.lineWidth = 1;
   for (const v of [0, Math.round(itMax / 2), itMax]) { actx.beginPath(); actx.moveTo(L, Yi(v)); actx.lineTo(R, Yi(v)); actx.stroke(); actx.fillText(String(v), 6, Yi(v) + 3); }
   actx.textAlign = 'left'; for (const v of [0, msMax / 2, msMax]) actx.fillText(`${v.toFixed(2)}ms`, R + 4, Ym(v) + 3);
   const line = (get, Y, col, wd) => { actx.strokeStyle = col; actx.lineWidth = wd; actx.beginPath(); let pen = false;
     for (let i = 0; i < frames.length; i += step) { const v = get(frames[i]); if (v === null || v === undefined) { pen = false; continue; } pen ? actx.lineTo(X(frames[i].t), Y(v)) : actx.moveTo(X(frames[i].t), Y(v)); pen = true; } actx.stroke(); };
-  line((f) => f.admm?.it_max, Yi, '#2fe0a0aa', 1);
-  line((f) => f.admm?.it_mean, Yi, '#37d7f2', 1.6);
-  line((f) => f.admm?.ms_mean, Ym, '#f6bd4b', 1.2);
-  actx.fillStyle = '#ff5f72'; for (const f of frames) if (f.admm?.fail) actx.fillRect(X(f.t) - 1, B - 6, 2, 6);
-  actx.strokeStyle = '#e6f0fa'; actx.lineWidth = 1; actx.beginPath(); actx.moveTo(X(simT), T); actx.lineTo(X(simT), B); actx.stroke();
-  actx.fillStyle = '#5c7088'; actx.fillText('0 s', L, h - 5); actx.textAlign = 'right'; actx.fillText(`${RUN.duration_s} s`, R, h - 5); actx.textAlign = 'left';
+  line((f) => f.admm?.it_max, Yi, '#059669aa', 1);
+  line((f) => f.admm?.it_mean, Yi, '#0891b2', 1.6);
+  line((f) => f.admm?.ms_mean, Ym, '#d97706', 1.2);
+  actx.fillStyle = '#e11d48'; for (const f of frames) if (f.admm?.fail) actx.fillRect(X(f.t) - 1, B - 6, 2, 6);
+  actx.strokeStyle = '#0f172a'; actx.lineWidth = 1; actx.beginPath(); actx.moveTo(X(simT), T); actx.lineTo(X(simT), B); actx.stroke();
+  actx.fillStyle = '#64748b'; actx.fillText('0 s', L, h - 5); actx.textAlign = 'right'; actx.fillText(`${RUN.duration_s} s`, R, h - 5); actx.textAlign = 'left';
   const r = run || {};
   $('#admmStats').innerHTML = row('Conflict groups', r.groups ?? 0) + row('Converged · fallback', `${r.converged ?? 0} · ${r.fallback ?? 0}`)
     + row('Iterations mean · p95 · max', `${fmt(r.it_mean, 1)} · ${fmt(r.it_p95, 0)} · ${fmt(r.it_max, 0)} / ${RUN.limits.max_iterations ?? '—'}`)
@@ -998,7 +998,7 @@ function updateFleetHealth(s) {
   $('#fhCounts').innerHTML = BMS.map((b, i) => `<div><b style="color:${BMS_COL[i]}">${cnt[i]}</b><small>${b}</small></div>`).join('');
   const key = `${frameAt(simT).i}:${selected}`; if (updateFleetHealth.key === key) return; updateFleetHealth.key = key;
   const low = air.sort((a, b) => h.soc[a] - h.soc[b]).slice(0, 6), lowEl = $('#fhLow'); lowEl.replaceChildren();
-  for (const k of low) { const li = document.createElement('li'), soc = h.soc[k], col = soc < 15 ? '#ff3b5c' : soc < 30 ? '#f6bd4b' : '#2fe0a0';
+  for (const k of low) { const li = document.createElement('li'), soc = h.soc[k], col = soc < 15 ? '#e11d48' : soc < 30 ? '#d97706' : '#059669';
     li.innerHTML = `<span style="color:${COLORS[RUN.flights[k].type]}">D-${RUN.flights[k].id}</span><span class="bar"><i style="width:${soc}%;background:${col}"></i></span><span>${soc}%</span><span class="muted">${BMS[h.bms[k]]} · ${h.tmax[k]} °C</span>`;
     li.onclick = () => select(k); lowEl.append(li); }
   if (!low.length) lowEl.innerHTML = '<li class="empty">no drones airborne</li>';
@@ -1012,7 +1012,7 @@ function updateHealthTab(s) {
   const f = RUN.flights[selected], k = selected, h = s.f0.h, rec = healthAt(f.id), d = rec?.d, th = RUN.limits.health?.thresholds || {};
   const soc = d?.soc ?? h?.soc?.[k], st = d ? BMS.indexOf(d.status) : h?.bms?.[k] ?? 0;
   $('#hSoc').textContent = soc === undefined ? '—' : `SoC ${fmt(soc, 0)} %`; $('#hSocBar').style.width = `${soc ?? 0}%`;
-  $('#hSocBar').style.background = soc < (th.soc_critical_pct ?? 15) ? '#ff3b5c' : soc < (th.soc_warning_pct ?? 30) ? '#f6bd4b' : '#2fe0a0';
+  $('#hSocBar').style.background = soc < (th.soc_critical_pct ?? 15) ? '#e11d48' : soc < (th.soc_warning_pct ?? 30) ? '#d97706' : '#059669';
   const pill = $('#hStatus'); pill.textContent = BMS[st] ?? '—'; pill.className = `pill s${st}`;
   $('#hCodes').textContent = d?.codes?.join(' · ') || '';
   $('#hNote').textContent = d ? (simT - rec.t > 2 ? `detail from t = ${fmt(rec.t)} s` : '') : 'full detail streams once the drone is selected (live runs)';
@@ -1035,25 +1035,25 @@ function drawCells(d) {
   const w = hCellsC.clientWidth, h = hCellsC.clientHeight; screenTransform(hcctx); hcctx.clearRect(0, 0, w, h);
   if (!d?.cells_mv?.length) return;
   const c = d.cells_mv, lo = Math.min(3000, ...c) - 50, hi = 4250, n = c.length, bw = Math.max(1, (w - 34) / n);
-  hcctx.fillStyle = '#5c7088'; hcctx.font = '9.5px system-ui'; hcctx.fillText('4.2 V', 0, 10); hcctx.fillText('3.0 V', 0, h - 4);
+  hcctx.fillStyle = '#64748b'; hcctx.font = '9.5px system-ui'; hcctx.fillText('4.2 V', 0, 10); hcctx.fillText('3.0 V', 0, h - 4);
   const Y = (v) => h - 2 - (v - lo) / (hi - lo) * (h - 6);
-  hcctx.strokeStyle = '#ff5f7288'; hcctx.setLineDash([3, 3]); hcctx.beginPath(); hcctx.moveTo(30, Y(3000)); hcctx.lineTo(w, Y(3000)); hcctx.stroke(); hcctx.setLineDash([]);
+  hcctx.strokeStyle = '#e11d4888'; hcctx.setLineDash([3, 3]); hcctx.beginPath(); hcctx.moveTo(30, Y(3000)); hcctx.lineTo(w, Y(3000)); hcctx.stroke(); hcctx.setLineDash([]);
   const mn = Math.min(...c);
-  c.forEach((v, i) => { hcctx.fillStyle = v === mn ? '#f6bd4b' : '#37d7f2'; const y = Y(v); hcctx.fillRect(32 + i * bw, y, Math.max(1, bw - (n > 30 ? 0 : 2)), h - 2 - y); });
+  c.forEach((v, i) => { hcctx.fillStyle = v === mn ? '#d97706' : '#0891b2'; const y = Y(v); hcctx.fillRect(32 + i * bw, y, Math.max(1, bw - (n > 30 ? 0 : 2)), h - 2 - y); });
 }
 function drawHealthChart(k) {
   const w = hChartC.clientWidth, h = hChartC.clientHeight; screenTransform(hchctx); hchctx.clearRect(0, 0, w, h);
   if (!frames.length) return;
   const L = 26, R = w - 30, T = 6, B = h - 14, X = (t) => L + t / RUN.duration_s * (R - L);
-  hchctx.strokeStyle = '#16283e'; hchctx.fillStyle = '#5c7088'; hchctx.font = '9.5px system-ui';
+  hchctx.strokeStyle = '#e2e8f0'; hchctx.fillStyle = '#64748b'; hchctx.font = '9.5px system-ui';
   for (const v of [0, 50, 100]) { const y = B - v / 100 * (B - T); hchctx.beginPath(); hchctx.moveTo(L, y); hchctx.lineTo(R, y); hchctx.stroke(); hchctx.fillText(`${v}%`, 0, y + 3); }
   const tMax = 100; hchctx.textAlign = 'left'; for (const v of [20, 60, 100]) hchctx.fillText(`${v}°`, R + 3, B - (v / tMax) * (B - T) + 3);
   const step = Math.max(1, Math.floor(frames.length / 500));
   const line = (get, scale, col) => { hchctx.strokeStyle = col; hchctx.lineWidth = 1.5; hchctx.beginPath(); let pen = false;
     for (let i = 0; i < frames.length; i += step) { const f = frames[i]; const v = f.h ? get(f.h) : undefined; if (v === undefined || f.status[k] === undefined || f.status[k] === 0 && v === undefined) { pen = false; continue; }
       const y = B - Math.min(1, v / scale) * (B - T); pen ? hchctx.lineTo(X(f.t), y) : hchctx.moveTo(X(f.t), y); pen = true; } hchctx.stroke(); };
-  line((h) => h.soc[k], 100, '#2fe0a0'); line((h) => h.tmax[k], tMax, '#ff8a4c');
-  hchctx.strokeStyle = '#e6f0fa'; hchctx.lineWidth = 1; hchctx.beginPath(); hchctx.moveTo(X(simT), T); hchctx.lineTo(X(simT), B); hchctx.stroke();
+  line((h) => h.soc[k], 100, '#059669'); line((h) => h.tmax[k], tMax, '#ea580c');
+  hchctx.strokeStyle = '#0f172a'; hchctx.lineWidth = 1; hchctx.beginPath(); hchctx.moveTo(X(simT), T); hchctx.lineTo(X(simT), B); hchctx.stroke();
 }
 $('#dTabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; dTab = b.dataset.tab;
   document.querySelectorAll('#dTabs button').forEach((x) => x.classList.toggle('on', x === b));
@@ -1084,7 +1084,7 @@ for (const id of ['#wxTemp', '#wxWind', '#wxDir']) $(id).addEventListener('input
 // ------------------------------------------------------------------ battery matrix (per-drone SoC graphs, Task-Manager style)
 const battC = $('#battGrid'), bctx = battC.getContext('2d');
 let battLayout = [], battAt = 0, battHistKey = null, battHist = [];
-const socCol = (soc, bms) => (bms >= 2 || soc < 15) ? '#ff3b5c' : (bms === 1 || soc < 30) ? '#f6bd4b' : '#2fe0a0';
+const socCol = (soc, bms) => (bms >= 2 || soc < 15) ? '#e11d48' : (bms === 1 || soc < 30) ? '#d97706' : '#059669';
 function battHistory(i) {   // distinct once-per-second health snapshots in the last 120 s up to frame i
   const key = `${RUN.run_id}:${i}:${frames.length}`;
   if (battHistKey === key) return battHist;
@@ -1119,8 +1119,8 @@ function drawBatt(s, force = false) {
     if (air) { counts[bms]++; if (soc < 30) low++; }
     battLayout.push([x, y, tw2, th, k]);
     bctx.globalAlpha = air ? 1 : 0.42;
-    bctx.fillStyle = '#06111f'; bctx.fillRect(x, y, tw2, th);
-    bctx.strokeStyle = 'rgba(80,120,160,0.16)'; bctx.lineWidth = 1;
+    bctx.fillStyle = '#f8fafc'; bctx.fillRect(x, y, tw2, th);
+    bctx.strokeStyle = 'rgba(100,116,139,0.18)'; bctx.lineWidth = 1;
     for (const g of [0.25, 0.5, 0.75]) { bctx.beginPath(); bctx.moveTo(x, y + th * g); bctx.lineTo(x + tw2, y + th * g); bctx.stroke(); }
     // SoC history graph (filled area), x = last 120 s
     const X = (t) => x + tw2 * (1 - (tEnd - t) / 120), Y = (v) => y + th - 2 - (v / 100) * (th - 4);
@@ -1131,7 +1131,7 @@ function drawBatt(s, force = false) {
       bctx.fillStyle = col + '40'; bctx.fill();
       bctx.beginPath(); pts.forEach(([px, py], i) => i ? bctx.lineTo(px, py) : bctx.moveTo(px, py)); bctx.strokeStyle = col; bctx.lineWidth = 1.3; bctx.stroke();
     }
-    bctx.strokeStyle = k === selected ? '#ffffff' : bms >= 2 ? '#ff3b5c' : bms === 1 ? '#f6bd4b' : '#1e3550';
+    bctx.strokeStyle = k === selected ? '#0f172a' : bms >= 2 ? '#e11d48' : bms === 1 ? '#d97706' : '#cbd5e1';
     bctx.lineWidth = k === selected ? 2 : bms ? 1.6 : 1; bctx.strokeRect(x + 0.5, y + 0.5, tw2 - 1, th - 1);
     bctx.globalAlpha = air ? 1 : 0.7;
     const f = RUN.flights[k], fs = tw2 >= 70 ? 10.5 : 9;
@@ -1143,7 +1143,7 @@ function drawBatt(s, force = false) {
     bctx.font = `600 ${fs}px ui-monospace,monospace`; bctx.fillStyle = COLORS[f.type]; bctx.textBaseline = 'top';
     bctx.fillText(`D-${f.id}`, x + 3, y + 2);
     bctx.textAlign = 'right'; bctx.fillStyle = col; bctx.fillText(`${soc}%`, x + tw2 - 3, y + 2); bctx.textAlign = 'left';
-    if (!air) { bctx.fillStyle = '#8fa3ba'; bctx.font = `600 ${fs - 1}px system-ui`; bctx.textBaseline = 'bottom';
+    if (!air) { bctx.fillStyle = '#64748b'; bctx.font = `600 ${fs - 1}px system-ui`; bctx.textBaseline = 'bottom';
       bctx.fillText(['queued', '', 'landed', 'CRASH', 'FORCED'][st] ?? '', x + 3, y + th - 2); }
     else if (bms) { bctx.fillStyle = col; bctx.font = `700 ${fs - 1}px system-ui`; bctx.textBaseline = 'bottom'; bctx.fillText(BMS[bms], x + 3, y + th - 2); }
     bctx.textBaseline = 'alphabetic'; bctx.globalAlpha = 1;
@@ -1293,9 +1293,9 @@ function finishPolygon() {
 function renderTfrs(c) {
   const list = $('#ccTfrList'), key = JSON.stringify(c?.tfrs || []) + JSON.stringify(c?.ground_stops || {});
   if (renderTfrs.key === key) return; renderTfrs.key = key; list.replaceChildren();
-  for (const z of c?.tfrs || []) { const li = document.createElement('li'); li.innerHTML = `<span style="color:${z.active ? '#ff5f72' : '#f6bd4b'}">${z.name}</span><span class="muted">${z.active ? 'ACTIVE' : 'scheduled/ended'} · ${fmt(z.start_s, 0)}–${fmt(z.end_s, 0)} s</span><button class="ghost sm">end</button>`;
+  for (const z of c?.tfrs || []) { const li = document.createElement('li'); li.innerHTML = `<span style="color:${z.active ? '#e11d48' : '#d97706'}">${z.name}</span><span class="muted">${z.active ? 'ACTIVE' : 'scheduled/ended'} · ${fmt(z.start_s, 0)}–${fmt(z.end_s, 0)} s</span><button class="ghost sm">end</button>`;
     li.lastChild.onclick = (e) => { e.stopPropagation(); sendCmd('tfr_cancel', [], {name: z.name}); }; list.append(li); }
-  for (const [sec, rel] of Object.entries(c?.ground_stops || {})) { const li = document.createElement('li'); li.innerHTML = `<span style="color:#f6bd4b">Ground stop S${sec}</span><span class="muted">${rel === null ? 'until released' : 'until ' + fmt(rel, 0) + ' s'}</span>`; list.append(li); }
+  for (const [sec, rel] of Object.entries(c?.ground_stops || {})) { const li = document.createElement('li'); li.innerHTML = `<span style="color:#d97706">Ground stop S${sec}</span><span class="muted">${rel === null ? 'until released' : 'until ' + fmt(rel, 0) + ' s'}</span>`; list.append(li); }
   if (!list.children.length) list.innerHTML = '<li class="empty">no restricted areas or ground stops</li>';
 }
 async function refreshHist() {
@@ -1323,32 +1323,32 @@ function drawConsoleOverlay(s) {
   for (const z of c?.tfrs || []) {
     if (!z.active && z.end_s <= simT) continue;
     ctx.beginPath(); z.polygon.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))); ctx.closePath();
-    ctx.fillStyle = z.active ? 'rgba(255,59,92,0.16)' : 'rgba(246,189,75,0.07)'; ctx.fill();
-    ctx.strokeStyle = z.active ? '#ff3b5c' : '#f6bd4b'; ctx.lineWidth = 2; ctx.setLineDash(z.active ? [] : [6, 4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = z.active ? 'rgba(225,29,72,0.14)' : 'rgba(217,119,6,0.08)'; ctx.fill();
+    ctx.strokeStyle = z.active ? '#e11d48' : '#d97706'; ctx.lineWidth = 2; ctx.setLineDash(z.active ? [] : [6, 4]); ctx.stroke(); ctx.setLineDash([]);
     const [x, y] = z.polygon[0]; ctx.fillStyle = ctx.strokeStyle; ctx.font = '700 11px system-ui'; ctx.fillText(`${z.name} ${z.active ? 'ACTIVE' : 'from ' + fmt(z.start_s, 0) + ' s'}`, sx(x) + 4, sy(y) - 4);
   }
   if (c?.ground_stops && MAP) for (const sec of Object.keys(c.ground_stops)) {
     const [x0, y0, x1, y1] = MAP.bounds, col = +sec % SECTOR_COLS, row = Math.floor(+sec / SECTOR_COLS);
     const ax = x0 + (x1 - x0) * col / SECTOR_COLS, bx = x0 + (x1 - x0) * (col + 1) / SECTOR_COLS, ay = y0 + (y1 - y0) * row / SECTOR_ROWS, by = y0 + (y1 - y0) * (row + 1) / SECTOR_ROWS;
-    ctx.fillStyle = 'rgba(246,189,75,0.07)'; ctx.fillRect(sx(ax), sy(by), (bx - ax) * view.s, (by - ay) * view.s);
-    ctx.fillStyle = '#f6bd4b'; ctx.font = '700 11px system-ui'; ctx.fillText(`GROUND STOP S${sec}`, sx(ax) + 6, sy(by) + 28);
+    ctx.fillStyle = 'rgba(217,119,6,0.08)'; ctx.fillRect(sx(ax), sy(by), (bx - ax) * view.s, (by - ay) * view.s);
+    ctx.fillStyle = '#d97706'; ctx.font = '700 11px system-ui'; ctx.fillText(`GROUND STOP S${sec}`, sx(ax) + 6, sy(by) + 28);
   }
   if (drawPoly?.length) {
-    ctx.strokeStyle = '#ff3b5c'; ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.beginPath(); drawPoly.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))); ctx.stroke(); ctx.setLineDash([]);
-    for (const [x, y] of drawPoly) { ctx.fillStyle = '#ff3b5c'; ctx.fillRect(sx(x) - 3, sy(y) - 3, 6, 6); }
+    ctx.strokeStyle = '#e11d48'; ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.beginPath(); drawPoly.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))); ctx.stroke(); ctx.setLineDash([]);
+    for (const [x, y] of drawPoly) { ctx.fillStyle = '#e11d48'; ctx.fillRect(sx(x) - 3, sy(y) - 3, 6, 6); }
   }
-  if (viaPoint) { ctx.strokeStyle = '#37d7f2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx(viaPoint[0]), sy(viaPoint[1]), 7, 0, 7); ctx.stroke(); ctx.fillStyle = '#37d7f2'; ctx.font = '600 10px system-ui'; ctx.fillText('via', sx(viaPoint[0]) + 9, sy(viaPoint[1]) + 3); }
-  if (boxSel) { ctx.strokeStyle = '#37d7f2'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeRect(boxSel.x0, boxSel.y0, boxSel.x1 - boxSel.x0, boxSel.y1 - boxSel.y0); ctx.setLineDash([]); }
+  if (viaPoint) { ctx.strokeStyle = '#0891b2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx(viaPoint[0]), sy(viaPoint[1]), 7, 0, 7); ctx.stroke(); ctx.fillStyle = '#0891b2'; ctx.font = '600 10px system-ui'; ctx.fillText('via', sx(viaPoint[0]) + 9, sy(viaPoint[1]) + 3); }
+  if (boxSel) { ctx.strokeStyle = '#0891b2'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeRect(boxSel.x0, boxSel.y0, boxSel.x1 - boxSel.x0, boxSel.y1 - boxSel.y0); ctx.setLineDash([]); }
   if (!s || !RUN) return;
   const holds = new Set(c?.holds || []), quar = new Set(c?.quarantined || []), charging = c?.charging || {};
   RUN.flights.forEach((f, n) => {
     const st = s.f0.status[n]; if (st !== 1 && st !== 0) return;
     const p = st === 1 ? posOf(s, n) : [s.f0.x[n], s.f0.y[n]], X = sx(p[0]), Y = sy(p[1]);
-    if (selSet.has(n) && n !== selected) { ctx.strokeStyle = '#37d7f2'; ctx.lineWidth = 1.6; ctx.setLineDash([3, 2]); ctx.beginPath(); ctx.arc(X, Y, 12, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
-    const tag = (txt, col, dy) => { ctx.font = '700 10px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#050c17'; ctx.strokeText(txt, X - 6, Y + dy); ctx.fillStyle = col; ctx.fillText(txt, X - 6, Y + dy); };
-    if (holds.has(f.id)) tag(st === 1 ? '⏸ HOLD' : '⏸ held', '#f6bd4b', 22);
-    if (quar.has(f.id)) tag('⛔ QUARANTINED', '#c084fc', 34);
-    if (charging[f.id]) tag(`⚡ ${charging[f.id].mode} until ${fmt(charging[f.id].until, 0)} s`, '#2fe0a0', 22);
+    if (selSet.has(n) && n !== selected) { ctx.strokeStyle = '#0891b2'; ctx.lineWidth = 1.6; ctx.setLineDash([3, 2]); ctx.beginPath(); ctx.arc(X, Y, 12, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+    const tag = (txt, col, dy) => { ctx.font = '700 10px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.strokeText(txt, X - 6, Y + dy); ctx.fillStyle = col; ctx.fillText(txt, X - 6, Y + dy); };
+    if (holds.has(f.id)) tag(st === 1 ? '⏸ HOLD' : '⏸ held', '#d97706', 22);
+    if (quar.has(f.id)) tag('⛔ QUARANTINED', '#9333ea', 34);
+    if (charging[f.id]) tag(`⚡ ${charging[f.id].mode} until ${fmt(charging[f.id].until, 0)} s`, '#059669', 22);
   });
 }
 // right-click context menu on a drone
