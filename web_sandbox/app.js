@@ -795,8 +795,16 @@ function tick(ts) {
     if (done && simT >= maxT) { playing = false; $('#playBtn').textContent = '▶'; }
   } else $('#buffer').hidden = true;
   const s = RUN && frames.length ? frameAt(simT) : null;
-  drawMap(); updatePanels(); draw25(s); drawNetwork(s);
-  if (RUN && frames.length) { drawChart(); drawNetChart(); drawAdmm(); drawBatt(s); }
+  drawMap(); updatePanels(); updateSections(s);
+  // only the open section's canvases are drawn (hidden ones are 1 px; drawing them is wasted work)
+  if (shown('drone')) draw25(s);
+  if (shown('network')) drawNetwork(s);
+  if (RUN && frames.length) {
+    if (shown('safety')) drawChart();
+    if (shown('network')) drawNetChart();
+    if (shown('admm')) drawAdmm();
+    if (shown('health')) drawBatt(s);
+  }
   requestAnimationFrame(tick);
 }
 
@@ -1155,7 +1163,7 @@ function battHit(e) {
   const r = battC.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
   return battLayout.find(([x, y, w, h]) => px >= x && px <= x + w && py >= y && py <= y + h) || null;
 }
-battC.addEventListener('click', (e) => { const hit = battHit(e); if (!hit) return; select(hit[4]); if (dTab !== 'hl') document.querySelector('#dTabs button[data-tab="hl"]').click(); document.querySelector('#droneCard').scrollIntoView({block: 'nearest', behavior: 'smooth'}); drawBatt(frameAt(simT), true); });
+battC.addEventListener('click', (e) => { const hit = battHit(e); if (!hit) return; select(hit[4]); showSection('drone'); if (dTab !== 'hl') document.querySelector('#dTabs button[data-tab="hl"]').click(); });
 battC.addEventListener('mousemove', (e) => {
   const hit = battHit(e), tip = $('#battTip');
   if (!hit || !frames.length) { tip.hidden = true; return; }
@@ -1214,6 +1222,7 @@ async function dryRun(body) {
 function askConfirm(html, buttons) {
   const box = $('#ccConfirm'); box.innerHTML = html + '<div class="btns"></div>'; box.hidden = false;
   for (const [label, fn, cls] of buttons) { const b = document.createElement('button'); b.className = `ghost sm ${cls || ''}`; b.textContent = label; b.onclick = () => { box.hidden = true; fn?.(); }; box.lastChild.append(b); }
+  showSection('console');   // commands from the map / keyboard need the console's confirm box on screen
   box.scrollIntoView({block: 'nearest'});
 }
 async function sendCmd(type, targets, params = {}, opts = {}) {
@@ -1410,8 +1419,177 @@ async function updateCompare() {
   $('#cmpTable').innerHTML = html;
 }
 
+// ------------------------------------------------------------------ sections: nav, side panel, overview
+// Default panel width per section (px); a width the user drags applies to every section until reset.
+const SECT_W = {overview: 540, setup: 420, custom: 420, console: 440, drone: 420, health: 580, safety: 580, network: 620, admm: 580};
+let section = 'overview', panelW = null, sectAt = 0;
+try { panelW = +localStorage.getItem('masooda.panelW') || null; } catch { panelW = null; }
+const layoutEl = $('#layout');
+const shown = (name) => section === name && !layoutEl.classList.contains('collapsed');
+function clampPanel(w) { return Math.round(Math.max(320, Math.min(w, 900, window.innerWidth - 76 - 380))); }
+function applyPanelWidth() { layoutEl.style.setProperty('--panel-w', `${clampPanel(panelW || SECT_W[section] || 420)}px`); }
+function setCollapsed(on) {
+  layoutEl.classList.toggle('collapsed', on);
+  const t = $('#panelToggle'); t.lastChild.textContent = on ? 'Show' : 'Hide';
+  resize();
+}
+function showSection(name) {
+  if (!SECT_W[name]) name = 'overview';
+  section = name;
+  document.querySelectorAll('#snav button[data-sect]').forEach((b) => b.classList.toggle('on', b.dataset.sect === name));
+  let el = null;
+  document.querySelectorAll('#spanelBody > .sect').forEach((s) => { const on = s.dataset.sect === name; s.hidden = !on; if (on) el = s; });
+  $('#panelTitle').textContent = el.dataset.title; $('#panelSub').textContent = el.dataset.sub || '';
+  $('#spanelBody').scrollTop = 0;
+  applyPanelWidth();
+  if (layoutEl.classList.contains('collapsed')) setCollapsed(false); else resize();
+  try { history.replaceState(null, '', `${location.pathname}${location.search}#${name}`); } catch { /* file:// or sandboxed */ }
+  sectAt = 0;   // refresh the overview / dots now
+}
+$('#snav').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'panelToggle') { setCollapsed(!layoutEl.classList.contains('collapsed')); return; }
+  if (b.dataset.sect === section && !layoutEl.classList.contains('collapsed') && window.innerWidth > 900) { setCollapsed(true); return; }   // click the open section again to hide the panel
+  showSection(b.dataset.sect);
+});
+$('#panelClose').onclick = () => setCollapsed(true);
+$('#ovGrid').addEventListener('click', (e) => { const t = e.target.closest('.tile'); if (t) showSection(t.dataset.go); });
+$('#ovGrid').addEventListener('keydown', (e) => { const t = e.target.closest('.tile'); if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showSection(t.dataset.go); } });
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== section && SECT_W[h]) showSection(h); });
+window.addEventListener('resize', applyPanelWidth);
+if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(document.querySelector('.map-wrap'));
+// drag the panel's right edge to resize; double-click resets to the section default
+(() => {
+  const h = $('#panelResize'); let start = null;
+  h.addEventListener('pointerdown', (e) => { start = [e.clientX, $('#spanel').getBoundingClientRect().width]; h.setPointerCapture(e.pointerId); h.classList.add('drag'); document.body.classList.add('resizing'); });
+  h.addEventListener('pointermove', (e) => { if (!start) return; panelW = clampPanel(start[1] + e.clientX - start[0]); applyPanelWidth(); });
+  const end = () => { if (!start) return; start = null; h.classList.remove('drag'); document.body.classList.remove('resizing'); try { localStorage.setItem('masooda.panelW', String(panelW)); } catch { /* storage blocked */ } resize(); };
+  h.addEventListener('pointerup', end); h.addEventListener('pointercancel', end);
+  h.addEventListener('dblclick', () => { panelW = null; try { localStorage.removeItem('masooda.panelW'); } catch { /* storage blocked */ } applyPanelWidth(); resize(); });
+})();
+
+// status dots on the nav (and on the overview tiles): '', 'ok', 'warn', 'bad'
+function setDot(name, cls, text = '') {
+  for (const d of document.querySelectorAll(`#snav button[data-sect="${name}"] .ndot, .ndot[data-dot="${name}"]`)) {
+    d.className = `ndot ${cls}`; d.textContent = text;
+  }
+}
+const kv = (rows) => rows.map(([k, v, c]) => `<dt>${k}</dt><dd${c ? ` class="${c}"` : ''}>${v}</dd>`).join('');
+function latestAdmmRun(i) { for (let j = i, n = 0; j >= 0 && n < 400; j--, n++) if (frames[j].admm?.run) return frames[j].admm.run; return null; }
+function bmsCounts(f) { const cnt = [0, 0, 0, 0], h = f.h; if (h) f.status.forEach((st, k) => { if (st === 1 && h.bms[k] !== undefined) cnt[h.bms[k]]++; }); return cnt; }
+
+function updateSections(s) {
+  const now = performance.now(); if (now - sectAt < 250) return; sectAt = now;
+  setDot('custom', customDrones.length ? 'count' : '', customDrones.length ? String(customDrones.length) : '');
+  if (!RUN || !s) { for (const n of ['console', 'health', 'safety', 'admm', 'drone']) setDot(n, ''); if (shown('overview')) updateOverview(null); return; }
+  const f = s.f0, st = f.stats || {}, healthOn = RUN.limits.health?.enabled;
+  setDot('console', !RUN.switches.use_overseer ? '' : f.link_up ? 'ok' : 'bad');
+  const cnt = healthOn ? bmsCounts(f) : [0, 0, 0, 0];
+  setDot('health', !healthOn ? '' : cnt[2] + cnt[3] ? 'bad' : cnt[1] ? 'warn' : 'ok');
+  setDot('safety', st.crashes || st.safety_violation_ticks ? 'bad' : st.near_misses ? 'warn' : 'ok');
+  setDot('admm', !RUN.switches.use_admm ? '' : st.admm_nonconverged ? 'warn' : 'ok');
+  const sel = selected !== null && RUN.flights[selected] ? selected : null, sb = sel !== null && f.h ? f.h.bms[sel] : undefined;
+  setDot('drone', sel === null ? '' : f.status[sel] === 3 || sb >= 2 ? 'bad' : sb === 1 ? 'warn' : '');
+  if (shown('overview')) updateOverview(s);
+}
+
+function updateOverview(s) {
+  $('#ovCustomBig').textContent = customDrones.length;
+  $('#ovCustomSub').textContent = customDrones.length ? `custom drone${customDrones.length === 1 ? '' : 's'} in the next launch` : 'none added · random fleet only';
+  if (!RUN || !s) { $('#ovRunBig').textContent = $('#runState').textContent; return; }
+  const f = s.f0, st = f.stats || {}, L = RUN.limits;
+  // Run
+  const cnt = [0, 0, 0, 0, 0]; f.status.forEach((x) => cnt[x]++);
+  const total = Math.max(1, f.status.length), cols = ['#cbd5e1', '#0891b2', '#059669', '#e11d48', '#d97706'], names = ['Queued', 'Airborne', 'Landed', 'Crashed', 'Forced landing'];   // STATUS order
+  $('#ovRunBig').textContent = `${$('#runState').textContent} · ${fmt(simT)} / ${RUN.duration_s} s`;
+  $('#ovRunMeta').textContent = `${RUN.preset ? 'Preset · ' + RUN.preset.title + ' · ' : ''}${MAP?.label ?? RUN.map} · ${ARCH[RUN.architecture]?.label ?? RUN.architecture} · seed ${RUN.seed} · ${RUN.flights.length} flights`;
+  $('#ovRunStack').innerHTML = cnt.map((c, i) => c ? `<i style="width:${(100 * c / total).toFixed(2)}%;background:${cols[i]}" title="${names[i]}: ${c}"></i>` : '').join('');
+  $('#ovRunLegend').innerHTML = cnt.map((c, i) => (i < 3 || c) ? `<span><i style="background:${cols[i]}"></i>${names[i]}<b>${c}</b></span>` : '').join('');
+  // Safety
+  const big = $('#ovSafeBig'); big.textContent = st.crashes ?? '—'; big.className = `tile-big ${st.crashes ? 'bad' : 'good'}`;
+  $('#ovSafeSub').textContent = st.crashes ? `collisions · ${st.crashed_drones} drones lost` : 'collisions';
+  $('#ovSafeKv').innerHTML = kv([
+    ['Near misses', st.near_misses ?? '—', st.near_misses ? 'warn' : ''],
+    ['Min separation', st.min_separation_m === null || st.min_separation_m === undefined ? '—' : `${fmt(st.min_separation_m, 2)} m / ${L.d_min} m`, st.min_separation_m !== null && st.min_separation_m < L.d_min ? 'bad' : ''],
+    ['Separation now', f.rho === null || f.rho === undefined ? '—' : `${fmt(f.rho + L.d_min, 1)} m`],
+    ['Violation ticks', st.safety_violation_ticks ?? '—', st.safety_violation_ticks ? 'bad' : '']]);
+  drawSpark(s.i);
+  // DTC
+  const dtcOn = RUN.switches.use_overseer, d = f.dtc || {}, c = f.console || {};
+  const db = $('#ovDtcBig'); db.textContent = !dtcOn ? 'OFF' : f.link_up ? 'LINK UP' : 'LINK DOWN'; db.className = `tile-big ${!dtcOn ? '' : f.link_up ? 'good' : 'bad'}`;
+  $('#ovDtcSub').textContent = !dtcOn ? 'no DTC in this architecture' : `directive age ${fmt(d.staleness_s)} s`;
+  const last = cmdHist.at(-1);
+  $('#ovDtcKv').innerHTML = kv([
+    ['Directives', st.dtc_directives ?? d.directives ?? 0],
+    ['Layer changes · gated', `${st.layer_changes ?? 0} · ${st.layer_changes_deferred ?? 0}`],
+    ['Operator commands', cmdHist.length ? `${cmdHist.length} · last ${last.type} (${last.status})` : 'none'],
+    ['Selected drones', selSet.size || '—'],
+    ...(c.outage_queue ? [['Queued for link', c.outage_queue, 'warn']] : [])]);
+  // Fleet health
+  const healthOn = L.health?.enabled;
+  if (healthOn) {
+    const bc = bmsCounts(f);
+    $('#ovBms').innerHTML = BMS.map((b, i) => `<div><b style="color:${BMS_COL[i]}">${bc[i]}</b><small>${b}</small></div>`).join('');
+    let low = null; if (f.h) f.status.forEach((x, k) => { if (x === 1 && (low === null || f.h.soc[k] < f.h.soc[low])) low = k; });
+    $('#ovHealthKv').innerHTML = kv([
+      ['Lowest SoC (airborne)', low === null ? '—' : `D-${RUN.flights[low].id} · ${f.h.soc[low]}%`, low !== null && f.h.soc[low] < 15 ? 'bad' : low !== null && f.h.soc[low] < 30 ? 'warn' : ''],
+      ['Max pack temperature', st.max_pack_c === undefined ? '—' : `${fmt(st.max_pack_c, 0)} °C`],
+      ['Diversions · forced', `${st.diversions ?? 0} · ${st.forced_landings ?? 0}`, st.forced_landings ? 'bad' : ''],
+      ['Energy / delivery', st.energy_per_delivered_wh === null || st.energy_per_delivered_wh === undefined ? '—' : `${fmt(st.energy_per_delivered_wh, 0)} Wh`]]);
+  } else { $('#ovBms').innerHTML = ''; $('#ovHealthKv').innerHTML = kv([['Health model', 'off']]); }
+  // Traffic & priority
+  const pr = f.prio, mg = f.merge;
+  $('#ovTrafBig').textContent = `${st.arrivals ?? 0} / ${RUN.flights.length}`;
+  $('#ovTrafKv').innerHTML = kv([
+    ['Emergency compliance', pr && pr.count ? (pr.rate === null ? '—' : `${fmt(pr.rate * 100, 0)}%`) : 'no EMG flights', pr && pr.rate !== null && pr.rate < 0.9 ? 'bad' : ''],
+    ['EMG mean delay', pr && pr.mean_delay_s !== null && pr.mean_delay_s !== undefined ? `${fmt(pr.mean_delay_s)} s` : '—'],
+    ['Junction merges', mg ? (mg.rate === null ? '—' : `${fmt(mg.rate * 100, 0)}% · ${mg.platoons} platoons`) : 'off'],
+    ['Altitude shifts', st.tactical_layer_shifts ?? 0]]);
+  // ADMM
+  const ar = latestAdmmRun(s.i), ab = $('#ovAdmmBig');
+  ab.textContent = RUN.switches.use_admm ? (st.admm_events ?? 0) : 'OFF'; ab.className = `tile-big ${RUN.switches.use_admm ? 'cyan' : ''}`;
+  $('#ovAdmmSub').textContent = RUN.switches.use_admm ? 'conflict groups resolved' : (RUN.architecture === 'centralized' ? 'centralized: no ADMM' : 'ADMM disabled');
+  $('#ovAdmmKv').innerHTML = RUN.switches.use_admm ? kv([
+    ['Converged · fallback', `${ar?.converged ?? 0} · ${ar?.fallback ?? st.admm_nonconverged ?? 0}`, (ar?.fallback || st.admm_nonconverged) ? 'warn' : ''],
+    ['Iterations p95', `${fmt(ar?.it_p95, 0)} / ${L.max_iterations ?? '—'}`],
+    ['Solve time p95', `${fmt(ar?.ms_p95, 2)} ms`]]) : '';
+  // Network
+  const air = cnt[1], m = f.net || {};
+  $('#ovNetBig').textContent = !dtcOn ? '—' : air ? `${fmt(100 * (d.connected || 0) / air, 0)}%` : '—';
+  $('#ovNetSub').textContent = dtcOn ? 'of airborne drones reach the DTC' : 'no DTC · V2V only';
+  $('#ovNetKv').innerHTML = kv([
+    ['V2V avg degree', fmt(m.avg_degree, 2)],
+    ['Giant component', air ? `${fmt((m.largest_component ?? 0) * 100, 0)}%` : '—'],
+    ['Components (isolated)', `${m.components ?? 0} (${m.isolated ?? 0})`],
+    ['Edges', m.edges ?? 0]]);
+  // Selected drone
+  const n = selected !== null && RUN.flights[selected] ? selected : null;
+  if (n === null) { $('#ovDroneBig').textContent = '—'; $('#ovDroneSub').textContent = 'click a drone on the map'; $('#ovDroneKv').innerHTML = ''; }
+  else {
+    const fl = RUN.flights[n], stn = f.status[n];
+    $('#ovDroneBig').textContent = `D-${fl.id}`; $('#ovDroneBig').style.color = COLORS[fl.type];
+    $('#ovDroneSub').textContent = `${fl.type} · ${STATUS[stn]}`;
+    $('#ovDroneKv').innerHTML = kv([
+      ['Route', `${fl.origin_name ?? fl.origin} → ${fl.destination_name ?? fl.destination}`],
+      ['Layer · speed', `L${f.layer[n]} · ${fmt(f.speed[n])} m/s`],
+      ['Progress', `${fmt((f.progress[n] || 0) * 100, 0)}%`],
+      ...(f.h ? [['SoC · BMS', `${f.h.soc[n]}% · ${BMS[f.h.bms[n]]}`, f.h.bms[n] >= 2 ? 'bad' : f.h.bms[n] === 1 ? 'warn' : '']] : [])]);
+  }
+}
+// robustness ρ(t) sparkline up to the playback time (red dashed line = the d_min limit)
+function drawSpark(i) {
+  const svg = $('#ovSafeSpark'), pts = [], step = Math.max(1, Math.floor((i + 1) / 200));
+  for (let j = 0; j <= i; j += step) if (frames[j].rho !== null && frames[j].rho !== undefined) pts.push([frames[j].t, frames[j].rho]);
+  if (pts.length < 2) { svg.innerHTML = ''; return; }
+  const T = Math.max(RUN.duration_s, 1), lo = Math.min(-1, ...pts.map((p) => p[1])), hi = Math.max(1, ...pts.map((p) => p[1]));
+  const X = (t) => (200 * t / T).toFixed(1), Y = (v) => (38 - 36 * (v - lo) / (hi - lo)).toFixed(1);
+  svg.innerHTML = `<line x1="0" x2="200" y1="${Y(0)}" y2="${Y(0)}" stroke="#e11d48" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`
+    + `<polyline fill="none" stroke="#0891b2" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${pts.map((p) => `${X(p[0])},${Y(p[1])}`).join(' ')}"/>`;
+}
+
 // ------------------------------------------------------------------ boot
 async function boot() {
+  showSection(location.hash.slice(1) || 'overview');
   resize(); requestAnimationFrame(tick);
   try {
     let maps;

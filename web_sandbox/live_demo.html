@@ -32,119 +32,81 @@
     </div>
   </header>
 
-  <main class="layout">
-    <section class="map-card">
-      <div class="map-head">
-        <div><span class="eyebrow" id="mapEyebrow">Live airspace</span><h1 id="sceneTitle">Normal operations</h1></div>
-        <div class="map-tools">
-          <div class="seg" id="mapSeg" title="Map"></div>
-          <div class="seg" id="layerSeg" title="Altitude layer filter"><button data-layer="all" class="on">All layers</button></div>
-          <label class="tog"><input type="checkbox" id="tgRoutes"> All routes</label>
-          <label class="tog"><input type="checkbox" id="tgLinks"> V2V links</label>
-          <label class="tog"><input type="checkbox" id="tgSectors" checked> Sectors</label>
-          <label class="tog"><input type="checkbox" id="tgContext" checked> Base map</label>
-        </div>
+  <main class="layout" id="layout">
+    <nav class="snav" id="snav" aria-label="Sections">
+      <button data-sect="overview" title="Overview: every section at a glance"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Overview</span><i class="ndot"></i></button>
+      <button data-sect="setup" title="Scenario setup and launch"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Setup</span><i class="ndot"></i></button>
+      <button data-sect="custom" title="Custom drones: scenario builder, import / export"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>Custom</span><i class="ndot"></i></button>
+      <button data-sect="console" title="DTC console: operator commands and sector load"><svg viewBox="0 0 24 24"><path d="M12 12v9M8.5 21h7"/><circle cx="12" cy="10" r="2"/><path d="M7.8 5.8a6 6 0 0 0 0 8.4M16.2 5.8a6 6 0 0 1 0 8.4M5 3a10 10 0 0 0 0 14M19 3a10 10 0 0 1 0 14"/></svg><span>DTC</span><i class="ndot"></i></button>
+      <button data-sect="drone" title="Selected drone: 2.5D view, health, events"><svg viewBox="0 0 24 24"><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9.5 9.5 7 7M14.5 9.5 17 7M9.5 14.5 7 17M14.5 14.5 17 17"/><circle cx="5.5" cy="5.5" r="2.5"/><circle cx="18.5" cy="5.5" r="2.5"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><span>Drone</span><i class="ndot"></i></button>
+      <button data-sect="health" title="Fleet health: BMS counts, alerts, battery matrix"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10.5v3M11.5 9l-2 3h3l-2 3"/></svg><span>Health</span><i class="ndot"></i></button>
+      <button data-sect="safety" title="Safety and KPIs: STL robustness, governance log, variant comparison"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg><span>Safety</span><i class="ndot"></i></button>
+      <button data-sect="network" title="Network theory: DTC + V2V graph"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M11 7 6 16M13 7l5 9M7.2 18h9.6"/></svg><span>Network</span><i class="ndot"></i></button>
+      <button data-sect="admm" title="P2 ADMM convergence timer"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M10 2h4M12 2v3"/></svg><span>ADMM</span><i class="ndot"></i></button>
+      <span class="snav-gap"></span>
+      <button id="panelToggle" class="snav-toggle" title="Hide / show the side panel"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg><span>Hide</span></button>
+    </nav>
+
+    <aside class="spanel" id="spanel" aria-live="off">
+      <div class="spanel-head">
+        <div><h2 id="panelTitle">Overview</h2><small id="panelSub" class="muted"></small></div>
+        <button class="ghost sm" id="panelClose" title="Hide the panel (the map gets the full width)">✕</button>
       </div>
-      <div class="map-wrap">
-        <canvas id="map" aria-label="Map of the corridor network with live drone positions — click a drone to select it"></canvas>
-        <div class="legend">
-          <span><i class="sw emergency"></i>Emergency</span><span><i class="sw evtol"></i>eVTOL</span><span><i class="sw delivery"></i>Delivery</span>
-          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span><span><i class="sw spoof"></i>Spoofed report → W-MSR estimate</span><span><i class="sw junction"></i>Junction merge (amber = gap blocked)</span><span><i class="sw bmsw"></i>BMS warning</span><span><i class="sw bmsc"></i>BMS critical / fault</span><span>⊘ Forced landing</span>
-        </div>
-        <div class="zoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit map">⤢</button><button id="zFollow" aria-label="Follow selected drone" title="Follow selected drone">◎</button></div>
-        <div id="buffer" class="buffer" hidden>computing ahead…</div>
-        <div id="tip" class="tip" hidden></div>
-        <div id="ctxMenu" class="ctx" hidden></div>
-        <div id="drawHint" class="drawhint" hidden></div>
-        <div class="attrib" id="attrib"></div>
+      <div class="spanel-body" id="spanelBody">
+
+    <section class="sect" data-sect="overview" data-title="Overview" data-sub="Every section at a glance · click a tile to open it">
+      <div class="ov-grid" id="ovGrid">
+        <article class="tile wide" data-go="setup" role="button" tabindex="0">
+          <div class="tile-h"><b>Run</b><span class="muted" id="ovRunMeta">—</span><span class="go">Setup ›</span></div>
+          <div class="tile-big" id="ovRunBig">—</div>
+          <div class="stack" id="ovRunStack"></div>
+          <div class="stack-legend" id="ovRunLegend"></div>
+        </article>
+        <article class="tile" data-go="safety" role="button" tabindex="0">
+          <div class="tile-h"><b>Safety</b><i class="ndot" data-dot="safety"></i><span class="go">›</span></div>
+          <div class="tile-big" id="ovSafeBig">—</div><div class="tile-sub" id="ovSafeSub">collisions</div>
+          <dl class="tile-kv" id="ovSafeKv"></dl>
+          <svg class="spark" id="ovSafeSpark" viewBox="0 0 200 40" preserveAspectRatio="none"></svg>
+        </article>
+        <article class="tile" data-go="console" role="button" tabindex="0">
+          <div class="tile-h"><b>DTC</b><i class="ndot" data-dot="console"></i><span class="go">›</span></div>
+          <div class="tile-big" id="ovDtcBig">—</div><div class="tile-sub" id="ovDtcSub">controller link</div>
+          <dl class="tile-kv" id="ovDtcKv"></dl>
+        </article>
+        <article class="tile" data-go="health" role="button" tabindex="0">
+          <div class="tile-h"><b>Fleet health</b><i class="ndot" data-dot="health"></i><span class="go">›</span></div>
+          <div class="bms4" id="ovBms"></div>
+          <dl class="tile-kv" id="ovHealthKv"></dl>
+        </article>
+        <article class="tile" data-go="safety" role="button" tabindex="0">
+          <div class="tile-h"><b>Traffic &amp; priority</b><span class="go">›</span></div>
+          <div class="tile-big" id="ovTrafBig">—</div><div class="tile-sub" id="ovTrafSub">arrivals</div>
+          <dl class="tile-kv" id="ovTrafKv"></dl>
+        </article>
+        <article class="tile" data-go="admm" role="button" tabindex="0">
+          <div class="tile-h"><b>ADMM</b><i class="ndot" data-dot="admm"></i><span class="go">›</span></div>
+          <div class="tile-big" id="ovAdmmBig">—</div><div class="tile-sub" id="ovAdmmSub">conflict groups</div>
+          <dl class="tile-kv" id="ovAdmmKv"></dl>
+        </article>
+        <article class="tile" data-go="network" role="button" tabindex="0">
+          <div class="tile-h"><b>Network</b><span class="go">›</span></div>
+          <div class="tile-big" id="ovNetBig">—</div><div class="tile-sub" id="ovNetSub">DTC coverage</div>
+          <dl class="tile-kv" id="ovNetKv"></dl>
+        </article>
+        <article class="tile" data-go="drone" role="button" tabindex="0">
+          <div class="tile-h"><b>Selected drone</b><i class="ndot" data-dot="drone"></i><span class="go">›</span></div>
+          <div class="tile-big" id="ovDroneBig">—</div><div class="tile-sub" id="ovDroneSub">click a drone on the map</div>
+          <dl class="tile-kv" id="ovDroneKv"></dl>
+        </article>
+        <article class="tile" data-go="custom" role="button" tabindex="0">
+          <div class="tile-h"><b>Custom drones</b><span class="go">›</span></div>
+          <div class="tile-big" id="ovCustomBig">0</div><div class="tile-sub" id="ovCustomSub">in the next launch</div>
+        </article>
       </div>
-      <div class="timeline"><span id="tLabel">t = 0.0 s</span><input id="scrub" type="range" min="0" max="0" value="0" step="0.1" aria-label="Simulation time"><span id="tMax">/ — s</span></div>
+      <p class="foot">Research simulation. IITH corridors are traced from the campus map (schematic, ~0.95 m/px); Hyderabad corridors are OpenStreetMap centrelines (ODbL). Corridors are a planning backbone, not approved flight paths. Computed locally by MASooda's simulator modules.</p>
     </section>
 
-    <aside class="rail">
-      <section class="card" id="droneCard">
-        <div class="card-head"><h2>Selected drone · 2.5D view</h2><select id="dronePick" aria-label="Select drone"></select></div>
-        <div class="dhead"><span id="dName" class="dname">—</span><span id="dBadge" class="badge">—</span><span id="dStatus" class="pill">—</span></div>
-        <div class="seg tabs" id="dTabs"><button data-tab="ov" class="on">Overview</button><button data-tab="hl">Health <i id="dHealthDot" class="hdot"></i></button></div>
-        <div id="tabOv">
-        <canvas id="view25" aria-label="2.5D view around the selected drone"></canvas>
-        <div class="bar"><i id="dProg"></i></div>
-        <dl class="kv">
-          <dt>Mission</dt><dd id="dTask">—</dd>
-          <dt>Route</dt><dd id="dRoute">—</dd>
-          <dt>Layer · altitude</dt><dd id="dLayer">—</dd>
-          <dt>Speed · heading</dt><dd id="dSpeed">—</dd>
-          <dt>Remaining · ETA</dt><dd id="dEta">—</dd>
-          <dt>Nearest same-layer</dt><dd id="dNear">—</dd>
-          <dt>V2V links (degree)</dt><dd id="dDeg">—</dd>
-          <dt>DTC link</dt><dd id="dDtc">—</dd>
-          <dt>ADMM · shifts · alerts</dt><dd id="dCounts">—</dd>
-          <dt>Last ADMM negotiation</dt><dd id="dNeg">—</dd>
-          <dt id="dPrioLbl">Emergency priority</dt><dd id="dPrio">—</dd>
-          <dt>Neighbour reports</dt><dd id="dTrust">—</dd>
-        </dl>
-        </div>
-        <div id="tabHl" hidden>
-          <div class="hl-top">
-            <div class="gauge"><div class="gfill" id="hSocBar"></div><span id="hSoc">—</span></div>
-            <div><span class="pill" id="hStatus">—</span> <span class="codes" id="hCodes"></span></div>
-          </div>
-          <dl class="kv">
-            <dt>Voltage · current · power</dt><dd id="hVip">—</dd>
-            <dt>Energy left · time · range</dt><dd id="hLeft">—</dd>
-            <dt>State of health · capacity</dt><dd id="hSoh">—</dd>
-            <dt>Pack temperature</dt><dd id="hTp">—</dd>
-            <dt>Motor / ESC temperature</dt><dd id="hTm">—</dd>
-            <dt>Cells (min · imbalance)</dt><dd id="hCellTxt">—</dd>
-            <dt>DTC link RSSI · loss</dt><dd id="hLink">—</dd>
-            <dt>GNSS fix · HDOP</dt><dd id="hGnss">—</dd>
-            <dt>Motor health · energy used</dt><dd id="hMotor">—</dd>
-            <dt>Faults</dt><dd id="hFaults">—</dd>
-          </dl>
-          <canvas id="hCells" aria-label="Per-cell voltages"></canvas>
-          <canvas id="hChart" aria-label="SoC and temperature over time"></canvas>
-          <div class="net-legend"><span><i style="background:#059669"></i>SoC %</span><span><i style="background:#ea580c"></i>Max temp °C</span><span class="muted" id="hNote"></span></div>
-        </div>
-        <div class="card-head sub"><h3>Events for this drone</h3><span class="muted" id="dEvCount">0</span></div>
-        <ol id="dEvents" class="dev"></ol>
-      </section>
-
-      <section class="card" id="consoleCard">
-        <div class="card-head"><h2>DTC console</h2><span class="muted" id="ccLink">—</span></div>
-        <div class="cc-sel"><span id="ccSel">No drones selected</span><button class="ghost sm" id="ccClear">Clear</button></div>
-        <p class="hint">Click a drone · Shift+click to add · Ctrl+drag a box · right-click for a menu · keys: H hold, R resume, G ground, B return, Q quarantine, [ ] layer, Esc clear.</p>
-        <div class="cc-filter">
-          <select id="ccfType"><option value="">any type</option><option>EMERGENCY</option><option>EVTOL</option><option>DELIVERY</option></select>
-          <select id="ccfSector"><option value="">any sector</option></select>
-          <select id="ccfLayer"><option value="">any layer</option></select>
-          <select id="ccfStatus"><option value="1">airborne</option><option value="0">queued</option><option value="">any status</option></select>
-          <button class="ghost sm" id="ccfApply">Select matching</button>
-        </div>
-        <div class="cc-bar">
-          <button class="ghost" data-cmd="hold" title="H">⏸ Hold</button>
-          <button class="ghost" data-cmd="resume" title="R">▶ Resume</button>
-          <button class="ghost" data-cmd="ground_now" title="G">⤓ Ground now</button>
-          <button class="ghost" data-cmd="rtb" title="B">↩ Return to base</button>
-          <button class="ghost" data-cmd="quarantine" title="Q">⛔ Quarantine</button>
-          <button class="ghost" data-cmd="promote">⚕ Make EMERGENCY</button>
-          <button class="ghost" data-cmd="demote">Normal priority</button>
-        </div>
-        <div class="cc-row"><span>Layer</span><select id="ccLayer"></select><button class="ghost sm" data-cmd="change_layer">Change layer</button></div>
-        <div class="cc-row"><span>Reroute to</span><select id="ccDest"></select><button class="pick" id="ccVia" title="Click a point on the map to fly via it">◎ via</button><button class="ghost sm" data-cmd="reroute">Reroute</button></div>
-        <div class="cc-row"><span>Speed ≤</span><input id="ccV" type="number" min="0.5" step="0.5" value="6"><span>m/s for</span><input id="ccExp" type="number" min="1" step="5" value="60"><span>s</span><select id="ccVSector"><option value="">selected drones</option></select><button class="ghost sm" data-cmd="speed_limit">Apply</button></div>
-        <div class="cc-row"><span>Battery at</span><select id="ccPad"></select><select id="ccMode"><option value="swap">swap</option><option value="charge">charge</option></select><button class="ghost sm" data-cmd="divert_charge">Divert</button></div>
-        <div class="cc-row"><span>Lost link</span><select id="ccLL"><option>continue</option><option>hold</option><option>rtb</option><option>land</option></select><button class="ghost sm" data-cmd="ll_selected">Selected</button><button class="ghost sm" data-cmd="ll_fleet">Fleet default</button></div>
-        <div class="sub-h">Airspace</div>
-        <div class="cc-row"><button class="ghost sm" id="ccTfrDraw">✎ Draw restricted area</button><span>from</span><input id="ccTfrStart" type="number" min="0" step="5" placeholder="now"><span>to</span><input id="ccTfrEnd" type="number" min="1" step="5" placeholder="end"><span>s</span></div>
-        <ol class="fh-list" id="ccTfrList"></ol>
-        <div class="cc-row"><span>Ground stop</span><select id="ccGsSector"></select><span>release at</span><input id="ccGsRel" type="number" min="0" step="10" placeholder="manual"><span>s</span><button class="ghost sm" data-cmd="ground_stop">Stop</button><button class="ghost sm" data-cmd="ground_stop_release">Release</button></div>
-        <div class="sub-h">Fleet health actions</div>
-        <div class="cc-row"><button class="ghost sm" data-cmd="fleet_ground_bms_critical">Ground all BMS CRITICAL</button><span>Recall below</span><input id="ccRecall" type="number" min="1" max="100" value="30"><span>% SoC</span><button class="ghost sm" data-cmd="fleet_recall_below_soc">Recall</button></div>
-        <div id="ccConfirm" class="cc-confirm" hidden></div>
-        <div class="sub-h">Command history <span class="muted" id="ccHistCount"></span></div>
-        <ol class="cc-hist" id="ccHist"></ol>
-      </section>
-
+    <section class="sect" data-sect="setup" data-title="Setup" data-sub="Preset, architecture, fleet, weather and modules · then launch" hidden>
       <section class="card">
         <div class="card-head"><h2>Scenario</h2><span class="muted" id="seedLabel"></span></div>
         <div class="presets">
@@ -205,18 +167,10 @@
         </div>
         <details class="adv"><summary>Model parameters (from configs/base_config.yaml)</summary><div id="advFields" class="grid2"></div></details>
         <button id="runBtn" class="primary">▶ Launch simulation</button>
-        <p id="status" class="status" aria-live="polite">Connecting to the local simulator…</p>
       </section>
+    </section>
 
-      <section class="card" id="fleetHealth">
-        <div class="card-head"><h2>Fleet health · BMS</h2><span class="muted" id="fhAmb"></span></div>
-        <div class="fh-counts" id="fhCounts"></div>
-        <div class="sub-h">Lowest charge (airborne) <span class="muted">click to select</span></div>
-        <ol class="fh-list" id="fhLow"></ol>
-        <div class="sub-h">Active alerts <span class="muted">last 60 s</span></div>
-        <ol class="fh-list alerts" id="fhAlerts"></ol>
-      </section>
-
+    <section class="sect" data-sect="custom" data-title="Custom drones" data-sub="Add, import or inject drones next to the random fleet" hidden>
       <section class="card" id="builderCard">
         <div class="card-head"><h2>Custom drones</h2><span class="muted" id="cdCount">0 in scenario</span></div>
         <p class="hint">Add your own drones next to the random fleet (set fleet size to 0 for custom drones only).</p>
@@ -257,13 +211,127 @@
         </div>
         <p id="cdMsg" class="status" aria-live="polite"></p>
       </section>
+    </section>
 
+    <section class="sect" data-sect="console" data-title="DTC console" data-sub="Operator commands to the Drone Traffic Controller · sector load" hidden>
+      <section class="card" id="consoleCard">
+        <div class="card-head"><h2>DTC console</h2><span class="muted" id="ccLink">—</span></div>
+        <div class="cc-sel"><span id="ccSel">No drones selected</span><button class="ghost sm" id="ccClear">Clear</button></div>
+        <p class="hint">Click a drone · Shift+click to add · Ctrl+drag a box · right-click for a menu · keys: H hold, R resume, G ground, B return, Q quarantine, [ ] layer, Esc clear.</p>
+        <div class="cc-filter">
+          <select id="ccfType"><option value="">any type</option><option>EMERGENCY</option><option>EVTOL</option><option>DELIVERY</option></select>
+          <select id="ccfSector"><option value="">any sector</option></select>
+          <select id="ccfLayer"><option value="">any layer</option></select>
+          <select id="ccfStatus"><option value="1">airborne</option><option value="0">queued</option><option value="">any status</option></select>
+          <button class="ghost sm" id="ccfApply">Select matching</button>
+        </div>
+        <div class="cc-bar">
+          <button class="ghost" data-cmd="hold" title="H">⏸ Hold</button>
+          <button class="ghost" data-cmd="resume" title="R">▶ Resume</button>
+          <button class="ghost" data-cmd="ground_now" title="G">⤓ Ground now</button>
+          <button class="ghost" data-cmd="rtb" title="B">↩ Return to base</button>
+          <button class="ghost" data-cmd="quarantine" title="Q">⛔ Quarantine</button>
+          <button class="ghost" data-cmd="promote">⚕ Make EMERGENCY</button>
+          <button class="ghost" data-cmd="demote">Normal priority</button>
+        </div>
+        <div class="cc-row"><span>Layer</span><select id="ccLayer"></select><button class="ghost sm" data-cmd="change_layer">Change layer</button></div>
+        <div class="cc-row"><span>Reroute to</span><select id="ccDest"></select><button class="pick" id="ccVia" title="Click a point on the map to fly via it">◎ via</button><button class="ghost sm" data-cmd="reroute">Reroute</button></div>
+        <div class="cc-row"><span>Speed ≤</span><input id="ccV" type="number" min="0.5" step="0.5" value="6"><span>m/s for</span><input id="ccExp" type="number" min="1" step="5" value="60"><span>s</span><select id="ccVSector"><option value="">selected drones</option></select><button class="ghost sm" data-cmd="speed_limit">Apply</button></div>
+        <div class="cc-row"><span>Battery at</span><select id="ccPad"></select><select id="ccMode"><option value="swap">swap</option><option value="charge">charge</option></select><button class="ghost sm" data-cmd="divert_charge">Divert</button></div>
+        <div class="cc-row"><span>Lost link</span><select id="ccLL"><option>continue</option><option>hold</option><option>rtb</option><option>land</option></select><button class="ghost sm" data-cmd="ll_selected">Selected</button><button class="ghost sm" data-cmd="ll_fleet">Fleet default</button></div>
+        <div class="sub-h">Airspace</div>
+        <div class="cc-row"><button class="ghost sm" id="ccTfrDraw">✎ Draw restricted area</button><span>from</span><input id="ccTfrStart" type="number" min="0" step="5" placeholder="now"><span>to</span><input id="ccTfrEnd" type="number" min="1" step="5" placeholder="end"><span>s</span></div>
+        <ol class="fh-list" id="ccTfrList"></ol>
+        <div class="cc-row"><span>Ground stop</span><select id="ccGsSector"></select><span>release at</span><input id="ccGsRel" type="number" min="0" step="10" placeholder="manual"><span>s</span><button class="ghost sm" data-cmd="ground_stop">Stop</button><button class="ghost sm" data-cmd="ground_stop_release">Release</button></div>
+        <div class="sub-h">Fleet health actions</div>
+        <div class="cc-row"><button class="ghost sm" data-cmd="fleet_ground_bms_critical">Ground all BMS CRITICAL</button><span>Recall below</span><input id="ccRecall" type="number" min="1" max="100" value="30"><span>% SoC</span><button class="ghost sm" data-cmd="fleet_recall_below_soc">Recall</button></div>
+        <div id="ccConfirm" class="cc-confirm" hidden></div>
+        <div class="sub-h">Command history <span class="muted" id="ccHistCount"></span></div>
+        <ol class="cc-hist" id="ccHist"></ol>
+      </section>
       <section class="card">
         <div class="card-head"><h2>DTC · sector × layer load</h2><span class="muted" id="capLabel"></span></div>
         <table class="occ" id="occ"></table>
       </section>
-    </aside>
+    </section>
 
+    <section class="sect" data-sect="drone" data-title="Selected drone" data-sub="2.5D view, mission, health and events" hidden>
+      <section class="card" id="droneCard">
+        <div class="card-head"><h2>Selected drone · 2.5D view</h2><select id="dronePick" aria-label="Select drone"></select></div>
+        <div class="dhead"><span id="dName" class="dname">—</span><span id="dBadge" class="badge">—</span><span id="dStatus" class="pill">—</span></div>
+        <div class="seg tabs" id="dTabs"><button data-tab="ov" class="on">Overview</button><button data-tab="hl">Health <i id="dHealthDot" class="hdot"></i></button></div>
+        <div id="tabOv">
+        <canvas id="view25" aria-label="2.5D view around the selected drone"></canvas>
+        <div class="bar"><i id="dProg"></i></div>
+        <dl class="kv">
+          <dt>Mission</dt><dd id="dTask">—</dd>
+          <dt>Route</dt><dd id="dRoute">—</dd>
+          <dt>Layer · altitude</dt><dd id="dLayer">—</dd>
+          <dt>Speed · heading</dt><dd id="dSpeed">—</dd>
+          <dt>Remaining · ETA</dt><dd id="dEta">—</dd>
+          <dt>Nearest same-layer</dt><dd id="dNear">—</dd>
+          <dt>V2V links (degree)</dt><dd id="dDeg">—</dd>
+          <dt>DTC link</dt><dd id="dDtc">—</dd>
+          <dt>ADMM · shifts · alerts</dt><dd id="dCounts">—</dd>
+          <dt>Last ADMM negotiation</dt><dd id="dNeg">—</dd>
+          <dt id="dPrioLbl">Emergency priority</dt><dd id="dPrio">—</dd>
+          <dt>Neighbour reports</dt><dd id="dTrust">—</dd>
+        </dl>
+        </div>
+        <div id="tabHl" hidden>
+          <div class="hl-top">
+            <div class="gauge"><div class="gfill" id="hSocBar"></div><span id="hSoc">—</span></div>
+            <div><span class="pill" id="hStatus">—</span> <span class="codes" id="hCodes"></span></div>
+          </div>
+          <dl class="kv">
+            <dt>Voltage · current · power</dt><dd id="hVip">—</dd>
+            <dt>Energy left · time · range</dt><dd id="hLeft">—</dd>
+            <dt>State of health · capacity</dt><dd id="hSoh">—</dd>
+            <dt>Pack temperature</dt><dd id="hTp">—</dd>
+            <dt>Motor / ESC temperature</dt><dd id="hTm">—</dd>
+            <dt>Cells (min · imbalance)</dt><dd id="hCellTxt">—</dd>
+            <dt>DTC link RSSI · loss</dt><dd id="hLink">—</dd>
+            <dt>GNSS fix · HDOP</dt><dd id="hGnss">—</dd>
+            <dt>Motor health · energy used</dt><dd id="hMotor">—</dd>
+            <dt>Faults</dt><dd id="hFaults">—</dd>
+          </dl>
+          <canvas id="hCells" aria-label="Per-cell voltages"></canvas>
+          <canvas id="hChart" aria-label="SoC and temperature over time"></canvas>
+          <div class="net-legend"><span><i style="background:#059669"></i>SoC %</span><span><i style="background:#ea580c"></i>Max temp °C</span><span class="muted" id="hNote"></span></div>
+        </div>
+        <div class="card-head sub"><h3>Events for this drone</h3><span class="muted" id="dEvCount">0</span></div>
+        <ol id="dEvents" class="dev"></ol>
+      </section>
+    </section>
+
+    <section class="sect" data-sect="health" data-title="Fleet health" data-sub="BMS state, lowest charge, alerts and the battery matrix" hidden>
+      <section class="card" id="fleetHealth">
+        <div class="card-head"><h2>Fleet health · BMS</h2><span class="muted" id="fhAmb"></span></div>
+        <div class="fh-counts" id="fhCounts"></div>
+        <div class="sub-h">Lowest charge (airborne) <span class="muted">click to select</span></div>
+        <ol class="fh-list" id="fhLow"></ol>
+        <div class="sub-h">Active alerts <span class="muted">last 60 s</span></div>
+        <ol class="fh-list alerts" id="fhAlerts"></ol>
+      </section>
+    <section class="card batt-card" id="battCard">
+      <div class="card-head"><h2>Battery matrix · every drone</h2>
+        <div class="batt-tools">
+          <span class="muted" id="battSummary"></span>
+          <select id="battSort"><option value="id">sort: drone id</option><option value="soc">sort: lowest SoC first</option><option value="bms">sort: worst BMS first</option></select>
+          <select id="battShow"><option value="all">all drones</option><option value="air">airborne only</option></select>
+        </div>
+      </div>
+      <canvas id="battGrid" aria-label="Battery state of charge of every drone over time"></canvas>
+      <div class="net-legend"><span><i style="background:#059669"></i>SoC ≥ 30 %</span><span><i style="background:#d97706"></i>below 30 % / BMS warning</span><span><i style="background:#e11d48"></i>below 15 % / critical / fault</span><span class="muted">tile graph = SoC over the last 2 min · dim = on the ground · click a tile to open its Health tab</span></div>
+      <div id="battTip" class="tip" hidden></div>
+    </section>
+    </section>
+
+    <section class="sect" data-sect="safety" data-title="Safety &amp; KPIs" data-sub="Run KPIs, STL robustness and the governance log" hidden>
+    <section class="card cmp-card" id="cmpCard" hidden>
+      <div class="card-head"><h2 id="cmpTitle">Variant comparison</h2><span class="muted" id="cmpNote">same seed, same flights</span></div>
+      <div class="cmp-wrap"><table class="cmp" id="cmpTable"></table></div>
+    </section>
     <section class="kpis" id="kpis">
       <article id="kCrashCard"><small>Crashes</small><b id="kCrash">—</b><span id="kCrashSub">collisions (&lt; 2 m)</span></article>
       <article id="kLosCard"><small>Near misses</small><b id="kLos">—</b><span>loss-of-separation episodes</span></article>
@@ -280,24 +348,6 @@
       <article id="kEnergyCard"><small>Energy per delivery</small><b id="kEnergy">—</b><span id="kEnergySub">Wh drawn per delivered drone</span></article>
       <article id="kBattCard"><small>Battery responses</small><b id="kBatt">—</b><span id="kBattSub">diversions · forced landings</span></article>
     </section>
-
-    <div class="bottom">
-    <section class="card cmp-card" id="cmpCard" hidden>
-      <div class="card-head"><h2 id="cmpTitle">Variant comparison</h2><span class="muted" id="cmpNote">same seed, same flights</span></div>
-      <div class="cmp-wrap"><table class="cmp" id="cmpTable"></table></div>
-    </section>
-    <section class="card batt-card" id="battCard">
-      <div class="card-head"><h2>Battery matrix · every drone</h2>
-        <div class="batt-tools">
-          <span class="muted" id="battSummary"></span>
-          <select id="battSort"><option value="id">sort: drone id</option><option value="soc">sort: lowest SoC first</option><option value="bms">sort: worst BMS first</option></select>
-          <select id="battShow"><option value="all">all drones</option><option value="air">airborne only</option></select>
-        </div>
-      </div>
-      <canvas id="battGrid" aria-label="Battery state of charge of every drone over time"></canvas>
-      <div class="net-legend"><span><i style="background:#059669"></i>SoC ≥ 30 %</span><span><i style="background:#d97706"></i>below 30 % / BMS warning</span><span><i style="background:#e11d48"></i>below 15 % / critical / fault</span><span class="muted">tile graph = SoC over the last 2 min · dim = on the ground · click a tile to open its Health tab</span></div>
-      <div id="battTip" class="tip" hidden></div>
-    </section>
     <section class="card chart-card">
       <div class="card-head"><h2>STL safety robustness</h2><span class="muted">ρ(t) = min d<sub>ij</sub> − d<sub>min</sub></span></div>
       <p class="defn">Safety definition: <b>layer-aware 3D</b> distance (horizontal offset and layer gap × layer height) from the route engine. <code>verification/metrics.py</code> uses horizontal distance only, so its numbers differ.</p>
@@ -305,6 +355,9 @@
       <div class="card-head sub"><h3>Governance log</h3><span class="muted" id="logCount">0 events</span></div>
       <ol id="log" class="glog"></ol>
     </section>
+    </section>
+
+    <section class="sect" data-sect="network" data-title="Network theory" data-sub="DTC hub and drone-to-drone (V2V) communication graph" hidden>
     <section class="card net-card">
       <div class="card-head"><h2>Network theory · DTC + V2V graph</h2><span class="muted">click a node to select</span></div>
       <div class="net-grid">
@@ -314,6 +367,9 @@
       <canvas id="netChart" aria-label="Network and DTC metrics over time"></canvas>
       <div class="net-legend" id="netLegend"></div>
     </section>
+    </section>
+
+    <section class="sect" data-sect="admm" data-title="ADMM convergence" data-sub="P2 · iterations and solve time per conflict group" hidden>
     <section class="card admm-card">
       <div class="card-head"><h2>P2 · ADMM convergence timer</h2><span class="muted" id="admmHead">iterations and solve time per conflict group</span></div>
       <div class="admm-grid">
@@ -322,8 +378,40 @@
       </div>
       <div class="net-legend"><span><i style="background:#0891b2"></i>Iterations · mean</span><span><i style="background:#059669"></i>Iterations · max</span><span><i style="background:#d97706"></i>Solve ms · mean (right axis)</span><span><i style="background:#e11d48"></i>Fallback (not converged)</span></div>
     </section>
-    </div>
+    </section>
+
+      </div>
+      <div class="spanel-resize" id="panelResize" title="Drag to resize · double-click to reset"></div>
+    </aside>
+
+    <section class="map-card">
+      <div class="map-head">
+        <div><span class="eyebrow" id="mapEyebrow">Live airspace</span><h1 id="sceneTitle">Normal operations</h1></div>
+        <div class="map-tools">
+          <div class="seg" id="mapSeg" title="Map"></div>
+          <div class="seg" id="layerSeg" title="Altitude layer filter"><button data-layer="all" class="on">All layers</button></div>
+          <label class="tog"><input type="checkbox" id="tgRoutes"> All routes</label>
+          <label class="tog"><input type="checkbox" id="tgLinks"> V2V links</label>
+          <label class="tog"><input type="checkbox" id="tgSectors" checked> Sectors</label>
+          <label class="tog"><input type="checkbox" id="tgContext" checked> Base map</label>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <canvas id="map" aria-label="Map of the corridor network with live drone positions — click a drone to select it"></canvas>
+        <div class="legend">
+          <span><i class="sw emergency"></i>Emergency</span><span><i class="sw evtol"></i>eVTOL</span><span><i class="sw delivery"></i>Delivery</span>
+          <span><i class="ln tube"></i>Corridor tube</span><span><i class="ln route"></i>Selected route</span><span><i class="sw pad"></i>Vertiport</span><span><i class="ln warn"></i>Separation alert</span><span><i class="sw crash">✕</i>Crash</span><span><i class="sw spoof"></i>Spoofed report → W-MSR estimate</span><span><i class="sw junction"></i>Junction merge (amber = gap blocked)</span><span><i class="sw bmsw"></i>BMS warning</span><span><i class="sw bmsc"></i>BMS critical / fault</span><span>⊘ Forced landing</span>
+        </div>
+        <div class="zoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit map">⤢</button><button id="zFollow" aria-label="Follow selected drone" title="Follow selected drone">◎</button></div>
+        <div id="buffer" class="buffer" hidden>computing ahead…</div>
+        <div id="tip" class="tip" hidden></div>
+        <div id="ctxMenu" class="ctx" hidden></div>
+        <div id="drawHint" class="drawhint" hidden></div>
+        <div class="attrib" id="attrib"></div>
+      </div>
+      <div class="timeline"><span id="tLabel">t = 0.0 s</span><input id="scrub" type="range" min="0" max="0" value="0" step="0.1" aria-label="Simulation time"><span id="tMax">/ — s</span></div>
+      <p id="status" class="status map-status" aria-live="polite">Connecting to the local simulator…</p>
+    </section>
   </main>
-  <footer class="foot">Research simulation. IITH corridors are traced from the campus map (schematic, ~0.95 m/px); Hyderabad corridors are OpenStreetMap centrelines (ODbL). Corridors are a planning backbone, not approved flight paths. Computed locally by MASooda's simulator modules.</footer>
 </body>
 </html>
