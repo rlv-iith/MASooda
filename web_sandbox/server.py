@@ -227,8 +227,8 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Vehicle mix must contain at least one non-zero share")
     if not 0.05 <= float(config["simulation"]["timestep_seconds"]) <= 0.5:
         raise ValueError("simulation.timestep_seconds must be between 0.05 and 0.5 for the live demo")
-    if not 1 <= int(config["airspace"]["num_layers"]) <= 6:
-        raise ValueError("airspace.num_layers must be between 1 and 6")
+    if not 1 <= int(config["airspace"]["num_layers"]) <= 8:
+        raise ValueError("airspace.num_layers must be between 1 and 8")
     dh = config.get("drone_health", {}) or {}
     if dh:   # weather controls (ambient temperature, wind) from the page
         _float(dh.get("ambient_c", 35.0), "weather: ambient temperature (°C)", -20.0, 55.0)

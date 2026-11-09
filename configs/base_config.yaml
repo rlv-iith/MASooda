@@ -78,9 +78,9 @@ overseer:
     down_end_seconds: 120.0
 
 airspace:
-  num_layers: 3
+  num_layers: 7
   layer_height_meters: 30.0
-  emergency_layer: 2
+  emergency_layer: 6
 
 stl:
   monitoring_period_seconds: 0.1
