@@ -12,7 +12,7 @@ merged yet.
 | 4 | Dashboard runs without manual intervention | done | `outputs/week6/demo/fallback_demo.mp4` + 3 clips recorded by `scripts/week6_demo_video.py`; 3 headless dry runs exit 0 (`docs/DRY_RUNS.md`) |
 | 5 | Weak experiments re-run where necessary | partial | 14 weak groups listed in `outputs/week6/*/weak_results.json` and RESULTS.md; not re-run (decision: list only) |
 | 6 | Reproducibility scripts work from a clean repository | partial | clean copy (git-tracked + listed untracked files): `run_all.sh --quick` 58/58 artifacts; two quick runs → 0 differences in runs.csv; full `run_all` not run in the clean copy (≈ 17 min) |
-| 7 | The report is complete | partial | Claude doc draft, all sections written; open: citations [CITE], team names, embedded figures, post-fix numbers |
+| 7 | The report is complete | partial | Doc draft, all sections written; open: citations [CITE], team names, embedded figures, post-fix numbers |
 | 8 | The final presentation is complete | partial | 15-slide deck with speaker notes; open: team names on the cover, post-fix numbers |
 | 9 | Two consecutive successful dry runs | partial | dry runs 2 and 3 back to back, both pass headless (`docs/DRY_RUNS.md`); the live window on the presentation laptop is untested |
 | 10 | Fallback demo video available | done | `outputs/week6/demo/fallback_demo.mp4` matches the current `demo_scenario` (`demo_manifest.json`) |

@@ -22,7 +22,7 @@ traffic management) is grounded in `docs/RESEARCH_GAP_HEALTH_AWARE_UTM.md`.
 
 IITH campus map, default seed 42, 180 s at dt = 0.1 s, defaults (DTC on, ADMM on, defence on, no
 attack), departure window 90 s, frames streamed every 2nd tick as the server does. Host: 2-vCPU
-Intel Xeon @ 2.10 GHz, Python 3.13 (Claude's cloud workspace; your laptop will differ). Timings
+Intel Xeon @ 2.10 GHz, Python 3.13 (cloud workspace; your laptop will differ). Timings
 come from an instrumented copy of `route_engine.py` kept in the scratch area; the repo file is
 unchanged.
 

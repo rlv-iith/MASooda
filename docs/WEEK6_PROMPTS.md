@@ -1,6 +1,6 @@
 # MASooda — Week 6 Prompt Pack
 
-Copy-paste these prompts **one at a time, in order**, into the same Claude conversation.
+Copy-paste these prompts **one at a time, in order**, into the same conversation.
 Wait for each one to finish (and check its "report back") before sending the next.
 
 Workflow reference: `workflow.pdf` §14 (Week 6), §14.8 (reproducibility), §14.9 (Definition of Done), Tables 10–11 (experiments E1–E6 and metrics).
