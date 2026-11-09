@@ -851,7 +851,7 @@ $('#layerSeg').onclick = (e) => { const b = e.target.closest('button'); if (!b) 
 $('#mapSeg').onclick = async (e) => { const b = e.target.closest('button'); if (!b || b.dataset.map === mapId) return; try { await loadMap(b.dataset.map); await launch(); } catch (err) { status(err.message, 'err'); } };
 $('#scenes').onclick = (e) => { const b = e.target.closest('button'); if (b) selectScene(b.dataset.scene); };
 $('#scrub').oninput = (e) => { if (!RUN) return; const t = Math.min(+e.target.value, frames.at(-1)?.t ?? 0); if (t < simT) resetLog(); simT = t; };
-$('#runBtn').onclick = launch;
+$('#runBtn').onclick = () => launch();   // don't pass the click event as presetReq
 window.addEventListener('keydown', (e) => {
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
   if (e.code === 'Space' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); $('#playBtn').click(); return; }
