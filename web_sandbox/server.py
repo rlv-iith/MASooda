@@ -377,8 +377,8 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
         "architecture": prepared["architecture"],
         "ic_hash": prepared["ic_hash"],
         "preset": prepared.get("preset"),
-        "safety_definition": "layer-aware 3D: min over pairs of |(dx, dy, Δlayer·layer height)| (route engine); "
-                             "verification/metrics.py robustness_series is horizontal-only",
+        "safety_definition": "layer-aware 3D: min over pairs of |(dx, dy, Δlayer·layer height)| (route engine; "
+                             "verification.metrics.robustness_series gives the same with layer_height_m)",
         "dt": float(cfg["simulation"]["timestep_seconds"]) * prepared["stride"],
         "stride_ticks": prepared["stride"],
         "frame_version": 2,
@@ -395,6 +395,7 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
             "corridor_width": float(cfg["corridors"]["width_meters"]),
             "num_layers": int(cfg["airspace"]["num_layers"]),
             "layer_height": float(cfg["airspace"]["layer_height_meters"]),
+            "base_altitude": float(cfg["airspace"].get("base_altitude_m", cfg["airspace"]["layer_height_meters"])),
             "emergency_layer": int(cfg["airspace"].get("emergency_layer", 2)),
             "capacity": int(cfg["corridors"]["capacity"]),
             "merge_gap": float(cfg["local_behavior"]["merge_gap"]),

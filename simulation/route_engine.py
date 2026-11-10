@@ -216,7 +216,8 @@ class RouteRunStats:
     service_queue_max: int = 0
     service_wait_s: float = 0.0        # total time drones waited for a service slot
     energy_used_wh: float = 0.0        # all drones, drawn from the cells
-    energy_per_delivered_wh: float | None = None
+    energy_per_delivered_wh: float | None = None   # parcel deliveries (DELIVERY drones) only
+    energy_per_delivered_by_type_wh: dict[str, float] = field(default_factory=dict)   # mean per mission type
     max_pack_c: float | None = None
     max_motor_c: float | None = None
     bms_alerts: int = 0                # status rises to WARNING or worse
@@ -338,7 +339,7 @@ def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any
     if n == 0:
         return {"nodes": 0, "edges": 0, "avg_degree": 0.0, "density": 0.0, "transitivity": 0.0,
                 "max_degree_centrality": 0.0, "hub": None, "components": 0, "largest_component": 0.0,
-                "algebraic_connectivity": 0.0, "isolated": 0}
+                "algebraic_connectivity": 0.0, "algebraic_connectivity_giant": 0.0, "isolated": 0}
     idx = {v: k for k, v in enumerate(nodes)}
     A = np.zeros((n, n))
     for u in nodes:
@@ -365,11 +366,12 @@ def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any
                     stack.append(int(v))
         comps.append(comp)
     big = max(comps, key=len)
-    lam2 = 0.0
+    lam2_big = 0.0
     if len(big) > 1:
         sub = A[np.ix_(big, big)]
         L = np.diag(sub.sum(axis=1)) - sub
-        lam2 = float(np.sort(np.linalg.eigvalsh(L))[1])
+        lam2_big = float(np.sort(np.linalg.eigvalsh(L))[1])
+    lam2 = lam2_big if len(comps) == 1 else 0.0   # Fiedler value: 0 for any disconnected graph
     hub = int(nodes[int(np.argmax(deg))]) if m else None
     return {
         "nodes": n, "edges": m, "avg_degree": round(float(deg.mean()), 3),
@@ -377,7 +379,8 @@ def _graph_metrics(nodes: list[int], adj: dict[int, list[int]]) -> dict[str, Any
         "transitivity": round(3.0 * triangles / triples, 4) if triples else 0.0,
         "max_degree_centrality": round(float(deg.max()) / (n - 1), 4) if n > 1 else 0.0,
         "hub": hub, "components": len(comps), "largest_component": round(len(big) / n, 4),
-        "algebraic_connectivity": round(lam2, 4), "isolated": int(np.sum(deg == 0)),
+        "algebraic_connectivity": round(lam2, 4), "algebraic_connectivity_giant": round(lam2_big, 4),
+        "isolated": int(np.sum(deg == 0)),
     }
 
 
@@ -522,7 +525,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     unhealthy: set[int] = set()             # cooperative drones at BMS CRITICAL/FAULT (DTC right of way)
     overheat_s: dict[int, float] = {}
     reroutes: list[dict[str, Any]] = []
-    delivered_energy: list[float] = []
+    delivered_energy: list[tuple[str, float]] = []   # (mission type, Wh) per delivered mission
     last_layer: dict[int, int] = {}
     last_h_step = -1
     h_every = max(1, int(round(1.0 / dt)))
@@ -768,8 +771,11 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     if u > 0.0:
                         health_w[i] = base + (max(w_top, base) - base) * u
         stats.energy_used_wh = round(float(health.a["e_out"].sum()), 1)
-        stats.energy_per_delivered_wh = (round(sum(delivered_energy) / len(delivered_energy), 1)
-                                         if delivered_energy else None)
+        by_type: dict[str, list[float]] = {}
+        for typ, wh in delivered_energy:
+            by_type.setdefault(typ, []).append(wh)
+        stats.energy_per_delivered_by_type_wh = {k: round(sum(v) / len(v), 1) for k, v in sorted(by_type.items())}
+        stats.energy_per_delivered_wh = stats.energy_per_delivered_by_type_wh.get("DELIVERY")
         mp, mm = health.max_temps()
         stats.max_pack_c = None if mp is None else round(mp, 1)
         stats.max_motor_c = None if mm is None else round(mm, 1)
@@ -1761,16 +1767,18 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                         emit("defend", [a.id, rid], f"Defence flagged D-{rid}'s report: range mismatch → position corrected (W-MSR)")
             if noncoop and sense_r > 0:   # detect-and-avoid: no Remote ID, so only onboard sensing sees it
                 for j in nbr_ids:
-                    if j not in noncoop or j == a.id or j not in by_air or by_air[j].altitude_layer != a.altitude_layer:
+                    if j not in noncoop or j == a.id or j not in by_air:
                         continue
-                    dj = float(np.linalg.norm(by_air[j].position[:2] - p))
+                    dz = (int(by_air[j].altitude_layer) - int(a.altitude_layer)) * layer_h
+                    dj = float(math.hypot(float(np.linalg.norm(by_air[j].position[:2] - p)), dz))   # 3D range
                     if dj < sense_r:
-                        nbrs = list(nbrs) + [by_air[j]]
+                        if dz == 0:   # avoid in-plane only on its own layer; another layer is already separated
+                            nbrs = list(nbrs) + [by_air[j]]
                         stats.intruder_detections += 1 if (a.id, j) not in sensed_seen else 0
                         if (a.id, j) not in sensed_seen:
                             sensed_seen.add((a.id, j))
                             emit("detect", [a.id, j], f"D-{a.id} sensed non-cooperative D-{j} at {dj:.0f} m (no Remote ID) "
-                                 f"→ avoiding", "drone", "warning")
+                                 + ("→ avoiding" if dz == 0 else "→ tracking (one layer apart)"), "drone", "warning")
                             if j not in intruders_announced:
                                 intruders_announced.add(j)
                                 emit("detect", [j, a.id], f"Non-cooperative D-{j} detected by onboard sensing of D-{a.id} "
@@ -1989,7 +1997,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 if f.destination == planned_dest[a.id]:
                     stats.delivered += 1
                     if health is not None:
-                        delivered_energy.append(health.energy_used_wh(a.id) - energy_at_sortie.get(a.id, 0.0))
+                        delivered_energy.append((f.type.value, health.energy_used_wh(a.id) - energy_at_sortie.get(a.id, 0.0)))
                 diverting.pop(a.id, None)
                 if f.destination == planned_dest[a.id]:   # an emergency counts only at its own destination
                     etrack.on_land(a.id, t)

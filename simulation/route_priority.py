@@ -18,7 +18,10 @@ Extra route-mode observations per emergency drone:
 
 * forced to yield: ground holds, tactical altitude shifts where the emergency
   was the drone that moved, DTC layer changes deferred by the safety gate;
-* left its reserved layer: airborne ticks below/above ``airspace.emergency_layer``.
+* left its reserved layer: airborne ticks below/above ``airspace.emergency_layer``;
+* ground hold: take-off time - scheduled departure (reported apart, because compliance is a capacity
+  check and says nothing about time);
+* on time: landed with delay <= max(on_time_abs_s, on_time_frac * nominal) (10 s, 20 %).
 """
 
 from __future__ import annotations
@@ -28,7 +31,10 @@ from typing import Any, Callable, Iterable
 
 class EmergencyTracker:
     def __init__(self, flights: Iterable[Any], cruise_speed: Callable[[Any], float],
-                 emergency_layer: int, capacity: int, dt: float):
+                 emergency_layer: int, capacity: int, dt: float, on_time_abs_s: float = 10.0,
+                 on_time_frac: float = 0.2):
+        self.on_time_abs_s = float(on_time_abs_s)
+        self.on_time_frac = float(on_time_frac)
         self.emergency_layer = int(emergency_layer)
         self.capacity = int(capacity)
         self.dt = float(dt)
@@ -108,10 +114,14 @@ class EmergencyTracker:
     # ------------------------------------------------------------------ output
     def snapshot(self, t: float) -> dict[str, Any]:
         per = {}
-        delays = []
+        delays, holds, on_time = [], [], []
         for aid, p in self.per.items():
             if p["delay_s"] is not None:
                 delays.append(p["delay_s"])
+                on_time.append(p["delay_s"] <= max(self.on_time_abs_s, self.on_time_frac * p["nominal_s"]))
+            gh = None if p["took_off_s"] is None else round(max(0.0, p["took_off_s"] - p["depart_s"]), 2)
+            if gh is not None:
+                holds.append(gh)
             per[str(aid)] = {  # delay_s stays None until landing; the UI shows elapsed vs nominal meanwhile
                 "nominal_s": p["nominal_s"], "delay_s": p["delay_s"], "travel_s": p["travel_s"],
                 "yields": p["holds"] + p["shifts"] + p["gated"],
@@ -119,12 +129,15 @@ class EmergencyTracker:
                 "off_layer_s": round(p["off_layer_ticks"] * self.dt, 1),
                 "on_layer": round(1.0 - p["off_layer_ticks"] / p["airborne_ticks"], 3) if p["airborne_ticks"] else None,
                 "compliance": round(p["compliant"] / p["checks"], 3) if p["checks"] else None,
+                "ground_hold_s": gh,
             }
         return {
             "count": len(self.per),
             "rate": (self.compliant / self.checks) if self.checks else None,
             "checks": self.checks,
             "mean_delay_s": round(sum(delays) / len(delays), 2) if delays else None,
+            "mean_ground_hold_s": round(sum(holds) / len(holds), 2) if holds else None,
+            "on_time_rate": round(sum(on_time) / len(on_time), 3) if on_time else None,
             "arrived": len(delays),
             "yields": sum(v["yields"] for v in per.values()),
             "per": per,

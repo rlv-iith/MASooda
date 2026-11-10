@@ -82,7 +82,8 @@ overseer:
 
 airspace:
   num_layers: 7
-  layer_height_meters: 30.0
+  layer_height_meters: 15.0    # L0..L6 = 30..120 m AGL: India's green-zone ceiling is 400 ft (about 120 m)
+  base_altitude_m: 30.0        # altitude of L0 above ground (clears campus buildings)
   emergency_layer: 6
 
 stl:

@@ -9,7 +9,7 @@ from typing import Any, Sequence
 import numpy as np
 
 
-def robustness_series(positions: np.ndarray, d_min: float) -> np.ndarray:
+def robustness_series(positions: np.ndarray, d_min: float, layer_height_m: float | None = None) -> np.ndarray:
     """Compute safety robustness series rho(t) for every timestep.
 
     Parameters
@@ -18,6 +18,10 @@ def robustness_series(positions: np.ndarray, d_min: float) -> np.ndarray:
         Trajectory positions of shape (T, N, D), D >= 2.
     d_min : float
         Minimum safety separation distance in meters.
+    layer_height_m : float, optional
+        When given and D >= 3, the third coordinate is the altitude layer index and the distance is
+        the route engine's layer-aware 3D one: |(dx, dy, Δlayer · layer_height_m)|. Default (None):
+        horizontal x, y only (the Week 5/6 definition).
 
     Returns
     -------
@@ -33,7 +37,10 @@ def robustness_series(positions: np.ndarray, d_min: float) -> np.ndarray:
     if N < 2:
         return np.full(T, float("inf"), dtype=float)
 
-    xy = pos[:, :, :2]
+    if layer_height_m is not None and pos.shape[2] >= 3:
+        xy = np.concatenate([pos[:, :, :2], pos[:, :, 2:3] * float(layer_height_m)], axis=2)
+    else:
+        xy = pos[:, :, :2]
     rho = np.empty(T, dtype=float)
     for t in range(T):
         diff = xy[t, :, None, :] - xy[t, None, :, :]

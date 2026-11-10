@@ -71,6 +71,7 @@ const admmC = $('#admmChart'), actx = admmC.getContext('2d');
 // ------------------------------------------------------------------ helpers
 const get = (o, p) => p.split('.').reduce((v, k) => v?.[k], o);
 function set(o, p, v) { const k = p.split('.'); let t = o; for (const x of k.slice(0, -1)) t = t[x] ??= {}; t[k.at(-1)] = v; }
+function altOf(layer) { const L = RUN.limits; return Math.round((L.base_altitude ?? L.layer_height) + layer * L.layer_height); }
 function fmt(v, d = 1) { return v === null || v === undefined || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(d); }
 function status(msg, kind = '') { const n = $('#status'); n.textContent = msg; n.className = `status ${kind}`; }
 async function api(path, body) {
@@ -364,7 +365,7 @@ function draw25(s) {
     vctx.strokeStyle = l === f0.layer[n] ? 'rgba(15,23,42,0.45)' : 'rgba(100,116,139,0.28)';
     vctx.beginPath(); [[-R, -R], [R, -R], [R, R], [-R, R]].forEach(([a, b], i) => { const p = P(c[0] + a, c[1] + b, l); i ? vctx.lineTo(...p) : vctx.moveTo(...p); }); vctx.closePath(); vctx.fill(); vctx.stroke();
     const lab = P(c[0] + R, c[1] - R, l); vctx.fillStyle = l === f0.layer[n] ? '#0f172a' : '#64748b'; vctx.font = '10px ui-monospace,monospace';
-    vctx.fillText(`L${l} ${(l + 1) * H}m${l === RUN.limits.emergency_layer ? '⚕' : ''}`, lab[0] + 4, lab[1] + 3);
+    vctx.fillText(`L${l} ${altOf(l)}m${l === RUN.limits.emergency_layer ? '⚕' : ''}`, lab[0] + 4, lab[1] + 3);
   }
   // selected route on its layer
   const f = RUN.flights[n]; vctx.strokeStyle = COLORS[f.type] + 'aa'; vctx.lineWidth = 1.5; vctx.setLineDash([5, 4]); vctx.beginPath(); let on = false;
@@ -395,8 +396,9 @@ function updatePanels() {
   const cnt = [0, 0, 0, 0, 0]; f.status.forEach((x) => cnt[x]++);
   $('#cntQueue').textContent = cnt[0]; $('#cntAir').textContent = cnt[1]; $('#cntLand').textContent = cnt[2]; $('#cntCrash').textContent = cnt[3]; $('#cntForced').textContent = cnt[4];
   if (st.delivered !== undefined) {
-    $('#kEnergy').textContent = st.energy_per_delivered_wh === null ? '—' : `${fmt(st.energy_per_delivered_wh, 0)} Wh`;
-    $('#kEnergySub').textContent = `${st.delivered} delivered · fleet ${fmt(st.energy_used_wh / 1000, 2)} kWh · max pack ${fmt(st.max_pack_c, 0)} °C`;
+    $('#kEnergy').textContent = st.energy_per_delivered_wh === null || st.energy_per_delivered_wh === undefined ? '—' : `${fmt(st.energy_per_delivered_wh, 0)} Wh`;
+    const bt = st.energy_per_delivered_by_type_wh || {};
+    $('#kEnergySub').textContent = `per parcel delivery · eVTOL ${bt.EVTOL === undefined ? '—' : fmt(bt.EVTOL / 1000, 2) + ' kWh'} · EMG ${bt.EMERGENCY === undefined ? '—' : fmt(bt.EMERGENCY, 0) + ' Wh'} per mission · max pack ${fmt(st.max_pack_c, 0)} °C`;
     $('#kBatt').textContent = `${st.diversions} · ${st.forced_landings}`;
     $('#kBattCard').classList.toggle('bad', st.energy_depleted > 0 || st.forced_landings > 0);
     $('#kBattSub').textContent = `diversions · forced · ${st.energy_depleted} depleted · ${st.grounded_preflight} grounded pre-flight`;
@@ -419,7 +421,7 @@ function updatePanels() {
   if (pr && pr.count) {
     $('#kPrio').textContent = pr.rate === null ? '—' : `${fmt(pr.rate * 100, 0)}%`;
     $('#kPrioCard').classList.toggle('good', pr.rate === 1); $('#kPrioCard').classList.toggle('bad', pr.rate !== null && pr.rate < 0.9);
-    $('#kPrioSub').textContent = `${pr.count} EMG · delay ${pr.mean_delay_s === null ? '—' : fmt(pr.mean_delay_s) + ' s'} (${pr.arrived} landed) · ${pr.yields} yields`;
+    $('#kPrioSub').textContent = `${pr.count} EMG · delay ${pr.mean_delay_s === null ? '—' : fmt(pr.mean_delay_s) + ' s'} (${pr.arrived} landed) · on time ${pr.on_time_rate === null || pr.on_time_rate === undefined ? '—' : fmt(pr.on_time_rate * 100, 0) + '%'} · ground hold ${pr.mean_ground_hold_s === null || pr.mean_ground_hold_s === undefined ? '—' : fmt(pr.mean_ground_hold_s) + ' s'}`;
   } else { $('#kPrio').textContent = '—'; $('#kPrioSub').textContent = 'no emergency flights'; $('#kPrioCard').classList.remove('good', 'bad'); }
   const mg = f.merge;
   if (mg) {
@@ -459,7 +461,7 @@ function updateDrone(s) {
   $('#dTask').textContent = `${f.task} · P${f.priority} · departs ${f.depart_s}s`;
   $('#dProg').style.width = `${Math.round(fr.progress[n] * 100)}%`; $('#dProg').style.background = COLORS[f.type];
   $('#dRoute').textContent = `${f.origin_name || f.origin} → ${f.destination_name || f.destination}`;
-  $('#dLayer').textContent = `L${fr.layer[n]} · ≈${(fr.layer[n] + 1) * RUN.limits.layer_height} m AGL`;
+  $('#dLayer').textContent = `L${fr.layer[n]} · ≈${altOf(fr.layer[n])} m AGL`;
   const hd = st === 1 ? ((90 - headingOf(s, n) * 180 / Math.PI) % 360 + 360) % 360 : null;
   $('#dSpeed').textContent = st === 1 ? `${fmt(fr.speed[n])} m/s · ${fmt(hd, 0)}°` : '—';
   const rem = f.route_length_m * (1 - fr.progress[n]);
@@ -585,7 +587,7 @@ function drawNetwork(s) {
   const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
   $('#netStats').innerHTML = '<span class="hdr">V2V graph</span>' + row('Nodes · edges', `${m.nodes ?? 0} · ${m.edges ?? 0}`) + row('Avg degree', fmt(m.avg_degree, 2)) + row('Density', fmt(m.density, 3))
     + row('Transitivity', fmt(m.transitivity, 3)) + row('Max centrality', `${fmt(m.max_degree_centrality, 3)}${m.hub !== null && m.hub !== undefined ? ' · D-' + m.hub : ''}`)
-    + row('Components', `${m.components ?? 0} (${m.isolated ?? 0} isolated)`) + row('Giant component', `${fmt((m.largest_component ?? 0) * 100, 0)}%`) + row('Alg. connectivity λ₂', fmt(m.algebraic_connectivity, 3))
+    + row('Components', `${m.components ?? 0} (${m.isolated ?? 0} isolated)`) + row('Giant component', `${fmt((m.largest_component ?? 0) * 100, 0)}%`) + row('Alg. connectivity λ₂', `${fmt(m.algebraic_connectivity, 3)}${(m.components ?? 0) > 1 ? ` (disconnected; giant ${fmt(m.algebraic_connectivity_giant ?? 0, 3)})` : ''}`)
     + '<span class="hdr">DTC</span>' + row('Link', !RUN.switches.use_overseer ? 'OFF' : linkUp ? 'UP' : 'DOWN') + row('Directive age', `${fmt(dtc.staleness_s)} s`)
     + row('Directives issued', dtc.directives ?? 0) + row('Layer changes · gated', `${dtc.layer_changes ?? 0} · ${dtc.deferred ?? 0}`);
 }
@@ -1518,7 +1520,7 @@ $('#presetRun').onclick = async () => {
 };
 const CMP_ROWS = [['delivered', 'Delivered', 'max'], ['arrivals', 'Landed', 'max'], ['crashes', 'Crashes', 'min'], ['near_misses', 'Near misses', 'min'],
   ['min_separation_m', 'Min separation (m)', 'max'], ['pad_holds', 'Ground holds', 'min'], ['emergency_mean_delay_s', 'Emergency delay (s)', 'min'],
-  ['energy_used_wh', 'Fleet energy (Wh)', 'min'], ['energy_per_delivered_wh', 'Energy / delivery (Wh)', 'min'], ['max_pack_c', 'Max pack °C', 'min'],
+  ['energy_used_wh', 'Fleet energy (Wh)', 'min'], ['energy_per_delivered_wh', 'Energy / parcel delivery (Wh)', 'min'], ['max_pack_c', 'Max pack °C', 'min'],
   ['max_motor_c', 'Max motor °C', 'min'], ['diversions', 'Diversions', 'min'], ['forced_landings', 'Forced landings', 'min'], ['energy_depleted', 'Depleted', 'min']];
 async function updateCompare() {
   const card = $('#cmpCard'), pr = RUN?.preset;
@@ -1655,7 +1657,7 @@ function updateOverview(s) {
       ['Lowest SoC (airborne)', low === null ? '—' : `D-${RUN.flights[low].id} · ${f.h.soc[low]}%`, low !== null && f.h.soc[low] < 15 ? 'bad' : low !== null && f.h.soc[low] < 30 ? 'warn' : ''],
       ['Max pack temperature', st.max_pack_c === undefined ? '—' : `${fmt(st.max_pack_c, 0)} °C`],
       ['Diversions · forced', `${st.diversions ?? 0} · ${st.forced_landings ?? 0}`, st.forced_landings ? 'bad' : ''],
-      ['Energy / delivery', st.energy_per_delivered_wh === null || st.energy_per_delivered_wh === undefined ? '—' : `${fmt(st.energy_per_delivered_wh, 0)} Wh`]]);
+      ['Energy / parcel delivery', st.energy_per_delivered_wh === null || st.energy_per_delivered_wh === undefined ? '—' : `${fmt(st.energy_per_delivered_wh, 0)} Wh`]]);
   } else { $('#ovBms').innerHTML = ''; $('#ovHealthKv').innerHTML = kv([['Health model', 'off']]); }
   // Traffic & priority
   const pr = f.prio, mg = f.merge;
