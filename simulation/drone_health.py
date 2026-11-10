@@ -475,10 +475,10 @@ class HealthModel:
         kk = self.index[aid]
         a = self.a
         soc = float(a["soc_hat"][kk]) - self.chance_z * self.soc_sigma(aid)
-        q = 1.0 / float(a["qinv_hat"][kk])
-        if self.est_on:   # capacity uncertainty, one-sided too
-            q *= max(0.0, 1.0 - self.chance_z * math.sqrt(max(0.0, self.Pm[kk, 2, 2])) * float(a["qinv_hat"][kk]))
-        return self._usable_wh(kk, soc, q)
+        qinv = float(a["qinv_hat"][kk])
+        if self.est_on:   # capacity uncertainty, one-sided too: the capacity at the upper bound of 1/Q
+            qinv += self.chance_z * math.sqrt(max(0.0, self.Pm[kk, 2, 2]))
+        return self._usable_wh(kk, soc, 1.0 / qinv)
 
     def _pack_at(self, kk: int, soc: float, power_w: float) -> tuple[bool, float, float]:
         """(power deliverable, pack current A, weakest cell voltage V) at ``soc`` while drawing ``power_w``."""
