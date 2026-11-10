@@ -118,6 +118,54 @@ def test_capacity_loss_and_motor_degradation():
         hm.inject(1, "meteor")
 
 
+def test_weakest_cell_limits_usable_energy():
+    hm, cfg = _model()
+    hm.add(1, "DELIVERY", {"soc_init_pct": 80.0}, custom=True)
+    e0 = hm.e_rem_wh(1)
+    hm.inject(1, "cell_failure")
+    drop = cfg["drone_health"]["faults"]["cell_failure_soc_drop_pct"] / 100.0
+    cap_wh = float(hm.a["qeff"][0] * hm.a["vnom"][0])
+    # a series string stops when its weakest cell is empty: the lost span is the whole pack's
+    assert hm.e_rem_wh(1) < e0 - 0.8 * drop * cap_wh
+
+
+def test_overheating_fault_heat_comes_out_of_the_cells():
+    hm, _ = _model()
+    hm.add(1, "DELIVERY", None, custom=True)
+    hm.add(2, "DELIVERY", None, custom=True)
+    hm.inject(2, "overheating")
+    for n in range(300):   # 30 s side by side at the same speed
+        hm.step(n * 0.1, 0.1, np.array([0, 1]), np.array([[10.0, 0.0], [10.0, 0.0]]),
+                np.array([], int), np.array([], int))
+    a = hm.a
+    assert a["soc"][1] < a["soc"][0]
+    assert a["e_out"][1] == pytest.approx(a["e_load"][1] + a["e_heat"][1], rel=1e-9)
+    assert a["e_out"][1] - a["e_out"][0] == pytest.approx(a["q_fault"][1] * 30.0 / 3600.0, rel=0.05)
+
+
+def test_range_uses_cruise_power_not_momentary_speed():
+    hm, _ = _model()
+    hm.add(1, "DELIVERY", None, custom=True)
+    _fly(hm, 1, 2.0)
+    slow = hm.detail(1, 0.8, 12.0)["range_left_m"]
+    fast = hm.detail(1, 14.0, 12.0)["range_left_m"]
+    assert slow == fast and slow > 5000
+
+
+def test_lift_and_voltage_sag_checks():
+    hm, _ = _model()
+    hm.add(1, "DELIVERY", {"payload_kg": 100.0}, custom=True)
+    hm.add(2, "DELIVERY", None, custom=True)
+    ok, why = hm.lift_ok(1)
+    assert not ok and "maximum take-off mass" in why
+    assert hm.lift_ok(2)[0]
+    hm.add(3, "DELIVERY", {"soc_init_pct": 40.0}, custom=True)
+    assert hm.feasible(3, 500.0, 12.0, climb=True)[0]
+    hm.inject(3, "cell_failure")
+    ok, need, e_rem, why = hm.feasible(3, 500.0, 12.0, climb=True)
+    assert need <= e_rem and not ok and "sag" in why   # enough energy, but the weak cell hits cut-off
+
+
 def test_same_seed_same_trace_and_random_fleet_ranges():
     traces = []
     for _ in range(2):
@@ -164,6 +212,12 @@ def test_preflight_check_grounds_an_empty_drone():
     last = [f for f in items if not f.get("partial")][-1]
     assert last["status"] == [0] and last["stats"]["grounded_preflight"] == 1
     assert any("pre-flight check failed" in e["text"] for e in _events(items, "preflight"))
+
+
+def test_overweight_drone_is_grounded_on_lift_not_energy():
+    _, items = _run([{"type": "DELIVERY", "origin": "V2", "destination": "V9", "payload_kg": 100}], duration=10.0)
+    texts = [e["text"] for e in _events(items, "preflight")]
+    assert texts and "maximum take-off mass" in texts[0]
 
 
 def test_low_reserve_diverts_and_nobody_runs_dry():

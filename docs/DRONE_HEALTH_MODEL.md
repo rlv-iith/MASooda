@@ -37,9 +37,16 @@ Thrust T = (m_empty + m_payload) · g. Momentum theory for the induced velocity 
     energy drawn from the cells per tick = OCV · I · dt = P_elec·dt + I²R·dt   (load + heat)
 
 - If OCV² < 4 R P_elec, the pack cannot deliver the power: OVER_CURRENT / UNDER_VOLTAGE → FAULT.
-- Remaining usable energy E_rem = Q_eff · ∫ OCV dSoC from SoC_min (5 %) to SoC.
-- Time left = E_rem / P_elec (now). Range left = time left × ground speed (cruise speed while
-  hovering).
+- Remaining usable energy is limited by the **weakest cell**: the cells are in series, so they all
+  give up the same charge, and the string stops when the lowest cell reaches SoC_min (5 %):
+
+      span = min_k(SoC + δ_k) − SoC_min
+      E_rem = Q_eff · Σ_k ∫ OCV_cell dS  over [SoC + δ_k − span, SoC + δ_k]
+
+  With identical cells this is Q_eff · n_s · ∫ OCV_cell dSoC from SoC_min to SoC. After a
+  `cell_failure` (one cell −15 %) the whole pack loses that span.
+- Time left = E_rem / P_elec (now). Range left = E_rem / P_elec(v_cruise) × v_cruise, so it does not
+  swing with the momentary ground speed (yielding, holding).
 - SoH is an input (capacity fade). It does not change within a flight, except through the
   `capacity_loss` fault.
 - Random-fleet drones draw their initial SoC and SoH from seeded ranges, so batteries matter on short
@@ -90,7 +97,7 @@ drone cools worse than a cruising one.
 |---|---|---|
 | capacity_loss | Q_eff × 0.7 (remaining charge × 0.7) | low SoC → WARNING/CRITICAL sooner |
 | cell_failure | one cell: δ_k −15 %, R × 4 | CELL_IMBALANCE → CRITICAL, cell UNDER_VOLTAGE under load |
-| overheating | q_fault = 0.6 × P_hover(type) into the pack (0.15 never reached WARNING on a 2–3 min flight) | OVER_TEMP WARNING → CRITICAL |
+| overheating | q_fault = 0.6 × P_hover(type) dissipated inside the pack (0.15 never reached WARNING on a 2–3 min flight). The heat is stored chemical energy, so it also drains charge as a parallel current q_fault / OCV | OVER_TEMP WARNING → CRITICAL |
 | motor_degradation | motor_health 1.0 → 0.8 | more power and motor heat; motor OVER_TEMP |
 | gnss_degradation | HDOP + 5; fix POOR | SENSOR_FAULT (navigation) |
 
@@ -100,14 +107,20 @@ drone cools worse than a cruising one.
 
       E_need(dest) = P_elec(v_cruise) · L_remaining / v_cruise · (1 + margin) + P_elec(0) · t_land
 
-  with margin = 20 % and t_land = 30 s. If E_rem < E_need(dest), the drone **diverts** to the nearest
-  pad (by road-corridor route) whose E_need ≤ E_rem. If no pad passes, it lands in place.
+  with margin = 20 % and t_land = 30 s. A route is **feasible** when E_need ≤ E_rem **and** the weakest
+  cell, at the SoC left on arrival, stays above `cell_fault_v + sag_margin_v` (3.05 V) while carrying
+  the landing hover (in flight) or a climb out of a hover (pre-flight). The voltage check catches a
+  high-resistance cell that would hit cut-off long before the charge runs out.
+  If the remaining route is not feasible, the drone **diverts** to the nearest feasible pad (by
+  road-corridor route), preferring pads not reserved for another urgent landing (section 8). If no pad
+  passes both checks, the energy check alone decides; if none passes that, it lands in place.
 - **CRITICAL:** land at the nearest pad if reachable, else land in place.
 - **FAULT:** land in place immediately.
 - **Overheating:** at WARNING the speed is limited to 60 % of cruise until T < threshold − 3 °C. If it
   reaches CRITICAL and stays there 30 s, the drone lands at the nearest pad.
-- Pre-flight check (added during implementation): a drone that is already CRITICAL or cannot reach its
-  destination with the reserve stays on its pad (event + `grounded_preflight` count).
+- Pre-flight check: a drone stays on its pad (event + `grounded_preflight` count) when it cannot lift
+  its mass (hover + climb current above I_max, or power the pack cannot deliver: "over maximum take-off
+  mass"), is already CRITICAL, or its mission is not feasible with a take-off climb.
 - A pad within one approach leg (look-ahead, 40 m) is reached by a straight leg instead of the
   corridor graph.
 - New statuses: DIVERTED (flying to an alternate pad; it still counts as airborne) and FORCED (landed
@@ -121,10 +134,27 @@ rule: **a CRITICAL or FAULT drone is treated like an emergency for right of way 
 1. Its priority becomes 0 in the DTC layer allocation, in ADMM (weight 10) and in the tactical
    altitude shift, so the other drone yields.
 2. It is **not** moved to the emergency layer: a climb costs energy it may not have.
-3. Its landing pad is reserved: departures from that pad are held until it has landed.
+3. Its landing pad is reserved (pad arbitration below).
 4. Two priority-0 drones: the emergency mission keeps its order; between two unhealthy drones the
    lower SoC goes first.
 5. A non-cooperative drone sends no health, so the DTC cannot apply this rule to it.
+
+**Pad arbitration.** Every airborne drone that is BMS CRITICAL/FAULT or diverting (low reserve,
+overheating, operator ground) is a landing candidate for its pad. Each pad goes to the candidate with
+the least **endurance** E_rem / P_hover; a CRITICAL/FAULT pack may fail any time, so its endurance is
+capped at `critical_endurance_s` (120 s). A holder keeps its pad unless a challenger has
+`reservation_swap_s` (15 s) less endurance. A reservation is **active** once its drone is within
+`pad_reserve_radius_m` (150 m of route) of the pad. While active:
+
+- departures from that pad are held;
+- any other drone bound for that pad (including a medical emergency: safety of flight first) stops
+  `pad_hold_m` (60 m) short and loiters at the tube edge, so the urgent drone can pass, and cannot
+  land until the reservation clears;
+- a diverting drone picks a pad reserved for someone else only when no other pad is feasible.
+
+A diversion resets the "no progress for 30 s" replan timer, and holding short does not count as
+stuck. Operator-ordered landings at a pad count as `precautionary_landings`; `forced_landings` are
+landings in place (off any pad).
 
 ## 9. Default parameters per type
 

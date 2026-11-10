@@ -328,6 +328,11 @@ drone_health:
     overheat_speed_frac: 0.6
     overheat_critical_hold_s: 30.0
     dtc_unhealthy_priority: true    # CRITICAL/FAULT drones get right of way to land (section 8)
+    sag_margin_v: 0.05              # feasibility: weakest cell must stay this far above cell_fault_v in a climb
+    pad_hold_m: 60.0                # arrivals hold short this far from a pad reserved for a more urgent landing
+    pad_reserve_radius_m: 150.0     # a reservation holds the pad once its drone is this close (route distance)
+    critical_endurance_s: 120.0     # BMS CRITICAL/FAULT: assume the pack may fail within this time
+    reservation_swap_s: 15.0        # a pad changes holder only if the challenger has this much less endurance
   link:
     p_tx_dbm: 27.0
     pl0_db: 40.0

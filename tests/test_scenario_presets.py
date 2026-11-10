@@ -78,6 +78,18 @@ def test_battery_failure_preset_follows_its_timeline():
     assert any(f"D-{c2} low reserve" in t and "DIVERTING" in t for t in texts)
     [cmd] = run.commands
     assert cmd["scripted"] and cmd["status"] == "acknowledged" and cmd["tick_received"] == 850
+    # pad arbitration: the two diversions use different pads, the CRITICAL drone lands first on its pad,
+    # and a diversion is never mistaken for "no progress"
+    events = [e for f in frames for e in f["events"]]
+    pad1 = next(e["text"].split("DIVERTING to ")[1].split()[0] for e in events
+                if e["kind"] == "divert" and f"D-{c1} " in e["text"])
+    pad2 = next(e["text"].split("DIVERTING to ")[1].split()[0] for e in events
+                if e["kind"] == "divert" and f"D-{c2} " in e["text"])
+    assert pad1 != pad2
+    landed_on_pad1 = [e["text"] for e in events if e["kind"] == "land" and e["t"] >= 70.0
+                      and e["text"].endswith(f"at {pad1}")]
+    assert landed_on_pad1 and landed_on_pad1[0] == f"D-{c1} landed at {pad1}"
+    assert not any(f"D-{c1} made no progress" in t or f"D-{c2} made no progress" in t for t in texts)
     stats = {}
     for f in frames:
         stats = f.get("stats", stats)

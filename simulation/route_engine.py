@@ -205,7 +205,9 @@ class RouteRunStats:
     # Phase 3B health
     delivered: int = 0                 # landed at the planned destination
     diversions: int = 0
-    forced_landings: int = 0
+    forced_landings: int = 0           # landed in place, off any pad
+    precautionary_landings: int = 0    # operator-ordered landings at a pad (Ground now / fleet ground)
+    pads_held_short: int = 0           # arrivals that held short of a pad reserved for a more urgent landing
     energy_depleted: int = 0           # must stay 0 in a correct run
     grounded_preflight: int = 0        # failed the pre-flight BMS / energy check, never took off
     intruder_detections: int = 0       # drone pairs where onboard sensing found a non-cooperative drone
@@ -460,6 +462,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
 
     hcfg = cfg.get("drone_health", {}) or {}
     health = None
+    hresp: dict[str, Any] = {}
     if hcfg.get("enabled", False):
         xmin, ymin, xmax, ymax = network.bounds
         health = HealthModel(cfg, seed, ((xmin + xmax) / 2.0, (ymin + ymax) / 2.0))
@@ -504,7 +507,9 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     new_flights: list[Flight] = []          # injected since the last full frame
     # Phase 3B state
     diverting: dict[int, str] = {}          # drone -> pad it is now flying to because of health
-    reserved_pads: dict[str, int] = {}      # pad -> unhealthy drone landing there (departures held)
+    reserved_pads: dict[str, int] = {}      # pad -> most urgent drone landing there (others hold, departures held)
+    res_announced: set[tuple[int, str]] = set()
+    holding_short: dict[int, str] = {}      # drone -> pad it is holding short of (reserved for someone else)
     pad_res_seen: set[tuple[int, str]] = set()
     preflight_ok: set[int] = set()
     preflight_fail: set[int] = set()
@@ -558,9 +563,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         """(feasible with the reserve margin, energy needed Wh, energy left Wh); always True without health."""
         if health is None or i not in health.index:
             return True, 0.0, math.inf
-        need = health.energy_needed_wh(i, length_m, speed or cruise_of(by_id[i]))
-        e_rem = health.e_rem_wh(i)
-        return need <= e_rem, need, e_rem
+        ok, need, e_rem, _ = health.feasible(i, length_m, speed or cruise_of(by_id[i]))
+        return ok, need, e_rem
 
     def _nearest_reachable(i: int) -> tuple[float, str, RoutePath] | None:
         for opt in _pad_options(i):
@@ -573,6 +577,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         f = by_id[i]
         f.route, f.destination = route, dest
         progress[i] = 0.0
+        stuck.pop(i, None)          # progress restarts on the new route: not "no progress"
+        holding_short.pop(i, None)
         agents[i].destination = np.array([*route.point_at(route.length), agents[i].position[2]])
         if mtrack is not None:
             mtrack.drop(i)
@@ -586,8 +592,15 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         """Fly to the nearest pad (by corridor route, avoiding restricted areas) that the energy can reach."""
         f = by_id[i]
         e_rem, cruise = health.e_rem_wh(i), cruise_of(f)
-        for length, vid, route in _pad_options(i):
-            if health.energy_needed_wh(i, length, cruise) <= e_rem:
+        opts = _pad_options(i)   # a pad reserved for another urgent landing only as a last resort
+        opts.sort(key=lambda o: (reserved_pads.get(o[1], i) != i, o[0], o[1]))
+        # first choice: energy and voltage margin; fallback: energy only (fly gently, still better than
+        # landing off-pad)
+        ok_full = {vid for length, vid, _ in opts if health.feasible(i, length, cruise)[0]}
+        if not ok_full:
+            ok_full = {vid for length, vid, _ in opts if health.feasible(i, length, cruise, check_sag=False)[0]}
+        for length, vid, route in opts:
+            if vid in ok_full:
                 if vid == f.destination and f.route.length - progress[i] <= length + 20.0:   # current route is fine
                     diverting[i] = vid
                     emit("divert", [i], f"D-{i} {why}: continuing to {vid} (nearest reachable pad, "
@@ -600,6 +613,60 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 return True
         _land_in_place(i, f"{why}; no pad reachable with {e_rem:.0f} Wh", emit)
         return False
+
+    pad_hold_m = float((hresp or {}).get("pad_hold_m", 60.0))
+    pad_reserve_radius_m = float((hresp or {}).get("pad_reserve_radius_m", 150.0))
+
+    def _endurance_s(i: int) -> float:
+        """Seconds the drone could still hover on its usable energy; a BMS CRITICAL/FAULT pack may fail
+        any time, so its endurance is capped at ``responses.critical_endurance_s``."""
+        p_hover = max(1.0, float(health.power(np.array([health.index[i]]), np.array([0.0]))[0][0]))
+        e = health.e_rem_wh(i) * 3600.0 / p_hover
+        if health.status(i) >= CRITICAL:
+            e = min(e, float(hresp.get("critical_endurance_s", 120.0)))
+        return e
+
+    def _urgency_label(i: int) -> str:
+        if health is None:
+            return "urgent"
+        st = health.status(i)
+        return f"BMS {STATUS_NAMES[st]}" if st >= CRITICAL else "low reserve"
+
+    def _reservation_active(pad: str) -> bool:
+        """A reservation holds the pad only once its drone is within ``pad_reserve_radius_m`` (route
+        distance) of it, so a far-away diversion does not block departures for minutes."""
+        h = reserved_pads.get(pad)
+        if h is None or status.get(h) != AIRBORNE:
+            return False
+        return by_id[h].route.length - progress[h] <= pad_reserve_radius_m
+
+    def _reserve_pads(air_ids: list[int], rule: bool, emit) -> None:
+        """DTC pad arbitration: each pad goes to the landing with the least endurance (BMS CRITICAL/FAULT
+        and low-reserve diversions alike); others bound for that pad hold short. A holder keeps its pad
+        unless a challenger has ``reservation_swap_s`` less endurance (no flip-flopping)."""
+        if not rule:
+            reserved_pads.clear()
+            return
+        cands: dict[str, list[tuple[float, int]]] = {}
+        for i in air_ids:
+            if status[i] == AIRBORNE and (i in unhealthy or i in diverting):
+                cands.setdefault(diverting.get(i, by_id[i].destination), []).append((_endurance_s(i), i))
+        swap = float(hresp.get("reservation_swap_s", 15.0))
+        new: dict[str, int] = {}
+        for pad, lst in cands.items():
+            lst.sort()
+            best_e, best = lst[0]
+            old = reserved_pads.get(pad)
+            for e, j in lst:
+                if j == old and e - best_e < swap:
+                    best = old
+            new[pad] = best
+            if (best, pad) not in res_announced and best not in unhealthy:   # unhealthy: announced by the DTC rule
+                res_announced.add((best, pad))
+                emit("dtc", [best], f"DTC: pad {pad} reserved for D-{best} ({_urgency_label(best)}) landing",
+                     "global", "warning")
+        reserved_pads.clear()
+        reserved_pads.update(new)
 
     def _health_tick(step: int, t: float, air_ids: list[int], attack_state, emit) -> None:
         idx = health.index
@@ -655,10 +722,11 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 if i in diverting:
                     continue
                 f = by_id[i]
-                need = health.energy_needed_wh(i, max(0.0, f.route.length - progress[i]), cruise_of(f))
-                if health.e_rem_wh(i) < need:
-                    _divert(i, f"low reserve ({health.e_rem_wh(i):.0f} Wh left, {need:.0f} Wh needed to reach "
-                            f"{f.destination})", emit, "warning")
+                ok, need, e_rem, why = health.feasible(i, max(0.0, f.route.length - progress[i]), cruise_of(f))
+                if not ok:
+                    what = (f"{e_rem:.0f} Wh left, {need:.0f} Wh needed to reach {f.destination}" if need > e_rem
+                            else f"{why} before {f.destination}")
+                    _divert(i, f"low reserve ({what})", emit, "warning")
             # DTC rule (docs/DRONE_HEALTH_MODEL.md section 8)
             rule = bool(hresp.get("dtc_unhealthy_priority", True)) and use_overseer
             now = {i for i in air_ids if status[i] == AIRBORNE and i not in noncoop
@@ -671,9 +739,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             unhealthy.update(now)
             for i in air_ids:
                 agents[i].priority = 0 if i in unhealthy else by_id[i].eff_priority
-            reserved_pads.clear()
-            for i in sorted(unhealthy):
-                reserved_pads.setdefault(diverting.get(i, by_id[i].destination), i)
+            _reserve_pads(air_ids, rule, emit)
         stats.energy_used_wh = round(float(health.a["e_out"].sum()), 1)
         stats.energy_per_delivered_wh = (round(sum(delivered_energy) / len(delivered_energy), 1)
                                          if delivered_energy else None)
@@ -855,9 +921,11 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         for length, vid, route in _pad_options(i):
             if length > limit:
                 break
-            if _energy_check(i, length)[0] or health is None:
+            # a precautionary landing needs the energy; a thin voltage margin is the reason to land, not a veto
+            if health is None or health.feasible(i, length, cruise_of(by_id[i]), check_sag=False)[0]:
                 _set_route(i, route, vid, why, "console", "warning")
                 diverting[i] = vid
+                stats.precautionary_landings += 1
                 emit("console", [i], f"D-{i} {why}: precautionary landing at {vid} ({length:.0f} m)", "global", "warning")
                 return f"acknowledged: landing at {vid}"
         _land_in_place(i, f"{why}; no pad within {limit:.0f} m", emit)
@@ -1213,7 +1281,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 _begin_service(j, plan)
         if step % tfr_every == 0:   # no progress for 30 s (e.g. a U-turn route against the tube wall): replan
             for i in ids:
-                if status[i] != AIRBORNE or i in hold_at:
+                if status[i] != AIRBORNE or i in hold_at or i in holding_short:
                     stuck.pop(i, None)
                     continue
                 s0, t0 = stuck.get(i, (progress[i], t))
@@ -1306,12 +1374,15 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 continue
             if health is not None and i not in preflight_ok:   # onboard pre-flight check (BMS + energy reserve)
                 why = None
-                if health.status(i) >= CRITICAL:
+                lift, lift_why = health.lift_ok(i)
+                if not lift:
+                    why = lift_why
+                elif health.status(i) >= CRITICAL:
                     why = f"BMS {STATUS_NAMES[health.status(i)]} ({', '.join(health.codes(health.index[i]))})"
                 else:
-                    need = health.energy_needed_wh(i, f.route.length, cruise_of(f))
-                    if health.e_rem_wh(i) < need:
-                        why = f"energy {health.e_rem_wh(i):.0f} Wh < {need:.0f} Wh needed for {f.destination}"
+                    ok, _, _, reason = health.feasible(i, f.route.length, cruise_of(f), climb=True)
+                    if not ok:
+                        why = f"{reason} for {f.destination}"
                 if why:
                     if i not in preflight_fail:
                         preflight_fail.add(i)
@@ -1319,13 +1390,13 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                         emit("preflight", [i], f"D-{i} stays on {f.origin}: pre-flight check failed — {why}", "global", "warning")
                     continue
                 preflight_ok.add(i)
-            if f.origin in reserved_pads:   # DTC: pad kept clear for an unhealthy drone coming in to land
+            if _reservation_active(f.origin):   # DTC: pad kept clear for an urgent landing on final approach
                 if (i, f.origin) not in pad_res_seen:
                     pad_res_seen.add((i, f.origin))
                     stats.pad_holds += 1
                     etrack.on_hold(i)
                     emit("hold", [i], f"D-{i} ground hold at {f.origin}: pad reserved for D-{reserved_pads[f.origin]} "
-                         f"(BMS {STATUS_NAMES[health.status(reserved_pads[f.origin])]}) landing", "global", "warning")
+                         f"({_urgency_label(reserved_pads[f.origin])}) landing", "global", "warning")
                 continue
             pad = agents[i].position[:2]
             join = f.route.points[1] if len(f.route.points) > 2 else pad
@@ -1578,6 +1649,18 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             v = min(cruise_of(a), math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - 1.0, 0.0))) + 0.3)
             if health is not None and health.overheating(a.id):   # onboard response: limit power until it cools
                 v = min(v, float(hresp["overheat_speed_frac"]) * cruise_of(a))
+            dest = by_id[a.id].destination
+            holder = reserved_pads.get(dest)
+            if holder is not None and holder != a.id and remaining < pad_hold_m + 40.0 and _reservation_active(dest):
+                # arrival on a pad reserved for a more urgent landing: stop short and hover until it is clear
+                v = min(v, math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - pad_hold_m, 0.0))))
+                if holding_short.get(a.id) != dest:
+                    holding_short[a.id] = dest
+                    stats.pads_held_short += 1
+                    emit("hold", [a.id], f"D-{a.id} holds short of {dest} at the tube edge: pad reserved for "
+                         f"D-{holder} ({_urgency_label(holder)}) landing", "global", "warning")
+            elif a.id in holding_short:
+                holding_short.pop(a.id, None)
             cap = speed_cap_drone.get(a.id)
             if cap and t < cap[1]:
                 v = min(v, cap[0])
@@ -1692,6 +1775,15 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             if a.id in hold_at:   # operator / lost-link hold: loiter at the hold point
                 to_h = hold_at[a.id] - p
                 v_goal = to_h * float(ccfg.get("hold_gain", 0.5))
+                sp_h = float(np.linalg.norm(v_goal))
+                if sp_h > float(ccfg.get("hold_max_speed", 3.0)):
+                    v_goal *= float(ccfg.get("hold_max_speed", 3.0)) / sp_h
+                v_ref = 0.0
+            elif a.id in holding_short:   # pad reserved for a more urgent landing: loiter at the tube edge
+                s_h = max(0.0, route.length - pad_hold_m)
+                t_h = route.tangent_at(s_h)
+                hp = route.point_at(s_h) + np.array([-t_h[1], t_h[0]]) * (half_w - 2.0)
+                v_goal = (hp - p) * float(ccfg.get("hold_gain", 0.5))
                 sp_h = float(np.linalg.norm(v_goal))
                 if sp_h > float(ccfg.get("hold_max_speed", 3.0)):
                     v_goal *= float(ccfg.get("hold_max_speed", 3.0)) / sp_h
@@ -1856,7 +1948,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     and a.id in charge_plan and f.destination == charge_plan[a.id]["pad"]):
                 _start_service(a.id, nxt)
                 continue
-            if remaining < 10.0 and float(np.linalg.norm(nxt.velocity[:2])) < 6.0:
+            if remaining < 10.0 and float(np.linalg.norm(nxt.velocity[:2])) < 6.0 and a.id not in holding_short:
                 status[a.id] = LANDED
                 nxt.velocity[:] = 0.0
                 stats.arrivals += 1

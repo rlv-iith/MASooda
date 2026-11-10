@@ -189,10 +189,13 @@ class HealthModel:
         a["deliverable"][k] = ok.astype(float)
         a["i"][k], a["ocv"][k], a["p"][k] = I, ocv, p_del
         a["v"][k] = ocv - I * R
-        a["soc"][k] = np.maximum(0.0, a["soc"][k] - I * dt / (3600.0 * a["qeff"][k]))
-        a["e_out"][k] += ocv * I * dt / 3600.0
+        # an internal fault (overheating) dissipates q_fault inside the pack: that heat is stored
+        # chemical energy, so it drains charge as a parallel current q_fault / OCV
+        i_fault = a["q_fault"][k] / np.maximum(ocv, 1e-6)
+        a["soc"][k] = np.maximum(0.0, a["soc"][k] - (I + i_fault) * dt / (3600.0 * a["qeff"][k]))
+        a["e_out"][k] += (ocv * I + a["q_fault"][k]) * dt / 3600.0
         a["e_load"][k] += p_del * dt / 3600.0
-        a["e_heat"][k] += I * I * R * dt / 3600.0
+        a["e_heat"][k] += (I * I * R + a["q_fault"][k]) * dt / 3600.0
         hp = a["hp0"][k] + a["hp1"][k] * np.sqrt(air)
         a["tp"][k] += dt / a["cp"][k] * (I * I * R + a["q_fault"][k] - hp * (a["tp"][k] - self.t_amb))
         motor_loss = pm / (a["eta"][k] * a["mh"][k]) - pm
@@ -330,10 +333,91 @@ class HealthModel:
         a["hdop"][k] = hdop
 
     # ------------------------------------------------------------------ queries
+    def _usable_wh(self, kk: int, soc: float) -> float:
+        """Energy the pack can deliver from ``soc`` until its WEAKEST cell reaches ``soc_min``.
+
+        Cells in series carry the same charge, so every cell gives up the same SoC span
+        (weakest cell SoC - soc_min); each cell contributes the integral of its own OCV over that span.
+        With identical cells this is ``qeff * ns * (F(soc) - F(soc_min))``.
+        """
+        delta, _ = self.cells[kk]
+        s = np.clip(soc + delta, 0.0, 1.0)
+        span = max(0.0, float(s.min()) - self.soc_min)
+        if span <= 0.0:
+            return 0.0
+        F = lambda x: np.interp(x, self._F_grid, self._F)  # noqa: E731
+        return float(self.a["qeff"][kk] * np.sum(F(s) - F(s - span)))
+
     def e_rem_wh(self, aid: int) -> float:
-        a, kk = self.a, self.index[aid]
-        f = np.interp(a["soc"][kk], self._F_grid, self._F) - np.interp(self.soc_min, self._F_grid, self._F)
-        return float(max(0.0, a["qeff"][kk] * a["ns"][kk] * f))
+        """Usable energy left (Wh), limited by the weakest cell."""
+        kk = self.index[aid]
+        return self._usable_wh(kk, float(self.a["soc"][kk]))
+
+    def _pack_at(self, kk: int, soc: float, power_w: float) -> tuple[bool, float, float]:
+        """(power deliverable, pack current A, weakest cell voltage V) at ``soc`` while drawing ``power_w``."""
+        a = self.a
+        delta, eps = self.cells[kk]
+        ocv_cells = self._ocv_cell(np.clip(soc + delta, 0.0, 1.0))
+        ocv = float(ocv_cells.sum())
+        R = float(self._r(np.array([kk]))[0])
+        disc = ocv * ocv - 4.0 * R * power_w
+        if disc < 0.0:
+            return False, ocv / (2.0 * R), float("nan")
+        I = (ocv - math.sqrt(disc)) / (2.0 * R)
+        r_cell = R / a["ns"][kk] / a["rmul"][kk]
+        v_min = float((ocv_cells - I * r_cell * (1.0 + eps)).min())
+        return True, I, v_min
+
+    def climb_power_w(self, aid: int) -> float:
+        """Electrical power while climbing out of a hover (the highest steady draw of a mission)."""
+        k = np.array([self.index[aid]])
+        return float(self.power(k, np.array([0.0]), np.array([True]))[0][0])
+
+    def lift_ok(self, aid: int) -> tuple[bool, str]:
+        """Can the full pack lift this mass? Hover + climb current must stay within the pack's C-rating."""
+        kk = self.index[aid]
+        p = self.climb_power_w(aid)
+        ok, I, _ = self._pack_at(kk, float(self.a["soc"][kk]), p)
+        imax = float(self.a["imax"][kk])
+        if ok and I <= imax:
+            return True, ""
+        return False, (f"over maximum take-off mass: climb needs {p:.0f} W "
+                       f"({'more than the pack can deliver' if not ok else f'{I:.0f} A > {imax:.0f} A limit'}) "
+                       f"at {self.a['m'][kk]:.1f} kg")
+
+    def sag_ok(self, aid: int, energy_wh: float, climb: bool = False) -> tuple[bool, float]:
+        """After spending ``energy_wh``, can the weakest cell still carry the load above ``cell_fault_v``?
+
+        The load is a climb out of a hover (``climb=True``: a take-off) or the landing hover (in flight).
+
+        Returns (ok, weakest cell voltage at that point). The energy check alone misses a cell with
+        high resistance that hits the cut-off voltage under load long before its charge runs out.
+        """
+        kk = self.index[aid]
+        a = self.a
+        soc_end = float(a["soc"][kk]) - energy_wh / max(1e-9, float(a["qeff"][kk] * a["vnom"][kk]))
+        p = self.climb_power_w(aid) if climb else float(self.power(np.array([kk]), np.array([0.0]))[0][0])
+        ok, _, v_min = self._pack_at(kk, max(0.0, soc_end), p)
+        margin = float(self.resp.get("sag_margin_v", 0.05))
+        return bool(ok and v_min >= float(self.th["cell_fault_v"]) + margin), v_min
+
+    def feasible(self, aid: int, distance_m: float, cruise_mps: float, climb: bool = False,
+                 check_sag: bool = True) -> tuple[bool, float, float, str]:
+        """(ok, energy needed Wh, usable energy Wh, reason) for flying ``distance_m`` and landing.
+
+        ``climb``: the mission starts with a climb (pre-flight); ``check_sag=False``: energy only.
+        """
+        need = self.energy_needed_wh(aid, distance_m, cruise_mps)
+        e_rem = self.e_rem_wh(aid)
+        if need > e_rem:
+            return False, need, e_rem, f"energy {e_rem:.0f} Wh < {need:.0f} Wh needed"
+        if not check_sag:
+            return True, need, e_rem, ""
+        ok, v_min = self.sag_ok(aid, need, climb)
+        if not ok:
+            return False, need, e_rem, (f"weakest cell would sag to {v_min:.2f} V under {'climb' if climb else 'hover'} load "
+                                        f"(cut-off {float(self.th['cell_fault_v']):.2f} V)")
+        return True, need, e_rem, ""
 
     def energy_needed_wh(self, aid: int, distance_m: float, cruise_mps: float) -> float:
         """Energy to fly ``distance_m`` at cruise plus the landing hover, with the reserve margin."""
@@ -370,6 +454,8 @@ class HealthModel:
         p = float(a["p"][kk])
         e_rem = self.e_rem_wh(aid)
         t_left = e_rem * 3600.0 / p if p > a["avion"][kk] * 1.01 else None
+        p_cruise = float(self.power(np.array([kk]), np.array([max(cruise_mps, 0.5)]))[0][0])
+        range_m = e_rem * 3600.0 / p_cruise * max(cruise_mps, 0.5) if t_left is not None else None
         fin = lambda x, d=2: None if not np.isfinite(x) else round(float(x), d)  # noqa: E731
         hd = float(a["hdop"][kk])
         return {
@@ -377,7 +463,7 @@ class HealthModel:
             "capacity_wh": fin(a["qeff"][kk] * a["vnom"][kk], 0), "v": fin(a["v"][kk], 2), "ocv": fin(a["ocv"][kk], 2),
             "i": fin(a["i"][kk], 2), "p": fin(p, 0), "e_rem_wh": fin(e_rem, 1),
             "time_left_s": None if t_left is None else round(t_left, 0),
-            "range_left_m": None if t_left is None else round(t_left * max(ground_speed, cruise_mps if ground_speed < 0.5 else ground_speed), 0),
+            "range_left_m": None if range_m is None else round(range_m, 0),   # at cruise power and speed
             "cells_mv": np.rint(vc * 1000.0).astype(int).tolist(), "imbalance_mv": fin(a["imb"][kk], 0),
             "min_cell_v": fin(a["min_cell"][kk], 3), "i_max": fin(a["imax"][kk], 1),
             "t_pack": fin(a["tp"][kk], 1), "t_motor": fin(a["tm"][kk], 1),
