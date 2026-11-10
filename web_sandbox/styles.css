@@ -337,3 +337,6 @@ body.resizing{cursor:col-resize;user-select:none}
   .layout.collapsed .spanel{display:flex}
 }
 .sect[data-sect="setup"] #runBtn{position:sticky;bottom:0;z-index:2;box-shadow:0 -8px 12px -4px #f4f6f9,0 4px 12px #0e749033}
+.map-status-row{display:flex;align-items:center;gap:10px;padding:0 14px 8px}
+.map-status-row .map-status{padding:0;flex:1;min-width:0}
+.map-status-row .ghost[hidden]{display:none}

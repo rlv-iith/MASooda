@@ -46,6 +46,8 @@ DEFAULT_WEB = {
     "grid_cell_m": 40.0,
     "interactive_lead_s": 5.0,
     "watcher_timeout_s": 5.0,
+    "max_live_runs": 2,
+    "abandon_after_s": 30.0,
 }
 PHASE2_KEYS = ("admm", "neg", "merge", "spoof", "trust", "new_flights", "h", "hsel", "reroutes", "console")
 CARRY_KEYS = ("stats", "prio", "h", "console")   # sent only when changed / once per second; carried forward

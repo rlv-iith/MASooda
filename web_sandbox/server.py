@@ -110,6 +110,7 @@ class LiveRun:
         self.done = False
         self.error: str | None = None
         self.stop_flag = False
+        self.stop_reason: str | None = None   # set when the run is stopped before its end time
         self.lock = threading.Lock()
         self.started = time.time()
         self.request = request
@@ -125,7 +126,7 @@ class LiveRun:
         self.sel: list[int] = []             # drones whose full health detail goes into frames
         self.script: dict[int, list[dict[str, Any]]] = {}   # preset script, by tick
         self.compare: list[dict[str, Any]] = []             # preset variants (headless) for comparison
-        self.view_seen = 0.0                 # wall time of the last report
+        self.view_seen = time.time()         # wall time of the last report (a new run counts as watched)
         self.lead_s = 5.0
         self.watch_timeout_s = 5.0
 
@@ -161,12 +162,22 @@ class LiveRun:
             out, self.pending = self.pending, []
         return out
 
-    def stop(self) -> None:
+    def stop(self, reason: str = "stopped") -> None:
+        if not self.stop_flag and not self.done:
+            self.stop_reason = reason
         self.stop_flag = True
+
+    def idle_s(self, now: float) -> float:
+        """Seconds since a page last polled this run's frames."""
+        return now - self.view_seen
 
 
 RUNS: dict[str, LiveRun] = {}
 RUNS_LOCK = threading.Lock()
+
+
+class SimulatorBusy(Exception):
+    """Every live-run slot is taken by a run someone is watching (HTTP 503)."""
 
 
 def _int(value: Any, name: str, lo: int, hi: int) -> int:
@@ -326,13 +337,36 @@ def _run_worker(run: LiveRun, prepared: dict[str, Any]) -> None:
         run.done = True
 
 
+def admit_run(web: dict[str, Any], replaces: str | None = None, now: float | None = None) -> None:
+    """Make room for a new live run (caller holds ``RUNS_LOCK``).
+
+    Several people can use the demo at once, so a new run never stops a run someone is
+    watching. It stops (1) the run it replaces (the same page relaunching), and (2) runs no
+    page has polled for ``web.abandon_after_s`` (closed tabs). If ``web.max_live_runs``
+    watched runs are still going, it raises ``SimulatorBusy`` instead.
+    """
+    now = time.time() if now is None else now
+    if replaces and replaces in RUNS:
+        RUNS[replaces].stop("replaced by a new launch from the same page")
+    abandon = float(web["abandon_after_s"])
+    for r in RUNS.values():
+        if not r.done and not r.stop_flag and r.idle_s(now) > abandon:
+            r.stop(f"no page watched it for {abandon:.0f} s")
+    live = [r for r in RUNS.values() if not r.done and not r.stop_flag]
+    limit = int(web["max_live_runs"])
+    if len(live) >= limit:
+        raise SimulatorBusy(f"Simulator busy: {len(live)} live run(s) in progress (limit {limit}). "
+                            "Try again when one finishes, or replay a downloaded run.")
+    for key in [k for k, r in RUNS.items() if r.done][:-4]:
+        RUNS.pop(key, None)
+
+
 def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
+    body = dict(body)
+    replaces = body.pop("replaces", None)      # the page's previous run (not part of the run request)
     prepared = prepare_live_run(body)
     with RUNS_LOCK:
-        for old in RUNS.values():   # single-operator demo: newest run wins the CPU
-            old.stop()
-        for key in [k for k, r in RUNS.items() if r.done][:-4]:
-            RUNS.pop(key, None)
+        admit_run(prepared["web"], str(replaces) if replaces else None)
         run_id = uuid.uuid4().hex[:12]
         run = LiveRun(run_id, body, int(prepared["web"]["max_frames_in_memory"]))
         RUNS[run_id] = run
@@ -648,7 +682,8 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 nxt = frames[-1]["n"] + 1 if frames else start
                 self._send_json(200, {"frames": frames, "from": start, "next": nxt, "stored": stored,
                                       "thinned": run.store.thinned,
-                                      "done": finished and nxt > run.store.last_seq(), "error": run.error})
+                                      "done": finished and nxt > run.store.last_seq(), "error": run.error,
+                                      "stopped": run.stop_reason})
             elif route.startswith("/data/") and route[6:] in DATA_FILES:
                 path = ROOT / "data" / route[6:]
                 if not path.is_file():
@@ -684,12 +719,14 @@ class ScenarioHandler(BaseHTTPRequestHandler):
             elif route.startswith("/api/runs/") and route.endswith("/stop"):
                 run = RUNS.get(route.split("/")[3])
                 if run:
-                    run.stop()
+                    run.stop("stopped on request")
                 self._send_json(200, {"stopped": bool(run)})
             elif route == "/api/simulate":  # LEGACY: abstract three-corridor engine, not used by the page
                 self._legacy_simulate()
             else:
                 self._send_json(404, {"error": "route_not_found"})
+        except SimulatorBusy as exc:
+            self._send_json(503, {"error": "busy", "message": str(exc)})
         except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
             self._send_json(400, {"error": "invalid_request", "message": str(exc)})
         except Exception as exc:

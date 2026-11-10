@@ -49,6 +49,7 @@ const NET_SERIES = [
 ];
 
 let baseConfig = null, LIMITS = null, MAP = null, MAPS = [], mapId = null, RUN = null, frames = [], done = false;
+let lastReq = null;   // the last launch request, for Relaunch
 let nextSeq = 0, lastStats = null, shownEvents = new WeakSet(), speedProbe = [];
 let scene = 'normal', simT = 0, playing = true, speed = 2, lastTs = 0, selected = null, layerFilter = 'all', follow = false;
 let view = {cx: 0, cy: 0, s: 0.2}, userMoved = false, dpr = 1, ctxPaths = null, backdropImg = null, logCursor = 0, logTotal = 0;
@@ -71,7 +72,7 @@ function status(msg, kind = '') { const n = $('#status'); n.textContent = msg; n
 async function api(path, body) {
   const r = await fetch(path, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw Error(data.message || data.error || `HTTP ${r.status}`);
+  if (!r.ok) throw Object.assign(Error(data.message || data.error || `HTTP ${r.status}`), {status: r.status});
   return data;
 }
 function sizeCanvas(c) { const r = c.getBoundingClientRect(); c.width = Math.max(1, Math.round(r.width * dpr)); c.height = Math.max(1, Math.round(r.height * dpr)); }
@@ -410,7 +411,7 @@ function updatePanels() {
   const spoofers = [...new Set([...(RUN.attack.enabled ? RUN.attack.malicious_ids : []), ...RUN.flights.filter((x) => x.malicious).map((x) => x.id)])];
   $('#kRepSub').textContent = spoofers.length ? (undefended ? 'defence OFF — fed into separation' : `${spoofers.map((i) => 'D-' + i).join(', ')} spoofing`) : 'no attack injected';
   $('#kArr').textContent = st.arrivals; $('#kArrSub').textContent = `of ${RUN.flights.length} flights`;
-  $('#runState').textContent = RUN.replay ? 'LOADED' : done && simT >= frames.at(-1).t - 1e-6 ? 'COMPLETE' : done ? 'REPLAY' : 'LIVE';
+  $('#runState').textContent = RUN.replay ? 'LOADED' : done && simT >= frames.at(-1).t - 1e-6 ? (RUN.stopped ? 'STOPPED' : 'COMPLETE') : done ? 'REPLAY' : 'LIVE';
   updateOccupancy(s); updateDrone(s); pumpLog(); updateFleetHealth(s); if (dTab === 'hl') updateHealthTab(s); updateConsole(s); updateCompare();
   const canInject = !RUN.replay && !done; if ($('#cdNow').disabled === canInject) $('#cdNow').disabled = !canInject;
 }
@@ -665,9 +666,11 @@ function buildRequest() {
 }
 async function launch(presetReq = null) {
   let req; try { req = presetReq || buildRequest(); } catch (e) { status(e.message, 'err'); return; }
+  lastReq = req; $('#relaunchBtn').hidden = true;
   $('#runBtn').disabled = true; status('Planning routes on the corridor graph…');
   try {
-    const run = await api('/api/runs', req);   // the server stops the previous run only once this one is accepted
+    // `replaces`: this page's previous run is stopped once the new one is accepted; other people's runs are not touched
+    const run = await api('/api/runs', {...req, ...(RUN && !RUN.replay && !done ? {replaces: RUN.run_id} : {})});
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     run.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = run; frames = []; done = false; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
@@ -678,9 +681,14 @@ async function launch(presetReq = null) {
     if (run.preset?.names) for (const [nm, id] of Object.entries(run.preset.names)) { const f = run.flights.find((x) => x.id === id); if (f) f.task = `@${nm} · ${f.task}`; }
     status(`Run ${run.run_id}: ${run.flights.length} flights planned on ${MAP.label} corridors — streaming from the simulator.`, 'ok');
     poll(run.run_id);
-  } catch (e) { status(e.message, 'err'); $('#runState').textContent = 'ERROR'; }
+  } catch (e) {
+    status(e.message, 'err');
+    if (e.status === 503) { $('#relaunchBtn').hidden = false; if (!RUN || done) $('#runState').textContent = 'BUSY'; }
+    else $('#runState').textContent = 'ERROR';
+  }
   finally { $('#runBtn').disabled = false; }
 }
+$('#relaunchBtn').onclick = () => launch(lastReq);
 async function poll(id) {
   try {
     while (RUN && RUN.run_id === id) {
@@ -693,6 +701,10 @@ async function poll(id) {
         speedProbe.push([performance.now(), frames.at(-1).t]); if (speedProbe.length > 20) speedProbe.shift();
       }
       if (r.error) { status(`Simulation error: ${r.error}`, 'err'); done = true; break; }
+      if (r.done && r.stopped) {   // ended before its end time: say so instead of "complete"
+        done = true; RUN.stopped = r.stopped; $('#relaunchBtn').hidden = false;
+        status(`Run stopped at ${fmt(frames.at(-1)?.t ?? 0)} of ${RUN.duration_s} s — ${r.stopped}. Relaunch to start it again.`, 'err'); break;
+      }
       if (r.done) { done = true; const st = frames.at(-1)?.stats; if (st) status(`Run complete · ${st.arrivals} arrivals · ${st.crashes} crashes · ${st.near_misses} near misses · min separation ${fmt(st.min_separation_m, 2)} m.`, st.crashes || st.safety_violation_ticks ? 'err' : 'ok'); break; }
       await new Promise((res) => setTimeout(res, r.frames.length >= (LIMITS?.poll_batch ?? 400) ? 0 : 250));
     }

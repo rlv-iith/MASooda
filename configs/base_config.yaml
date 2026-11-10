@@ -375,4 +375,6 @@ web:
   grid_cell_m: 40.0
   interactive_lead_s: 5.0         # Phase 3: while a page is watching, the simulator stays at most this far
                                   # ahead of playback so operator commands land near the time on screen
+  max_live_runs: 2                # live runs at once (shared CPU); a new run never stops one someone is watching
+  abandon_after_s: 30.0           # a run no page has polled for this long is stopped to free its slot
   watcher_timeout_s: 5.0          # no poll for this long -> the simulator runs ahead freely              # grid cell size (comm radius is a good choice)
