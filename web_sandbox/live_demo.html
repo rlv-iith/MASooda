@@ -223,7 +223,10 @@
           <select id="ccfSector"><option value="">any sector</option></select>
           <select id="ccfLayer"><option value="">any layer</option></select>
           <select id="ccfStatus"><option value="1">airborne</option><option value="0">queued</option><option value="">any status</option></select>
-          <button class="ghost sm" id="ccfApply">Select matching</button>
+          <input id="ccfIds" type="text" inputmode="numeric" autocomplete="off" spellcheck="false"
+                 placeholder="Drone numbers, e.g. 3, 7-12, 20 (blank = any)" aria-label="Drone numbers or ranges"
+                 title="Like printer page ranges: 5 · 1-10 · 2, 4, 9-12 · D-7 also works. Enter selects; Shift+Enter adds to the selection.">
+          <button class="ghost sm" id="ccfApply" title="Shift+click adds to the current selection">Select matching</button>
         </div>
         <div class="cc-bar">
           <button class="ghost" data-cmd="hold" title="H">⏸ Hold</button>

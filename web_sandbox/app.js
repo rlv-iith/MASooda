@@ -1252,7 +1252,7 @@ const MOVEMENT = new Set(['reroute', 'hold', 'rtb', 'change_layer', 'speed_limit
 const live = () => RUN && !RUN.replay && !done;
 const selIds = () => [...selSet].filter((n) => RUN?.flights[n]).map((n) => RUN.flights[n].id);
 function renderSel() {
-  const ids = selIds();
+  const ids = [...selIds()].sort((a, b) => a - b);   // display order only; command targets are unchanged
   $('#ccSel').textContent = ids.length ? `Selected (${ids.length}): ${ids.slice(0, 8).map((i) => 'D-' + i).join(', ')}${ids.length > 8 ? ' …' : ''}` : 'No drones selected';
 }
 function consoleFill() {
@@ -1276,13 +1276,49 @@ function finishBox() {
   status(`${hit.length} drone(s) selected by box.`, 'ok');
 }
 $('#ccClear').onclick = () => { selSet = new Set(); renderSel(); };
-$('#ccfApply').onclick = () => {
+// Drone numbers like printer page ranges: "5", "1-10", "2, 4, 9-12", "D-7", "3..6", "8 to 11"
+function parseIdRanges(text) {
+  const ids = new Set(), bad = [];
+  const norm = text.replace(/\s*(-|–|\.\.|\bto\b)\s*/gi, '$1');   // "7 - 12" / "8 to 11" -> one token
+  for (const raw of norm.split(/[,;\s]+/).filter(Boolean)) {
+    const tok = raw.replace(/d-?(?=\d)/gi, '');   // D-12 / d12 -> 12
+    let m = tok.match(/^(\d+)$/);
+    if (m) { ids.add(+m[1]); continue; }
+    m = tok.match(/^(\d+)\s*(?:-|–|\.\.|to)\s*(\d+)$/i);
+    if (m) {
+      let [a, b] = [+m[1], +m[2]]; if (a > b) [a, b] = [b, a];
+      if (b - a > 10000) { bad.push(raw); continue; }
+      for (let i = a; i <= b; i++) ids.add(i);
+      continue;
+    }
+    bad.push(raw);
+  }
+  return {ids, bad};
+}
+function applyFilter(add = false) {
   if (!RUN || !frames.length) return;
   const f0 = frameAt(simT).f0, ty = $('#ccfType').value, se = $('#ccfSector').value, la = $('#ccfLayer').value, st = $('#ccfStatus').value;
-  const hit = RUN.flights.map((f, n) => n).filter((n) => (!ty || RUN.flights[n].type === ty) && (st === '' || f0.status[n] === +st)
-    && (la === '' || f0.layer[n] === +la) && (se === '' || sectorOf(f0.x[n], f0.y[n]) === +se));
-  selSet = new Set(hit); if (hit.length) selected = hit[0]; renderSel(); status(`${hit.length} drone(s) match the filter.`, 'ok');
-};
+  const box = $('#ccfIds'), {ids, bad} = parseIdRanges(box.value);
+  box.classList.toggle('bad', bad.length > 0);
+  if (bad.length) { status(`Can't read drone numbers: ${bad.join(', ')} — use e.g. 3, 7-12, 20.`, 'err'); return; }
+  const byId = new Map(RUN.flights.map((f, n) => [f.id, n]));
+  const others = (n) => (!ty || RUN.flights[n].type === ty) && (st === '' || f0.status[n] === +st)
+    && (la === '' || f0.layer[n] === +la) && (se === '' || sectorOf(f0.x[n], f0.y[n]) === +se);
+  const pool = ids.size ? [...ids].filter((id) => byId.has(id)).map((id) => byId.get(id)).sort((a, b) => a - b) : RUN.flights.map((_, n) => n);
+  const hit = pool.filter(others);
+  selSet = add ? new Set([...selSet, ...hit]) : new Set(hit); if (hit.length) selected = hit[0]; renderSel();
+  let msg = `${hit.length} drone(s) ${add ? 'added' : 'selected'}${add ? ` · ${selSet.size} in selection` : ''}.`;
+  if (ids.size) {
+    const missing = [...ids].filter((id) => !byId.has(id)), filtered = pool.filter((n) => !others(n)).map((n) => RUN.flights[n].id).sort((x, y) => x - y).map((i) => `D-${i}`);
+    const list = (a) => a.length > 8 ? `${a.slice(0, 8).join(', ')} … (+${a.length - 8})` : a.join(', ');
+    if (filtered.length) msg += ` Excluded by the type / sector / layer / status filters: ${list(filtered)}.`;
+    if (missing.length) msg += ` No such drone: ${list(missing.map((i) => 'D-' + i))}.`;
+  }
+  status(msg, hit.length ? 'ok' : 'err');
+}
+$('#ccfApply').onclick = (e) => applyFilter(e.shiftKey);
+$('#ccfIds').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyFilter(e.shiftKey); } });
+$('#ccfIds').addEventListener('input', () => $('#ccfIds').classList.remove('bad'));
 async function dryRun(body) {
   const r = await api(`/api/runs/${RUN.run_id}/commands`, {...body, dry_run: true});
   for (let k = 0; k < 30; k++) {
