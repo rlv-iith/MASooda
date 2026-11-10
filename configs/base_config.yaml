@@ -376,3 +376,38 @@ web:
   interactive_lead_s: 5.0         # Phase 3: while a page is watching, the simulator stays at most this far
                                   # ahead of playback so operator commands land near the time on screen
   watcher_timeout_s: 5.0          # no poll for this long -> the simulator runs ahead freely              # grid cell size (comm radius is a good choice)
+
+# Layer agreement (simulation/layer_agreement.py): drones negotiate cruise layers over V2V,
+# the DTC seeds per-sector layer prices and settles stuck drones. Weights are dimensionless.
+layer_agreement:
+  enabled: true
+  period_s: 1.0               # one negotiation round per second
+  direction_parity: true      # semicircular rule: eastbound even layers, westbound odd layers
+  # local cost J_i(L) = w_follow*phi + w_price*lambda + w_climb*climb + w_switch*[L != L_i] + w_direction*[wrong parity]
+  w_follow: 1.0
+  w_price: 0.6
+  w_climb: 0.15
+  w_switch: 0.25
+  w_direction: 0.5
+  battery_k: 1.0              # climbing costs (1 + k (1 - SoC)) more on a low battery
+  climb_ref_m: 30.0
+  gain_threshold: 0.15        # move only if the cost drops by more than this
+  cooldown_s: 8.0             # no second layer change within this time
+  # price consensus (dual ascent): lambda <- M(neighbour lambdas) + alpha (local load - target) / target
+  alpha: 0.3
+  target_load: 2              # drones per layer within V2V range before the price rises
+  price_max: 2.0
+  dtc_theta: 0.6              # DTC price starts rising above this fraction of sector-layer capacity
+  # stuck -> DTC: below stuck_speed_frac x cruise for stuck_time_s (not on approach / held / capped)
+  stuck_speed_frac: 0.6
+  stuck_time_s: 4.0
+  approach_m: 60.0
+  request_ttl_s: 10.0
+  # DTC cost: weight (1 + w_priority/(1+P)) (1 + w_battery (1-SoC)); K = delay + climb/SoC + load + switch
+  dtc_w_delay: 1.0
+  dtc_w_priority: 1.0
+  dtc_w_battery: 0.5
+  dtc_w_climb: 0.3
+  dtc_w_load: 0.5
+  dtc_w_switch: 0.1
+  dtc_lookahead_m: 80.0

@@ -2,6 +2,7 @@
 
 from collections import Counter
 
+from config.load_config import get_config
 from simulation.overseer import GlobalOverseer, reset_default_overseer
 from simulation.schema import AgentType, GlobalStateSnapshot
 
@@ -66,9 +67,13 @@ def test_priority_aware_capacity_pressure_emergencies_fit():
 
 def test_priority_aware_overflow_is_reported_for_delivery_only():
     overseer = GlobalOverseer(policy="priority_aware")
+    airspace = get_config()["airspace"]
+    emergency_layer = int(airspace["emergency_layer"])
+    normal_layers = [L for L in range(int(airspace["num_layers"])) if L != emergency_layer]
+    room = len(normal_layers) * len(CORRIDOR_IDS) * CAPACITY      # every non-emergency layer of every corridor
     emergency_ids = list(range(5))
     evtol_ids = list(range(5, 15))
-    delivery_ids = list(range(15, 100))
+    delivery_ids = list(range(15, 15 + room - 10 + 5))            # 5 more normal agents than there is room
     agent_ids = emergency_ids + evtol_ids + delivery_ids
     priorities = {
         **{agent_id: 0 for agent_id in emergency_ids},
@@ -85,9 +90,9 @@ def test_priority_aware_overflow_is_reported_for_delivery_only():
     directive = overseer.update(snap)
     allocation_order = sorted(agent_ids, key=lambda agent_id: (priorities[agent_id], agent_id))
 
-    # Layers 0 and 1 hold 2 x 45 = 90 normal agents; 95 normal agents -> 5 overflow.
+    # The non-emergency layers hold `room` normal agents; 5 more -> 5 overflow.
     assert overseer.last_overflow == 5
-    assert all(directive.altitude_map[a] == 2 for a in emergency_ids)
+    assert all(directive.altitude_map[a] == emergency_layer for a in emergency_ids)
     assert set(allocation_order[-5:]).issubset(delivery_ids)
     assert all(agent_id in directive.corridor_map for agent_id in emergency_ids + evtol_ids)
 

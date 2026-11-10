@@ -37,6 +37,7 @@ from resilience.spoofer_estimate import estimate_spoofer_position, report_status
 from simulation.admm_probe import ADMMProbe
 from simulation.comm_graph import build_knn_graph, build_radius_graph
 from simulation.drone_health import CRITICAL, FAULT, STATUS_NAMES, WARNING, HealthModel
+from simulation.layer_agreement import LayerAgreement, RoundContext, departure_layer, settings as agreement_settings
 from simulation.dtc_console import COMMANDS, plan_route, points_in_polygon, route_hits_zones
 from simulation.dynamics import step_dynamics
 from simulation.overseer import GlobalOverseer
@@ -194,6 +195,13 @@ class RouteRunStats:
     near_misses: int = 0
     tactical_layer_shifts: int = 0
     dtc_directives: int = 0
+    # layer agreement (simulation/layer_agreement.py)
+    agree_switches: int = 0            # layer changes agreed between drones over V2V
+    agree_yields: int = 0              # a neighbour with a larger gain took the layer first
+    stuck_requests: int = 0            # stuck drones that asked the DTC for a layer
+    dtc_stuck_resolved: int = 0
+    dtc_stuck_denied: int = 0
+    departures_spread: int = 0         # departures above the lowest layer of their direction
     # Phase 3B health
     delivered: int = 0                 # landed at the planned destination
     diversions: int = 0
@@ -411,6 +419,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     progress: dict[int, float] = {}
     agents: dict[int, AgentState] = {}
     preferred_layer: dict[int, int] = {}
+    direction_of: dict[int, int] = {}      # semicircular rule: 0 eastbound (even layers), 1 westbound (odd)
     noncoop: set[int] = set()              # drones that do not broadcast position reports
     spoof_custom: dict[int, tuple[np.ndarray, float]] = {}   # custom spoofer -> (offset, start s)
 
@@ -422,16 +431,18 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         ids.append(i)
         status[i] = QUEUED
         progress[i] = 0.0
-        # Semicircular rule: the requested cruise layer follows the overall course
-        # (eastbound -> layer 0, westbound -> layer 1). The DTC may override it for
-        # capacity; emergencies always get the reserved layer. A custom drone may request a layer.
+        # Semicircular rule: the cruise layer follows the overall course (eastbound -> even
+        # layers L0/L2/L4, westbound -> odd L1/L3/L5). The drone starts on the lowest one; the
+        # departure check, the V2V layer agreement and the DTC spread traffic over the rest.
+        # Emergencies always get the reserved layer. A custom drone may request a layer.
+        course = f.route.point_at(f.route.length) - f.route.point_at(0.0)
+        direction_of[i] = 0 if course[0] >= 0 else 1
         if f.preferred_layer is not None:
             preferred_layer[i] = int(f.preferred_layer)
         elif f.type == AgentType.EMERGENCY:
             preferred_layer[i] = emergency_layer
         else:
-            course = f.route.point_at(f.route.length) - f.route.point_at(0.0)
-            preferred_layer[i] = 0 if course[0] >= 0 else 1
+            preferred_layer[i] = direction_of[i]
         start = f.route.point_at(0.0)
         layer = preferred_layer[i]
         agents[i] = AgentState(
@@ -461,6 +472,11 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         register(f)
     cached_layers: dict[int, int] = {}
     stats = RouteRunStats()
+    la_cfg = agreement_settings(cfg)
+    capacity = int(cfg["corridors"]["capacity"])
+    agree = (LayerAgreement(num_layers, emergency_layer, layer_h, d_min, d_0, h_gap, half_w, capacity, la_cfg)
+             if la_cfg["enabled"] and not centralized else None)
+    agree_steps = max(1, int(round(float(la_cfg["period_s"]) / dt)))
     held: set[int] = set()
     link_was_up = True
     announced_spoofers: set[int] = set()
@@ -1275,6 +1291,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
 
         # --- departures (pad must be clear: ground holding otherwise)
         dep_grid = None
+        dep_load: dict[int, dict[int, int]] | None = None   # sector -> layer -> airborne count (once per tick)
         departed_now: list[int] = []
         for f in flights:
             i = f.agent_id
@@ -1325,12 +1342,24 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     if np.linalg.norm(agents[j].position[:2] - join) < MERGE_CLEARANCE_M:
                         near_join.add(j)
                 busy = sorted(near_pad, key=index_of.__getitem__)
-                merge = sorted((j for j in near_join if agents[j].altitude_layer == dep_layer), key=index_of.__getitem__)
             else:
                 busy = [j for j in ids if status[j] == AIRBORNE and np.linalg.norm(agents[j].position[:2] - pad) < 2.0 * d_min]
-                # merge gap: no same-layer traffic near the junction where the approach leg joins the corridor
-                merge = [j for j in ids if status[j] == AIRBORNE and agents[j].altitude_layer == dep_layer
-                         and np.linalg.norm(agents[j].position[:2] - join) < MERGE_CLEARANCE_M]
+                near_join = {j for j in ids if status[j] == AIRBORNE
+                             and np.linalg.norm(agents[j].position[:2] - join) < MERGE_CLEARANCE_M}
+            if (agree is not None and i not in cached_layers and f.preferred_layer is None
+                    and f.type != AgentType.EMERGENCY):
+                # spread departures over the direction's layers: cheapest layer with a merge gap at the junction
+                if dep_load is None:
+                    dep_load = {}
+                    for j in ids:
+                        if status[j] == AIRBORNE:
+                            row = dep_load.setdefault(_sector(network, agents[j].position[0], agents[j].position[1]), {})
+                            row[int(agents[j].altitude_layer)] = row.get(int(agents[j].altitude_layer), 0) + 1
+                load = dep_load.get(_sector(network, float(pad[0]), float(pad[1])), {})
+                dep_layer = departure_layer(agree.allowed(direction_of[i]), {int(agents[j].altitude_layer) for j in near_join},
+                                            load, capacity, health.soc(i) if health is not None else 1.0, layer_h, la_cfg)
+            # merge gap: no same-layer traffic near the junction where the approach leg joins the corridor
+            merge = sorted((j for j in near_join if agents[j].altitude_layer == dep_layer), key=index_of.__getitem__)
             if busy or merge:
                 if i not in held:
                     held.add(i)
@@ -1346,6 +1375,12 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             if i in cached_layers:
                 agents[i].altitude_layer = cached_layers[i]
                 agents[i].position[2] = float(cached_layers[i])
+            elif agents[i].altitude_layer != dep_layer:   # departure spread to a higher layer of its direction
+                agents[i].altitude_layer = dep_layer
+                agents[i].position[2] = float(dep_layer)
+                agents[i].destination[2] = float(dep_layer)
+                overseer.last_layer_map[i] = dep_layer
+                stats.departures_spread += 1
             emit("depart", [i], f"D-{i} {f.type.value} departs {f.origin} → {f.destination} on layer L{agents[i].altitude_layer}"
                  f" ({f.route.length / 1000:.2f} km corridor route)", "global")
 
@@ -1393,7 +1428,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                         timestamp=t, corridor_occupancy={sid: len(members)},
                         agent_ids=[a.id for a in members],
                         agent_types={a.id: (AgentType.EMERGENCY if a.id in promoted else a.type) for a in members},
-                        agent_priorities={a.id: a.priority for a in members}))
+                        agent_priorities={a.id: a.priority for a in members},
+                        agent_directions={a.id: direction_of[a.id] for a in members}))
                     merged_c.update(directive.corridor_map)
                     merged_l.update(directive.altitude_map)
                 overseer.last_corridor_map, overseer.last_layer_map = merged_c, merged_l
@@ -1470,6 +1506,65 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 announced_spoofers.update(new_m)
                 emit("attack", new_m,
                      f"Spoofing attack: {', '.join('D-%d' % m for m in new_m)} broadcast false positions", "global")
+
+        # --- layer agreement: drones negotiate layers over V2V; the DTC prices layers and settles stuck drones
+        if agree is not None and airborne and step % agree_steps == 0:
+            def _apply_layer(i: int, L: int, kind: str, text: str) -> None:
+                if L != int(agents[i].altitude_layer):
+                    agents[i].altitude_layer = L
+                    agents[i].position[2] = float(L)
+                    overseer.last_layer_map[i] = L
+                    cached_layers[i] = L
+                emit(kind, [i], text)
+
+            def _constrained(i: int) -> bool:   # slow on purpose: never "stuck"
+                if i in hold_at or i in diverting or (health is not None and health.overheating(i)):
+                    return True
+                cap = speed_cap_drone.get(i)
+                if cap and t < cap[1]:
+                    return True
+                cap = speed_cap_sector.get(_sector(network, agents[i].position[0], agents[i].position[1]))
+                return bool(cap and t < cap[1])
+
+            heard = {j: (by_air[j] if j in quarantined else r) for j, r in reported.items() if j not in noncoop}
+            dtc_now = use_overseer and step % period_steps == 0 and link.is_up(t)
+            ctx = RoundContext(
+                by_air=by_air, heard=heard,
+                visible=[a for a in airborne if a.id not in noncoop and a.id not in quarantined],
+                adj=adj,
+                participants=[a.id for a in airborne if a.id not in noncoop and a.id not in quarantined
+                              and a.type != AgentType.EMERGENCY and a.id not in promoted and a.id not in pinned_layer
+                              and a.id not in unhealthy and int(a.altitude_layer) != emergency_layer],
+                sector_of=lambda a: _sector(network, a.position[0], a.position[1]),
+                tangent=lambda i: by_id[i].route.tangent_at(progress[i]),
+                remaining=lambda i: by_id[i].route.length - progress[i],
+                cruise=lambda i: cruise_of(by_id[i]),
+                soc=lambda i: health.soc(i) if health is not None else 1.0,
+                priority=lambda i: int(agents[i].priority),
+                direction=lambda i: direction_of[i],
+                constrained=_constrained,
+                transition_clear=lambda a, L: _layer_transition_clear(a, L, airborne, d_min),
+                defended=defended, dtc_enabled=use_overseer)
+            if dtc_now:   # DTC seeds the per-sector layer prices from its global count
+                loads: dict[tuple[int, int], int] = {}
+                members: dict[int, list[int]] = {}
+                for a in ctx.visible:
+                    sid = ctx.sector_of(a)
+                    loads[(sid, int(a.altitude_layer))] = loads.get((sid, int(a.altitude_layer)), 0) + 1
+                    members.setdefault(sid, []).append(a.id)
+                agree.dtc_seed_prices(loads, members)
+            moves, reqs = agree.round(t, ctx)
+            for i, L0, L1, text in moves:
+                _apply_layer(i, L1, "agree", text)
+            for i, text in reqs:
+                emit("agree", [i], text, "drone", "warning")
+            if dtc_now:
+                for i, L0, L1, text in agree.dtc_resolve(t, ctx):
+                    _apply_layer(i, L1, "dtc", text)
+            a_st = agree.stats
+            stats.agree_switches, stats.agree_yields = a_st.switches, a_st.yields
+            stats.stuck_requests, stats.dtc_stuck_resolved, stats.dtc_stuck_denied = (
+                a_st.stuck_requests, a_st.dtc_resolved, a_st.dtc_denied)
 
         # --- P3 route following + boids -> desired velocity
         desired: dict[int, np.ndarray] = {}
