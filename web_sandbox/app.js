@@ -54,7 +54,7 @@ let scene = 'normal', simT = 0, playing = true, speed = 2, lastTs = 0, selected 
 let view = {cx: 0, cy: 0, s: 0.2}, userMoved = false, dpr = 1, ctxPaths = null, backdropImg = null, logCursor = 0, logTotal = 0;
 let droneEvents = {}, eventsIndexed = 0, netPositions = null, lastDroneFeedKey = '';
 let negHist = {}, chosenSwitches = null, lastPrio = null, lastH = null, hselHist = {}, dTab = 'ov';
-let selSet = new Set(), lastConsole = null, drawPoly = null, viaPick = false, viaPoint = null, boxSel = null, cmdHist = [], histAt = 0, tfrCount = 0;
+let selSet = new Set(), lastConsole = null, tfrRect = null, viaPick = false, viaPoint = null, boxSel = null, cmdHist = [], histAt = 0, tfrCount = 0;
 const hCellsC = $('#hCells'), hcctx = hCellsC.getContext('2d'), hChartC = $('#hChart'), hchctx = hChartC.getContext('2d');
 const canvas = $('#map'), ctx = canvas.getContext('2d');
 const chart = $('#chart'), cctx = chart.getContext('2d');
@@ -818,12 +818,14 @@ let drag = null;
 canvas.addEventListener('pointerdown', (e) => {
   if (e.button === 2) return;
   const r = canvas.getBoundingClientRect();
+  if (tfrRect) { const p = [wx(e.clientX - r.left), wy(e.clientY - r.top)]; tfrRect.a = p; tfrRect.b = p; canvas.setPointerCapture(e.pointerId); updateDrawHint(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) { boxSel = {x0: e.clientX - r.left, y0: e.clientY - r.top, x1: e.clientX - r.left, y1: e.clientY - r.top}; canvas.classList.add('boxing'); canvas.setPointerCapture(e.pointerId); return; }
   drag = {x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false}; canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', (e) => {
   const r = canvas.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
   if (boxSel) { boxSel.x1 = px; boxSel.y1 = py; return; }
+  if (tfrRect?.a) { tfrRect.b = [wx(px), wy(py)]; updateDrawHint(); return; }
   if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 3) { drag.moved = true; follow = false; userMoved = true; canvas.classList.add('drag'); } view.cx = drag.cx - dx / view.s; view.cy = drag.cy + dy / view.s; return; }
   const n = pick(px, py), tip = $('#tip');
   canvas.style.cursor = n === null ? '' : 'pointer';
@@ -836,8 +838,8 @@ canvas.addEventListener('pointerup', (e) => {
   const r = canvas.getBoundingClientRect();
   const px = e.clientX - r.left, py = e.clientY - r.top;
   if (boxSel) { finishBox(); boxSel = null; canvas.classList.remove('boxing'); return; }
-  if (drag && !drag.moved && drawPoly) { drawPoly.push([wx(px), wy(py)]); updateDrawHint(); }
-  else if (drag && !drag.moved && viaPick) { viaPoint = [wx(px), wy(py)]; viaPick = false; $('#ccVia').classList.add('on'); $('#ccVia').textContent = `◎ via (${viaPoint[0].toFixed(0)}, ${viaPoint[1].toFixed(0)})`; $('#drawHint').hidden = true; }
+  if (tfrRect?.a) { tfrRect.b = [wx(px), wy(py)]; finishRect(); return; }
+  if (drag && !drag.moved && viaPick) { viaPoint = [wx(px), wy(py)]; viaPick = false; $('#ccVia').classList.add('on'); $('#ccVia').textContent = `◎ via (${viaPoint[0].toFixed(0)}, ${viaPoint[1].toFixed(0)})`; $('#drawHint').hidden = true; }
   else if (drag && !drag.moved && pickMode) { pickVertiport(px, py); }
   else if (drag && !drag.moved) { const n = pick(px, py); if (n !== null) select(n, e.shiftKey); }
   drag = null; canvas.classList.remove('drag');
@@ -864,8 +866,7 @@ window.addEventListener('keydown', (e) => {
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
   if (e.code === 'Space' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); $('#playBtn').click(); return; }
   const k = e.key.toLowerCase();
-  if (k === 'escape') { if (drawPoly) { drawPoly = null; $('#drawHint').hidden = true; } else if (viaPick) { viaPick = false; $('#drawHint').hidden = true; } else { selSet = new Set(); renderSel(); } hideCtx(); return; }
-  if (k === 'enter' && drawPoly) { finishPolygon(); return; }
+  if (k === 'escape') { if (tfrRect) { tfrRect = null; canvas.classList.remove('picking'); $('#drawHint').hidden = true; } else if (viaPick) { viaPick = false; $('#drawHint').hidden = true; } else { selSet = new Set(); renderSel(); } hideCtx(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const map = {h: 'hold', r: 'resume', g: 'ground_now', b: 'rtb', q: 'quarantine'};
   if (map[k]) { e.preventDefault(); runConsole(map[k]); }
@@ -1287,17 +1288,25 @@ function shiftLayer(d) {
 }
 document.querySelectorAll('#consoleCard [data-cmd]').forEach((b) => { b.onclick = () => runConsole(b.dataset.cmd); });
 $('#ccVia').onclick = (e) => { e.preventDefault(); viaPick = true; viaPoint = null; const h = $('#drawHint'); h.textContent = 'Click the map point to fly via (Esc cancels).'; h.hidden = false; };
-// restricted areas (TFR): click vertices on the map, double-click or Enter to finish
-function updateDrawHint() { const h = $('#drawHint'); h.hidden = false; h.textContent = `Restricted area: ${drawPoly.length} point(s) — click to add, double-click or Enter to finish, Esc to cancel.`; }
-$('#ccTfrDraw').onclick = () => { if (!live()) { status('Restricted areas need a running simulation.', 'err'); return; } drawPoly = []; updateDrawHint(); };
-canvas.addEventListener('dblclick', (e) => { if (drawPoly) { e.preventDefault(); finishPolygon(); } });
-function finishPolygon() {
-  const poly = drawPoly; drawPoly = null; $('#drawHint').hidden = true;
-  if (!poly || poly.length < 3) { status('A restricted area needs at least 3 points.', 'err'); return; }
+// restricted areas (TFR): press and drag a rectangle on the map, release to finish
+const TFR_MIN_M = 10;   // smaller drags are treated as a mis-click
+function rectSize() { const {a, b} = tfrRect; return [Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])]; }
+function updateDrawHint() {
+  const h = $('#drawHint'); h.hidden = false;
+  if (!tfrRect.a) { h.textContent = 'Restricted area: press and drag a rectangle on the map (Esc cancels).'; return; }
+  const [w, d] = rectSize(); h.textContent = `Restricted area: ${w.toFixed(0)} × ${d.toFixed(0)} m — release to finish, Esc to cancel.`;
+}
+$('#ccTfrDraw').onclick = () => { if (!live()) { status('Restricted areas need a running simulation.', 'err'); return; } tfrRect = {a: null, b: null}; canvas.classList.add('picking'); updateDrawHint(); };
+function finishRect() {
+  const r = tfrRect; tfrRect = null; canvas.classList.remove('picking'); $('#drawHint').hidden = true;
+  const [w, d] = [Math.abs(r.b[0] - r.a[0]), Math.abs(r.b[1] - r.a[1])];
+  if (w < TFR_MIN_M || d < TFR_MIN_M) { status(`Restricted area too small (${w.toFixed(0)} × ${d.toFixed(0)} m) — drag a larger rectangle.`, 'err'); return; }
+  const xa = Math.min(r.a[0], r.b[0]), xb = Math.max(r.a[0], r.b[0]), ya = Math.min(r.a[1], r.b[1]), yb = Math.max(r.a[1], r.b[1]);
+  const poly = [[xa, ya], [xb, ya], [xb, yb], [xa, yb]];
   const start = $('#ccTfrStart').value === '' ? 0 : +$('#ccTfrStart').value, end = $('#ccTfrEnd').value === '' ? RUN.duration_s : +$('#ccTfrEnd').value;
   const name = `TFR-${++tfrCount}`;
   sendCmd('tfr', [], {polygon: poly.map(([x, y]) => [Math.round(x), Math.round(y)]), start_s: start, end_s: end, name},
-    {confirm: `restricted area ${name} (${poly.length} points) from ${start} s to ${end} s — drones inside are rerouted out or landed, departures inside are held`});
+    {confirm: `restricted area ${name} (${w.toFixed(0)} × ${d.toFixed(0)} m rectangle) from ${start} s to ${end} s — drones inside are rerouted out or landed, departures inside are held`});
 }
 function renderTfrs(c) {
   const list = $('#ccTfrList'), key = JSON.stringify(c?.tfrs || []) + JSON.stringify(c?.ground_stops || {});
@@ -1342,9 +1351,12 @@ function drawConsoleOverlay(s) {
     ctx.fillStyle = 'rgba(217,119,6,0.08)'; ctx.fillRect(sx(ax), sy(by), (bx - ax) * view.s, (by - ay) * view.s);
     ctx.fillStyle = '#d97706'; ctx.font = '700 11px system-ui'; ctx.fillText(`GROUND STOP S${sec}`, sx(ax) + 6, sy(by) + 28);
   }
-  if (drawPoly?.length) {
-    ctx.strokeStyle = '#e11d48'; ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.beginPath(); drawPoly.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))); ctx.stroke(); ctx.setLineDash([]);
-    for (const [x, y] of drawPoly) { ctx.fillStyle = '#e11d48'; ctx.fillRect(sx(x) - 3, sy(y) - 3, 6, 6); }
+  if (tfrRect?.a) {
+    const x = Math.min(sx(tfrRect.a[0]), sx(tfrRect.b[0])), y = Math.min(sy(tfrRect.a[1]), sy(tfrRect.b[1]));
+    const w = Math.abs(sx(tfrRect.b[0]) - sx(tfrRect.a[0])), h = Math.abs(sy(tfrRect.b[1]) - sy(tfrRect.a[1]));
+    ctx.fillStyle = 'rgba(225,29,72,0.10)'; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#e11d48'; ctx.setLineDash([5, 3]); ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+    const [mw, md] = rectSize(); ctx.fillStyle = '#e11d48'; ctx.font = '600 11px system-ui'; ctx.fillText(`${mw.toFixed(0)} × ${md.toFixed(0)} m`, x + 4, y - 5);
   }
   if (viaPoint) { ctx.strokeStyle = '#0891b2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx(viaPoint[0]), sy(viaPoint[1]), 7, 0, 7); ctx.stroke(); ctx.fillStyle = '#0891b2'; ctx.font = '600 10px system-ui'; ctx.fillText('via', sx(viaPoint[0]) + 9, sy(viaPoint[1]) + 3); }
   if (boxSel) { ctx.strokeStyle = '#0891b2'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeRect(boxSel.x0, boxSel.y0, boxSel.x1 - boxSel.x0, boxSel.y1 - boxSel.y0); ctx.setLineDash([]); }
