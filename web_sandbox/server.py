@@ -39,7 +39,7 @@ from simulation.route_engine import (ARCHITECTURES, flight_from_row, flight_mani
 from simulation.scenario_manifest import (_merge_config, drones_from_csv, drones_from_json, drones_to_csv,
                                           drones_to_json, prepare_scenario_manifest, validate_route_drones)
 from simulation.engine import run_simulation
-from web_sandbox.run_export import build_export
+from web_sandbox.run_export import build_export, config_hash
 from web_sandbox.streaming import FrameStore, choose_stride, compact_frame, web_limits
 import local_behavior.boids as boids
 import simulation.overseer as overseer
@@ -414,7 +414,10 @@ def start_live_run(body: dict[str, Any]) -> dict[str, Any]:
     run.ids = {f.agent_id for f in prepared["flights"]}
     run.thread = threading.Thread(target=_run_worker, args=(run, prepared), daemon=True)
     run.thread.start()
-    return manifest
+    # The page builds the download itself from the frames it received; it keeps this header in
+    # case the server restarts before the user downloads (the run would be gone from memory).
+    return {**manifest, "export_header": {"request": run.request, "config": run.config,
+                                          "config_hash": config_hash(run.config)}}
 
 
 def _make_cmd(run: LiveRun, body: dict[str, Any]) -> dict[str, Any]:
@@ -646,9 +649,17 @@ class ScenarioHandler(BaseHTTPRequestHandler):
                 if run is None:
                     self._send_json(404, {"error": "run_not_found"})
                     return
+                complete = run.done and run.error is None and run.stop_reason is None
+                if parse_qs(url.query).get("frames") == ["0"]:   # header only: the page adds the frames it holds
+                    header = build_export(run.manifest, run.request, run.config, [], list(run.commands),
+                                          complete=complete, thinned=run.store.thinned)
+                    for key in ("frames", "kpis", "events"):
+                        header.pop(key)
+                    self._send_json(200, header)
+                    return
                 frames, _ = run.store.since(0, 10**9)
                 export = build_export(run.manifest, run.request, run.config, frames, run.commands,
-                                      complete=run.done and run.error is None, thinned=run.store.thinned)
+                                      complete=complete, thinned=run.store.thinned)
                 payload = json.dumps(_json_safe(export), allow_nan=False, separators=(",", ":")).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")

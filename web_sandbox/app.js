@@ -50,6 +50,10 @@ const NET_SERIES = [
 
 let baseConfig = null, LIMITS = null, MAP = null, MAPS = [], mapId = null, RUN = null, frames = [], done = false;
 let lastReq = null;   // the last launch request, for Relaunch
+// Download is built in the browser: the compact frames exactly as received (thinned like the
+// server's store) plus the run header kept at launch, so it needs no server work and survives a restart.
+let rawFrames = [], rawThinned = 0, runStart = null;
+const RAW_LIST_KEYS = ['new_flights', 'reroutes'], RAW_CARRY_KEYS = ['stats', 'prio', 'h', 'console'];
 let nextSeq = 0, lastStats = null, shownEvents = new WeakSet(), speedProbe = [];
 let scene = 'normal', simT = 0, playing = true, speed = 2, lastTs = 0, selected = null, layerFilter = 'all', follow = false;
 let view = {cx: 0, cy: 0, s: 0.2}, userMoved = false, dpr = 1, ctxPaths = null, backdropImg = null, logCursor = 0, logTotal = 0;
@@ -139,14 +143,35 @@ function lastNeg(id) { const h = negHist[id]; if (!h) return null; for (let i = 
 function thinFrames() {
   const cap = LIMITS?.max_frames_in_memory ?? 6000;
   if (frames.length <= cap) return;
-  const half = frames.length >> 1, kept = []; let carry = [], newLog = 0;
+  const half = frames.length >> 1, kept = [], keptRaw = [], withRaw = rawFrames.length === frames.length;
+  let carry = [], newLog = 0, rc = {events: [], lists: {}, keys: {}};
   frames.forEach((f, i) => {
-    if (i < half && i % 2 === 1) { carry.push(...f.events); return; }
+    const r = withRaw ? rawFrames[i] : null;
+    if (i < half && i % 2 === 1) {
+      carry.push(...f.events);
+      if (r) {   // same rule as streaming.FrameStore._thin: events, injected flights, reroutes and carried keys move forward
+        rc.events.push(...(r.events || []));
+        for (const k of RAW_LIST_KEYS) if (r[k]?.length) (rc.lists[k] ??= []).push(...r[k]);
+        for (const k of RAW_CARRY_KEYS) if (k in r) rc.keys[k] = r[k];
+        rawThinned++;
+      }
+      return;
+    }
     if (carry.length) { f.events = carry.concat(f.events); carry = []; }
+    if (r) {
+      let r2 = r;
+      if (rc.events.length || Object.keys(rc.lists).length || Object.keys(rc.keys).length) {
+        r2 = {...r, events: rc.events.concat(r.events || [])};
+        for (const [k, v] of Object.entries(rc.lists)) r2[k] = v.concat(r[k] || []);
+        for (const [k, v] of Object.entries(rc.keys)) if (!(k in r2)) r2[k] = v;
+        rc = {events: [], lists: {}, keys: {}};
+      }
+      keptRaw.push(r2);
+    }
     if (i < logCursor) newLog++;
     kept.push(f);
   });
-  frames = kept; logCursor = newLog; eventsIndexed = frames.length;  // all events were indexed on arrival
+  frames = kept; if (withRaw) rawFrames = keptRaw; logCursor = newLog; eventsIndexed = frames.length;  // all events were indexed on arrival
 }
 function posOf(s, n) {
   const {f0, f1, a} = s;
@@ -671,6 +696,8 @@ async function launch(presetReq = null) {
   try {
     // `replaces`: this page's previous run is stopped once the new one is accepted; other people's runs are not touched
     const run = await api('/api/runs', {...req, ...(RUN && !RUN.replay && !done ? {replaces: RUN.run_id} : {})});
+    const header = run.export_header; delete run.export_header;
+    runStart = {manifest: structuredClone(run), header}; rawFrames = []; rawThinned = 0;   // manifest before the page edits it
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     run.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
     RUN = run; frames = []; done = false; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
@@ -697,6 +724,7 @@ async function poll(id) {
       if (!RUN || RUN.run_id !== id) break;
       nextSeq = r.next;
       if (r.frames.length) {
+        rawFrames.push(...r.frames);
         frames.push(...r.frames.map((x) => { indexNeg(x); return decodeFrame(x); })); indexEvents(); thinFrames();
         speedProbe.push([performance.now(), frames.at(-1).t]); if (speedProbe.length > 20) speedProbe.shift();
       }
@@ -750,11 +778,43 @@ function applyArch() {
 $('#arch').onchange = applyArch;
 
 // ------------------------------------------------------------------ export / replay (2g)
-$('#dlBtn').onclick = () => {
+const KPI_STATS = ['arrivals', 'crashes', 'near_misses', 'safety_violation_ticks', 'min_separation_m', 'admm_events',
+  'admm_nonconverged', 'tactical_layer_shifts', 'dtc_directives', 'layer_changes', 'pad_holds',
+  'reports_dropped', 'spoofed_reports_accepted', 'tube_corrections',
+  'delivered', 'diversions', 'forced_landings', 'energy_depleted', 'grounded_preflight',
+  'energy_used_wh', 'energy_per_delivered_wh', 'max_pack_c', 'max_motor_c', 'bms_alerts'];
+function kpiRows(fr) {   // same rows as web_sandbox/run_export.py kpi_rows
+  let stats = {}, prio = {};
+  return fr.map((f) => {
+    if ('stats' in f) stats = f.stats; prio = f.prio || prio;
+    const admm = f.admm?.run ?? {}, merge = f.merge || {};
+    return {t: f.t, rho: f.rho ?? null, airborne: (f.ls || []).filter((v) => v >> 3 === 1).length,
+      ...Object.fromEntries(KPI_STATS.map((k) => [k, stats?.[k] ?? null])),
+      admm_it_p95: admm.it_p95 ?? null, admm_ms_p95: admm.ms_p95 ?? null, admm_fallback: admm.fallback ?? null,
+      priority_compliance: prio.rate ?? null, emergency_mean_delay_s: prio.mean_delay_s ?? null,
+      merge_success_rate: merge.rate ?? null, platoons: merge.platoons ?? null};
+  });
+}
+$('#dlBtn').onclick = async () => {
   if (!RUN || RUN.replay) { status(RUN?.replay ? 'This run was loaded from a file — it is already saved.' : 'Launch a run first.', 'err'); return; }
-  const a = document.createElement('a'); a.href = `/api/runs/${RUN.run_id}/export`; a.download = `masooda_run_${RUN.run_id}.json`;
-  document.body.append(a); a.click(); a.remove();
-  status(done ? 'Run downloaded (manifest, resolved config, command log, per-frame KPIs, events, frames).' : 'Run still computing — the download holds the frames computed so far.', 'ok');
+  if (!rawFrames.length || !runStart) { status('No frames received yet — wait a moment and try again.', 'err'); return; }
+  status('Preparing the download in this browser…');
+  let hdr = null;
+  try { hdr = await api(`/api/runs/${RUN.run_id}/export?frames=0`); } catch { /* run gone (server restarted): use the header kept at launch */ }
+  const h = runStart.header || {};
+  const out = {
+    format: 'masooda-run', version: 1,
+    complete: done && !RUN.stopped && (hdr ? hdr.complete : true),   // the page must also hold the last frame
+    frames_thinned: rawThinned, config_hash: hdr?.config_hash ?? h.config_hash,
+    manifest: hdr?.manifest ?? runStart.manifest, request: hdr?.request ?? h.request, config: hdr?.config ?? h.config,
+    commands: hdr?.commands ?? cmdHist,
+    frames: rawFrames, kpis: kpiRows(rawFrames), events: rawFrames.flatMap((f) => f.events || []),
+  };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(out)], {type: 'application/json'}));
+  const a = document.createElement('a'); a.href = url; a.download = `masooda_run_${RUN.run_id}.json`;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+  status(`${out.complete ? 'Run downloaded' : 'Partial run downloaded (frames received so far)'} — ${rawFrames.length} frames, `
+    + `built in this browser${hdr ? '' : ' (simulator no longer has this run: header and command log kept by the page)'}.`, 'ok');
 };
 $('#loadRun').onchange = async (e) => {
   const file = e.target.files[0]; e.target.value = ''; if (!file) return;
@@ -766,7 +826,7 @@ $('#loadRun').onchange = async (e) => {
     if (m.map !== mapId) await loadMap(m.map);
     const names = Object.fromEntries(MAP.vertiports.map((v) => [v.id, v.name]));
     m.flights.forEach((f) => { f.origin_name = names[f.origin]; f.destination_name = names[f.destination]; });
-    RUN = {...m, run_id: `replay:${m.run_id}`, replay: true}; frames = []; done = true; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
+    RUN = {...m, run_id: `replay:${m.run_id}`, replay: true}; rawFrames = []; runStart = null; frames = []; done = true; simT = 0; playing = true; droneEvents = {}; eventsIndexed = 0;
     nextSeq = 0; lastStats = null; lastPrio = null; lastH = null; lastConsole = null; hselHist = {}; speedProbe = []; negHist = {}; selSet = new Set(); cmdHist = [];
     frames = data.frames.map((x) => { indexNeg(x); return decodeFrame(x); }); indexEvents();
     selected = Math.max(0, m.flights.findIndex((f) => f.type === 'EMERGENCY'));

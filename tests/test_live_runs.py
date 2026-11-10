@@ -99,3 +99,38 @@ def test_http_busy_then_stopped_run_is_reported_as_stopped():
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_launch_returns_the_export_header_and_header_only_export_is_cheap():
+    server = srv.ThreadingHTTPServer(("127.0.0.1", 0), srv.ScenarioHandler)
+    server.daemon_threads = True
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        ok, man = _http(port, "POST", "/api/runs", {"fleet": 3, "duration_s": 10, "seed": 2, "replaces": "nope"})
+        assert ok == 200
+        hdr = man["export_header"]
+        assert hdr["request"] == {"fleet": 3, "duration_s": 10, "seed": 2}       # `replaces` is not part of the run
+        assert hdr["config"]["web"]["max_live_runs"] == 2 and len(hdr["config_hash"]) == 12
+        run = srv.RUNS[man["run_id"]]
+        assert "export_header" not in run.manifest
+        for _ in range(200):
+            if run.done:
+                break
+            time.sleep(0.05)
+        ok, head = _http(port, "GET", f"/api/runs/{man['run_id']}/export?frames=0")
+        assert ok == 200 and head["complete"] is True and head["config_hash"] == hdr["config_hash"]
+        assert not {"frames", "kpis", "events"} & set(head)
+        assert head["manifest"]["run_id"] == man["run_id"]
+        # a stopped run is not "complete"
+        ok, m2 = _http(port, "POST", "/api/runs", {"fleet": 3, "duration_s": 600, "seed": 2})
+        _http(port, "POST", f"/api/runs/{m2['run_id']}/stop", {})
+        for _ in range(200):
+            if srv.RUNS[m2["run_id"]].done:
+                break
+            time.sleep(0.05)
+        _, head2 = _http(port, "GET", f"/api/runs/{m2['run_id']}/export?frames=0")
+        assert head2["complete"] is False
+    finally:
+        server.shutdown()
+        server.server_close()
