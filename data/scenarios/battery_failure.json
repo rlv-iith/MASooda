@@ -2,7 +2,7 @@
  "id": "battery_failure",
  "order": 8,
  "title": "Battery failure mid-route",
- "description": "Two delivery drones get battery faults mid-route. @cargo1 loses a cell at 70 s: the cell imbalance takes the BMS to CRITICAL, the DTC gives it right of way and reserves its landing pad, and it diverts. @cargo2 (26 % charge) loses 30 % of its capacity at 80 s and diverts on low reserve. At 85 s the operator grounds every drone still at BMS CRITICAL.",
+ "description": "Two delivery drones get battery faults mid-route. @cargo1 loses a cell at 70 s: the cell imbalance takes the BMS to CRITICAL, the DTC gives it right of way and reserves its landing pad, and it diverts. @cargo2 (28 % charge) loses 30 % of its capacity at 80 s; its BMS does not know this and has to learn it from the falling voltage, so it diverts on low reserve about a minute later. At 85 s the operator grounds every drone still at BMS CRITICAL.",
  "kpi_focus": [
   "fault to landing time",
   "BMS escalation",
@@ -34,7 +34,7 @@
    "origin": "V2",
    "destination": "V9",
    "depart_s": 25,
-   "soc_init_pct": 26,
+   "soc_init_pct": 28,
    "fault": {
     "type": "capacity_loss",
     "t_s": 80
@@ -51,7 +51,7 @@
  "timeline": [
   [
    20,
-   "@cargo1 Sampoorna → SNCC (2.3 km, 80 % SoC); @cargo2 Main Gate → New Hostels (26 % SoC)"
+   "@cargo1 Sampoorna → SNCC (2.3 km, 80 % SoC); @cargo2 Main Gate → New Hostels (28 % SoC)"
   ],
   [
    70,
@@ -59,7 +59,7 @@
   ],
   [
    80,
-   "@cargo2 loses 30 % capacity → low-reserve diversion"
+   "@cargo2 loses 30 % capacity (unknown to its BMS) → low-reserve diversion once the BMS learns it"
   ],
   [
    85,

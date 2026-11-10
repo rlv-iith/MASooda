@@ -173,8 +173,10 @@ distribution over time (battery matrix).
   command sent at 100 s would expire before the link returns at 150 s.
 - **Preset 7:** the intruder flies its corridor route (all flights follow the road graph).
 - **Preset 8:** @cargo1 starts at 80 % SoC. At 45 % the failed cell sags below 3.0 V under load, which
-  is a FAULT (land in place) rather than CRITICAL (divert). @cargo2 starts at 26 % (at 22 % it fails
-  the pre-flight check). The fleet grounding is at 85 s, while @cargo1 is still airborne.
+  is a FAULT (land in place) rather than CRITICAL (divert). @cargo2 starts at 28 %: with the chance-constrained
+  pre-flight check (BMS estimate − 1.645 σ) 26 % no longer passes on time. After its capacity loss the
+  BMS needs about a minute to learn the smaller capacity from the voltage, so the low-reserve diversion
+  comes then, not at 80 s. The fleet grounding is at 85 s, while @cargo1 is still airborne.
 - **Preset 10:** a drone too weak to fly to a depot gets a ground-crew swap on the pad it is on
   (twice the swap time).
 

@@ -510,6 +510,12 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     reserved_pads: dict[str, int] = {}      # pad -> most urgent drone landing there (others hold, departures held)
     res_announced: set[tuple[int, str]] = set()
     holding_short: dict[int, str] = {}      # drone -> pad it is holding short of (reserved for someone else)
+    health_w: dict[int, float] = {}         # drone -> continuous ADMM weight from its energy margin
+    hw_cfg = (cfg.get("admm", {}) or {}).get("health_weight", {}) or {}
+    pw_cfg = (cfg.get("admm", {}) or {}).get("priority_weights", {0: 10.0, 1: 3.0, 2: 1.0})
+
+    def _class_w(p: int) -> float:
+        return float(pw_cfg.get(p, pw_cfg.get(str(p), 1.0)))
     pad_res_seen: set[tuple[int, str]] = set()
     preflight_ok: set[int] = set()
     preflight_fail: set[int] = set()
@@ -742,6 +748,25 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             for i in air_ids:
                 agents[i].priority = 0 if i in unhealthy else by_id[i].eff_priority
             _reserve_pads(air_ids, rule, emit)
+            # continuous ADMM weight: w = w_class + (w_top - w_class) * u, u = clip((m_ref - m) / (m_ref - 1), 0, 1)
+            # with m = E_rem,BMS / E_need(rest of route); u = 1 at BMS CRITICAL/FAULT
+            health_w.clear()
+            if rule and bool(hw_cfg.get("enabled", True)):
+                m_ref = max(1.01, float(hw_cfg.get("margin_ref", 2.0)))
+                w_top = _class_w(0)
+                for i in air_ids:
+                    if status[i] != AIRBORNE or i in noncoop:
+                        continue
+                    base = _class_w(int(agents[i].priority))
+                    if i in unhealthy:
+                        u = 1.0
+                    else:
+                        f = by_id[i]
+                        need = health.energy_needed_wh(i, max(0.0, f.route.length - progress[i]), cruise_of(f))
+                        m = health.e_rem_bms_wh(i) / need if need > 1e-9 else math.inf
+                        u = min(1.0, max(0.0, (m_ref - m) / (m_ref - 1.0)))
+                    if u > 0.0:
+                        health_w[i] = base + (max(w_top, base) - base) * u
         stats.energy_used_wh = round(float(health.a["e_out"].sum()), 1)
         stats.energy_per_delivered_wh = (round(sum(delivered_energy) / len(delivered_energy), 1)
                                          if delivered_energy else None)
@@ -1374,6 +1399,9 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     stats.pad_holds += 1
                     emit("hold", [i], f"D-{i} ground hold at {f.origin}: {why_held}", "global", "warning")
                 continue
+            if (health is not None and i not in preflight_ok and i in preflight_fail
+                    and step % max(1, int(round(30.0 / dt))) != 0):
+                continue   # failed the pre-flight check: re-run it only every 30 s (noisy estimate, no retry-until-lucky)
             if health is not None and i not in preflight_ok:   # onboard pre-flight check (BMS + energy reserve)
                 why = None
                 lift, lift_why = health.lift_ok(i)
@@ -1853,7 +1881,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 it = copy.copy(a)
                 it.velocity = desired[a.id].copy()
                 intents.append(it)
-            for ev in probe.resolve(intents, {a.id: a.priority for a in intents}, t):
+            for ev in probe.resolve(intents, {a.id: a.priority for a in intents}, t, weights=health_w or None):
                 stats.admm_events += 1
                 if ev.converged:
                     for aid, vel in ev.resolution.items():
@@ -2067,8 +2095,10 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 last_h_step = step
             sel = [i for i in (health_detail_ids() if health_detail_ids else []) if i in by_id]
             if sel:
-                frame["hsel"] = {str(i): health.detail(i, float(np.linalg.norm(agents[i].velocity[:2])),
-                                                       cruise_of(by_id[i])) for i in sel[:4]}
+                frame["hsel"] = {str(i): {**health.detail(i, float(np.linalg.norm(agents[i].velocity[:2])),
+                                                          cruise_of(by_id[i])),
+                                          "admm_weight": round(health_w.get(i, _class_w(int(agents[i].priority))), 2)}
+                                 for i in sel[:4]}
         if reroutes:
             frame["reroutes"] = list(reroutes)
             reroutes.clear()

@@ -283,6 +283,22 @@ def test_critical_fault_gets_right_of_way_and_lands():
     assert last["stats"]["energy_depleted"] == 0 and last["stats"]["crashes"] == 0
 
 
+def test_admm_weight_rises_as_the_energy_margin_shrinks():
+    from simulation.route_engine import simulate_routes
+    from web_sandbox.server import prepare_live_run
+    drones = [{"type": "DELIVERY", "origin": "V8", "destination": "V1", "soc_init_pct": 30, "depart_s": 1},
+              {"type": "DELIVERY", "origin": "V8", "destination": "V1", "soc_init_pct": 100, "depart_s": 8}]
+    p = prepare_live_run({"map": "iith", "fleet": 0, "duration_s": 60, "seed": 42, "drones": drones})
+    ids = [f.agent_id for f in p["flights"]]
+    items = list(simulate_routes(p["network"], p["flights"], 60.0, config=p["config"], attack_config=p["attack"],
+                                 overseer_link_config=p["link"], frame_every=p["stride"], seed=42,
+                                 health_detail_ids=lambda: ids))
+    w = [(f["hsel"][str(ids[0])]["admm_weight"], f["hsel"][str(ids[1])]["admm_weight"])
+         for f in items if not f.get("partial") and "hsel" in f and f["t"] > 20.0]
+    assert w and all(lo >= hi for lo, hi in w) and max(lo for lo, _ in w) > 1.0   # low SoC weighs more
+    assert all(hi == 1.0 for _, hi in w)                                           # full pack: class weight
+
+
 def test_sensor_fault_lands_in_place_and_frames_stay_deterministic():
     drones = [{"type": "DELIVERY", "origin": "V13", "destination": "V4", "depart_s": 1,
                "fault": {"type": "gnss_degradation", "t_s": 20}}]

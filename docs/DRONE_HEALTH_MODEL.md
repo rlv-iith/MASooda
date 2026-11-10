@@ -181,10 +181,31 @@ capped at `critical_endurance_s` (120 s). A holder keeps its pad unless a challe
 `pad_reserve_radius_m` (150 m of route) of the pad. While active:
 
 - departures from that pad are held;
-- any other drone bound for that pad (including a medical emergency: safety of flight first) stops
-  `pad_hold_m` (60 m) short and loiters at the tube edge, so the urgent drone can pass, and cannot
-  land until the reservation clears;
-- a diverting drone picks a pad reserved for someone else only when no other pad is feasible.
+- any other drone bound for that pad stops `pad_hold_m` (60 m) short and loiters at the tube edge, so
+  the urgent drone can pass, and cannot land until the reservation clears. A medical emergency holds
+  short only for a BMS CRITICAL/FAULT landing (safety of flight first), not for a low-reserve one;
+- a diverting drone picks a pad reserved for someone else only when no other pad is feasible, and a
+  non-emergency drone avoids hospital pads unless nothing else is feasible.
+- a pre-flight check that failed is re-run every 30 s, not every tick, so a noisy estimate cannot be
+  retried until it happens to pass.
+
+### 8a. Continuous ADMM weight from the energy margin
+
+The fixed class weights (emergency 10, eVTOL 3, delivery 1) become a floor. Every response period
+(1 s) the DTC computes, for each cooperative airborne drone,
+
+    m = E_rem,BMS / E_need(rest of its route)          u = clip((m_ref − m) / (m_ref − 1), 0, 1)
+    w = w_class + (w_top − w_class) · u                 (u = 1 at BMS CRITICAL/FAULT)
+
+with m_ref = 2 and w_top = the emergency weight. ADMM uses w in its weighted objective, so the drone
+with less energy margin deviates less from its plan and the others take more of the manoeuvre.
+
+Properties (by construction): w is non-increasing in the margin m; w_class ≤ w ≤ w_top, so a healthy
+drone never outweighs a medical emergency and a drone never drops below its class; a drone with
+m ≥ m_ref keeps exactly its class weight, so healthy traffic is solved as before. The weight changes
+only who moves in a conflict, never the separation constraint. `admm.health_weight.enabled: false`
+(or `dtc_unhealthy_priority: false`) gives the class-only baseline. The weight is shown per selected
+drone as `admm_weight`.
 
 A diversion resets the "no progress for 30 s" replan timer, and holding short does not count as
 stuck. Operator-ordered landings at a pad count as `precautionary_landings`; `forced_landings` are

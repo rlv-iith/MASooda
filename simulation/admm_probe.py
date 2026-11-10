@@ -59,10 +59,11 @@ class ADMMProbe:
         self.last: dict[int, dict[str, Any]] = {}   # drone id -> last negotiation (this frame window)
 
     # ------------------------------------------------------------------ solve
-    def resolve(self, intents: Sequence[Any], priorities: dict[int, int], t: float) -> list[Any]:
+    def resolve(self, intents: Sequence[Any], priorities: dict[int, int], t: float,
+                weights: dict[int, float] | None = None) -> list[Any]:
         """``resolve_all_conflicts`` with every solver call recorded."""
         with ADMM_LOCK, ADMMRecorder() as rec:
-            events = resolve_all_conflicts(intents, priorities)
+            events = resolve_all_conflicts(intents, priorities, weights)
         records = rec.records
         # one solver call per group unless the adapter returned early (non-finite input / error)
         matched = len(records) == len(events)

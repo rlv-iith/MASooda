@@ -14,6 +14,7 @@ from .solver import ADMMSolver
 def resolve_conflict_event(
     agent_states: Sequence[AgentState],
     priorities: dict[int, int] | None = None,
+    weights: dict[int, float] | None = None,
 ) -> ConflictEvent:
     """Resolve pairwise separation conflicts among conflicting agents via ADMM.
 
@@ -21,6 +22,7 @@ def resolve_conflict_event(
     - solve with ADMMSolver.from_config()
     - resolution[id] = a copy of the agent's velocity with x,y replaced by (new_position - position) / dt
     - agents_involved = the ids, converged = the solver's flag
+    - ``weights`` (optional) overrides the class weight per agent (health-based continuous weight).
     - On any error, returns each agent's current velocity and converged=False.
     """
     try:
@@ -49,12 +51,14 @@ def resolve_conflict_event(
         priority_weights = cfg.get("admm", {}).get("priority_weights", {0: 10.0, 1: 3.0, 2: 1.0})
         default_weight = float(priority_weights.get(2, priority_weights.get("2", 1.0)))
 
-        if priorities is None:
+        if priorities is None and not weights:
             w = None
         else:
             w_list: list[float] = []
             for a in agent_states:
-                if a.id in priorities:
+                if weights and a.id in weights:
+                    w_list.append(float(weights[a.id]))
+                elif priorities is not None and a.id in priorities:
                     p = priorities[a.id]
                     if hasattr(p, "value"):
                         p = p.value
@@ -103,6 +107,7 @@ def resolve_conflict_event(
 def resolve_all_conflicts(
     agent_states: Sequence[AgentState],
     priorities: dict[int, int] | None = None,
+    weights: dict[int, float] | None = None,
 ) -> list[ConflictEvent]:
     """Detect conflicts and resolve each conflicting group via ADMM.
 
@@ -118,7 +123,7 @@ def resolve_all_conflicts(
     events: list[ConflictEvent] = []
     for group in groups:
         group_states = [agent_map[aid] for aid in group]
-        event = resolve_conflict_event(group_states, priorities=priorities)
+        event = resolve_conflict_event(group_states, priorities=priorities, weights=weights)
         events.append(event)
 
     return events

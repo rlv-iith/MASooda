@@ -16,6 +16,21 @@ def test_resolve_conflict_head_on_returns_velocity_for_both_ids():
     assert all(np.all(np.isfinite(v)) for v in out.values())
 
 
+def test_health_weight_overrides_the_class_weight():
+    from conflict_resolution.adapter import resolve_conflict_event
+    agents = _head_on()
+    same = {3: 2, 7: 2}
+
+    def moved(weights):
+        ev = resolve_conflict_event(agents, priorities=same, weights=weights)
+        return {a.id: float(np.linalg.norm(ev.resolution[a.id][:2] - a.velocity[:2])) for a in agents}
+
+    even = moved(None)
+    assert abs(even[3] - even[7]) < 1e-6 * max(1.0, even[3])        # equal classes share the manoeuvre
+    low_battery = moved({3: 10.0})                                   # drone 3 is short of energy
+    assert low_battery[3] < low_battery[7]                           # the other drone does more of it
+
+
 def test_mock_resolve_conflict_returns_current_velocity():
     agents = _head_on()
     out = mock_resolve_conflict(agents, {})

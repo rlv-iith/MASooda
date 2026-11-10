@@ -536,12 +536,18 @@ class HealthModel:
         """
         kk = self.index[aid]
         a = self.a
-        soc_end = (float(a["soc_hat"][kk]) - self.chance_z * self.soc_sigma(aid)
-                   - energy_wh * float(a["qinv_hat"][kk]) / max(1e-9, float(a["vnom"][kk])))
-        p = self.climb_power_w(aid) if climb else float(self.power(np.array([kk]), np.array([0.0]))[0][0])
-        ok, _, v_min = self._pack_at(kk, max(0.0, soc_end), p)
-        margin = float(self.resp.get("sag_margin_v", 0.05))
-        return bool(ok and v_min >= float(self.th["cell_fault_v"]) + margin), v_min
+        soc_now = float(a["soc_hat"][kk]) - self.chance_z * self.soc_sigma(aid)
+        soc_end = soc_now - energy_wh * float(a["qinv_hat"][kk]) / max(1e-9, float(a["vnom"][kk]))
+        floor = float(self.th["cell_fault_v"]) + float(self.resp.get("sag_margin_v", 0.05))
+        # landing hover at the SoC left on arrival
+        ok, _, v_min = self._pack_at(kk, max(0.0, soc_end), float(self.power(np.array([kk]), np.array([0.0]))[0][0]))
+        ok = ok and v_min >= floor
+        if climb:   # and the take-off climb now
+            ok_c, _, v_c = self._pack_at(kk, max(0.0, soc_now), self.climb_power_w(aid))
+            if not (ok_c and v_c >= floor):
+                ok, v_min = False, v_c if not ok or v_c < v_min else v_min
+            v_min = min(v_min, v_c) if np.isfinite(v_c) else v_min
+        return bool(ok), v_min
 
     def feasible(self, aid: int, distance_m: float, cruise_mps: float, climb: bool = False,
                  check_sag: bool = True) -> tuple[bool, float, float, str]:
