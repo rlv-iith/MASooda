@@ -136,8 +136,8 @@ def test_add_drone_command_applies_at_a_tick_and_replays(prepared):
     items = list(simulate_routes(prepared["network"], prepared["flights"], prepared["duration"],
                                  config=prepared["config"], attack_config=prepared["attack"],
                                  overseer_link_config=prepared["link"], frame_every=prepared["stride"],
-                                 command_source=scripted_commands(run.commands)))
-    replay = [f for f in items if not f.get("partial")]
+                                 command_source=scripted_commands(run.commands), seed=prepared["seed"]))
+    replay = [f for f in items if not f.get("partial")]   # same seed as the live run (health is seeded)
     assert [[round(v * 10) for v in f["x"]] for f in replay] == [f["x"] for f in frames]
     assert [e["text"] for f in items for e in f["events"]] == [e["text"] for f in frames for e in f["events"]]
 

@@ -304,6 +304,21 @@ drone_health:
   random_fleet_soh_pct: [80.0, 100.0]
   alpha_r_per_k: 0.01          # internal resistance rise per K below 25 C
   cell_soc_sigma_pct: 0.4
+  ecm:                         # 1-RC Thevenin circuit: R0 (above) in series with R1 || C1
+    r1_frac: 0.5               # R1 = r1_frac x R0
+    tau_s: 20.0                # R1*C1 time constant (s)
+  estimator:                   # the BMS estimates SoC with an EKF on (SoC, V_RC, 1/Q) from noisy V and I
+    enabled: true              # false = the BMS reads the true SoC (oracle, for ablations)
+    sigma_v_cell: 0.005        # V, voltage-sensor noise per cell (pack noise x sqrt(n_s))
+    sigma_i_a: 0.2             # A, current-sensor noise floor
+    sigma_i_frac: 0.01         # current-sensor noise, fraction of the reading
+    i_gain_sigma: 0.005        # seeded per-drone current-sensor gain error
+    soc0_sigma_pct: 1.5        # initial SoC read from the rest voltage
+    capacity0_sigma_frac: 0.05 # initial capacity uncertainty (fraction of Q)
+    q_soc_per_s: 1.0e-6        # process noise, SoC^2 per s
+    q_v1_per_s: 1.0e-4         # process noise, V^2 per s
+    q_capacity_frac_per_s: 5.0e-4   # process noise on 1/Q, (fraction)^2 per s
+    chance_z: 1.645            # decisions use SoC_hat - z*sigma: P(energy overestimated) ~ 5 %
   cell_r_sigma: 0.03
   bms_period_s: 0.5
   thresholds:
@@ -347,7 +362,7 @@ drone_health:
   faults:
     capacity_loss_frac: 0.3
     cell_failure_soc_drop_pct: 15.0
-    cell_failure_r_factor: 4.0
+    cell_failure_r_factor: 3.0   # 4 put the landing hover at cut-off once the pack has an RC branch
     overheating_heat_frac_hover: 0.6   # cell-venting precursor; 0.15 never reached WARNING on a 2-3 min campus flight
     motor_degradation_health: 0.8
     gnss_degradation_hdop: 5.0

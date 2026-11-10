@@ -26,15 +26,49 @@ Thrust T = (m_empty + m_payload) · g. Momentum theory for the induced velocity 
   recovers nothing.
 - Wind: constant vector `drone_health.wind_mps` (default [0, 0], i.e. off).
 
-## 2. Battery: equivalent circuit with internal resistance (Rint) [Plett 2015]
+## 2. Battery: 1-RC Thevenin equivalent circuit [Plett 2015, ch. 2]
 
     OCV_cell(SoC): piecewise-linear Li-ion curve (0 % 3.00 V, 5 % 3.30, 10 % 3.45, 20 % 3.60,
-                   40 % 3.72, 60 % 3.85, 80 % 4.00, 100 % 4.20 V);  OCV = n_s · OCV_cell
-    R = R_pack · (1 + 0.5·(1 − SoH)) · (1 + α_R·(25 − T_pack))₊         (ageing, cold)
-    I = (OCV − √(OCV² − 4 R P_elec)) / (2R)        (P_elec = V·I with V = OCV − I·R)
-    V = OCV − I·R          Q_eff = Q_nom · SoH          Q_nom = E_nom / V_nom   (Ah)
-    SoC(t+dt) = SoC − I·dt / (3600 · Q_eff)
-    energy drawn from the cells per tick = OCV · I · dt = P_elec·dt + I²R·dt   (load + heat)
+                   40 % 3.72, 60 % 3.85, 80 % 4.00, 100 % 4.20 V)
+    OCV = Σ_k OCV_cell(SoC + δ_k) = n_s · OCV_cell(SoC + mean δ)   (piecewise linear)
+    R0 = R_pack · (1 + 0.5·(1 − SoH)) · (1 + α_R·(25 − T_pack))₊ · mean(1 + ε_k)   (ageing, cold, cells)
+    R1 = r1_frac · R0 (0.5),   τ = R1·C1 (20 s):   V_RC(t+dt) = V_RC·e^(−dt/τ) + R1·(1 − e^(−dt/τ))·I
+    I = (E − √(E² − 4 R0 P_elec)) / (2 R0),   E = OCV − V_RC      (P_elec = V·I)
+    V = OCV − V_RC − I·R0     Q_eff = Q_nom · SoH     Q_nom = E_nom / V_nom   (Ah)
+    SoC(t+dt) = SoC − (I + I_fault)·dt / (3600 · Q_eff)
+    energy drawn from the cells per tick = OCV · I · dt = P_elec·dt + (I²R0 + I·V_RC)·dt   (load + heat)
+
+The RC branch gives the slow voltage sag and recovery seen after a load step; `r1_frac: 0` returns to
+the zero-order Rint model.
+
+### 2a. BMS state estimate (what the DTC and every onboard decision see)
+
+The BMS does not know the true SoC. It runs an extended Kalman filter on x = (SoC, V_RC, 1/Q) from:
+
+- a current sensor with a seeded gain error (σ 0.5 %) plus noise (0.2 A + 1 % of reading); an
+  internal fault current (overheating) bypasses it;
+- a pack voltage sensor with noise 5 mV × √n_s;
+- its own model V̂ = n_s·OCV_cell(SoĈ + mean δ) − V̂_RC − I·R0 (cell offsets and R0 are measured online
+  from the cell voltages, so a failed cell is visible to it; a capacity change is not, it is learnt
+  through 1/Q).
+
+Predict: SoĈ −= I_meas·dt/3600 · (1/Q)̂, V̂_RC as above. Update with the voltage residual. Process
+noise: SoC 1e-6 /s, V_RC 1e-4 V²/s, 1/Q (5e-4 /s)·(1/Q)². Start: SoĈ from the rest voltage with σ 1.5 %,
+capacity σ 5 %. Sensor noise is keyed by (seed, drone id, sample count), so it does not depend on
+which other drones are flying.
+
+**Chance-constrained reserve.** Every decision (pre-flight, low reserve, divert, pad arbitration,
+DTC priority) uses
+
+    E_rem,BMS = usable energy at SoC = SoĈ − z·σ_SoC with capacity Q̂·(1 − z·σ_Q/Q̂),   z = 1.645
+
+so, for a Gaussian estimate error, the usable energy is overestimated with probability ≈ 5 % before the
+20 % reserve margin. BMS low-charge levels and the SoC shown in the UI are the estimate; the true SoC
+only decides physics (and the `energy_depleted` check). `estimator.enabled: false` makes the BMS read the
+truth (oracle) for ablations. Measured on 6 drones over 3 min of cruise: |SoĈ − SoC| < 1 % and within
+3σ; after a sudden 30 % capacity loss the capacity estimate is within 15 % after 3 min, and it
+overestimates the energy for about the first minute (detection latency); an overheating fault's
+hidden drain makes the estimate conservative.
 
 - If OCV² < 4 R P_elec, the pack cannot deliver the power: OVER_CURRENT / UNDER_VOLTAGE → FAULT.
 - Remaining usable energy is limited by the **weakest cell**: the cells are in series, so they all

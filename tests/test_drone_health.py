@@ -166,6 +166,47 @@ def test_lift_and_voltage_sag_checks():
     assert need <= e_rem and not ok and "sag" in why   # enough energy, but the weak cell hits cut-off
 
 
+def _fleet(n, over=None, **h):
+    hm, _ = _model(**h)
+    for j in range(n):
+        hm.add(j, "DELIVERY", dict(over or {}, soc_init_pct=70.0), custom=True)
+    return hm
+
+
+def _cruise(hm, seconds, ids=None, dt=0.1):
+    k = np.arange(len(hm.ids)) if ids is None else np.asarray(ids)
+    for n in range(int(round(seconds / dt))):
+        hm.step(n * dt, dt, k, np.tile([[11.0, 0.0]], (len(k), 1)), np.array([], int), np.array([], int))
+
+
+def test_ekf_tracks_soc_and_decisions_stay_conservative():
+    hm = _fleet(6)
+    _cruise(hm, 180.0)
+    a = hm.a
+    err = a["soc_hat"] - a["soc"]
+    assert np.all(np.abs(err) < 3.0 * np.sqrt(a["P11"]))            # calibrated within 3 sigma
+    assert np.all(np.abs(err) < 0.01)                                # and within 1 % SoC
+    over = [hm.e_rem_bms_wh(j) - hm.e_rem_wh(j) for j in range(6)]
+    assert max(over) < 0.03 * 500.0                                  # decisions never lean on optimism
+
+
+def test_estimator_off_is_the_oracle_and_noise_is_per_drone():
+    off = _fleet(2, estimator={"enabled": False})
+    _cruise(off, 30.0)
+    assert np.array_equal(off.a["soc_hat"], off.a["soc"])
+    one, two = _fleet(1), _fleet(3)
+    _cruise(one, 60.0)
+    _cruise(two, 60.0)
+    assert one.a["soc_hat"][0] == two.a["soc_hat"][0]                # other drones do not change its noise
+
+
+def test_ekf_learns_a_sudden_capacity_loss():
+    hm = _fleet(3, over={"fault": {"type": "capacity_loss", "t_s": 30.0}})
+    _cruise(hm, 210.0)                                               # 3 min after the fault
+    q_hat = 1.0 / hm.a["qinv_hat"]
+    assert np.all(np.abs(q_hat / hm.a["qeff"] - 1.0) < 0.15)       # 30 % loss, now known within 15 %
+
+
 def test_same_seed_same_trace_and_random_fleet_ranges():
     traces = []
     for _ in range(2):

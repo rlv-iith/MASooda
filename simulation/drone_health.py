@@ -1,4 +1,5 @@
-"""Drone health model: power, battery (Rint), BMS, temperatures, link and GNSS quality.
+"""Drone health model: power, battery (1-RC Thevenin), BMS with an EKF SoC estimate, temperatures,
+link and GNSS quality.
 
 Phase 3B. Equations, default parameters and references: ``docs/DRONE_HEALTH_MODEL.md``.
 All parameters come from ``drone_health:`` in ``configs/base_config.yaml``.
@@ -50,6 +51,14 @@ class HealthModel:
         self.v_climb = float(h["v_climb_mps"])
         self.soc_min = float(h["soc_min_pct"]) / 100.0
         self.alpha_r = float(h["alpha_r_per_k"])
+        ecm = h.get("ecm", {}) or {}
+        self.r1_frac = float(ecm.get("r1_frac", 0.0))       # 0 = zero-order Rint
+        self.tau = max(1e-3, float(ecm.get("tau_s", 20.0)))
+        est = h.get("estimator", {}) or {}
+        self.est_on = bool(est.get("enabled", False))
+        self.est = est
+        self.chance_z = float(est.get("chance_z", 0.0)) if self.est_on else 0.0
+        self._seed_u64 = np.uint64(self.seed & 0xFFFFFFFF)
         self.dtc_xy = np.asarray(dtc_xy, dtype=float)
         tab = np.asarray(h["ocv_cell_v"], dtype=float)
         self._ocv_s, self._ocv_v = tab[:, 0] / 100.0, tab[:, 1]
@@ -70,8 +79,10 @@ class HealthModel:
                 "cm", "hm0", "hm1", "p_hover_ref", "soc", "soh", "qeff", "tp", "tm", "i", "v", "p", "ocv",
                 "e_out", "e_load", "e_heat", "climb_until", "mh", "q_fault", "hdop_extra", "hdop_jit", "sensor",
                 "tmax_p", "tmax_m", "rssi", "loss", "hdop", "min_cell", "imb", "status", "overheat_t",
-                "deliverable", "rmul", "speed")
+                "deliverable", "rmul", "speed", "v1", "soc_hat", "v1_hat", "qinv_hat", "P11", "qbms", "igain", "dmean",
+                "nmeas", "aid")
         self.a = {c: np.zeros(0) for c in cols}
+        self.Pm = np.zeros((0, 3, 3))   # EKF covariance per drone, state (SoC, V_RC, 1/Q)
 
     # ------------------------------------------------------------------ setup
     def _ocv_cell(self, soc: np.ndarray) -> np.ndarray:
@@ -103,6 +114,10 @@ class HealthModel:
         delta = rng.normal(0.0, float(self.h["cell_soc_sigma_pct"]) / 100.0, ns)
         eps = rng.normal(0.0, float(self.h["cell_r_sigma"]), ns)
         p_hover_ref = float(self._hover_mech(np.array(m), np.array(A), np.array(float(p["figure_of_merit"]))))
+        # BMS estimator start: SoC read from the rest voltage (noisy), current-sensor gain error
+        s0 = float(self.est.get("soc0_sigma_pct", 1.5)) / 100.0 if self.est_on else 0.0
+        soc_hat = float(np.clip(soc + rng.normal(0.0, 1.0) * s0, 0.0, 1.0))
+        igain = float(rng.normal(0.0, float(self.est.get("i_gain_sigma", 0.0)))) if self.est_on else 0.0
         row = {
             "m": m, "A": A, "FM": float(p["figure_of_merit"]), "eta": float(p["eta_prop"]), "cda": float(p["cda_m2"]),
             "avion": float(p["avionics_w"]), "ns": ns, "vnom": float(p["v_nominal"]), "qnom": qnom,
@@ -116,7 +131,12 @@ class HealthModel:
             "tmax_p": self.t_amb, "tmax_m": self.t_amb, "rssi": np.nan, "loss": np.nan,
             "hdop": float(self.h["gnss"]["hdop0"]), "min_cell": np.nan, "imb": 0.0, "status": 0.0,
             "overheat_t": 0.0, "deliverable": 1.0, "rmul": float(np.mean(1.0 + eps)), "speed": 0.0,
+            "v1": 0.0, "soc_hat": soc_hat, "v1_hat": 0.0, "qinv_hat": 1.0 / (qnom * soh), "P11": s0 * s0,
+            "qbms": qnom * soh, "igain": igain, "dmean": float(np.mean(delta)), "nmeas": 0.0, "aid": float(aid),
         }
+        q0 = float(self.est.get("capacity0_sigma_frac", 0.05)) / (qnom * soh)
+        P0 = np.diag([s0 * s0, 1e-4, q0 * q0]) if self.est_on else np.zeros((3, 3))
+        self.Pm = np.concatenate([self.Pm, P0[None]], axis=0)
         for k, v in row.items():
             self.a[k] = np.append(self.a[k], v)
         for c in CATS:
@@ -132,8 +152,13 @@ class HealthModel:
 
     def _update_ocv(self, k: np.ndarray) -> None:
         a = self.a
-        a["ocv"][k] = a["ns"][k] * self._ocv_cell(a["soc"][k])
-        a["v"][k] = a["ocv"][k] - a["i"][k] * self._r(k)
+        a["ocv"][k] = self._pack_ocv(k)
+        a["v"][k] = a["ocv"][k] - a["v1"][k] - a["i"][k] * self._r(k)
+
+    def _pack_ocv(self, k: np.ndarray) -> np.ndarray:
+        """Pack OCV = sum of cell OCVs; the curve is piecewise linear, so n_s * OCV(SoC + mean offset)."""
+        a = self.a
+        return a["ns"][k] * self._ocv_cell(np.clip(a["soc"][k] + a["dmean"][k], 0.0, 1.0))
 
     def _r(self, k: np.ndarray) -> np.ndarray:
         a = self.a
@@ -170,39 +195,121 @@ class HealthModel:
             pe = a["avion"][k_pad]
             self._discharge(k_pad, pe, np.zeros(len(k_pad)), np.zeros(len(k_pad)), dt)
             a["speed"][k_pad] = 0.0
+        self._ekf(np.concatenate([np.asarray(k_air, int), np.asarray(k_pad, int)]), dt)
         if len(k_idle):  # landed / not yet powered: cool toward ambient, no draw
             a["i"][k_idle] = 0.0
             a["p"][k_idle] = 0.0
             a["speed"][k_idle] = 0.0
+            a["v1"][k_idle] *= math.exp(-dt / self.tau)
             for T_, C_, h0 in (("tp", "cp", "hp0"), ("tm", "cm", "hm0")):
                 a[T_][k_idle] += dt / a[C_][k_idle] * (-a[h0][k_idle] * (a[T_][k_idle] - self.t_amb))
             self._update_ocv(k_idle)
 
     def _discharge(self, k: np.ndarray, pe: np.ndarray, pm: np.ndarray, air: np.ndarray, dt: float) -> None:
         a = self.a
-        ocv = a["ns"][k] * self._ocv_cell(a["soc"][k])
+        ocv = self._pack_ocv(k)
         R = self._r(k)
-        disc = ocv * ocv - 4.0 * R * pe
+        v1 = a["v1"][k]
+        e = ocv - v1                                   # 1-RC Thevenin: V = OCV - V_RC - I·R0
+        disc = e * e - 4.0 * R * pe
         ok = disc >= 0.0
-        I = np.where(ok, (ocv - np.sqrt(np.maximum(disc, 0.0))) / (2.0 * R), ocv / (2.0 * R))  # max-power point
-        p_del = np.where(ok, pe, ocv * I - I * I * R)
+        I = np.where(ok, (e - np.sqrt(np.maximum(disc, 0.0))) / (2.0 * R), e / (2.0 * R))  # max-power point
+        p_del = np.where(ok, pe, e * I - I * I * R)
         a["deliverable"][k] = ok.astype(float)
         a["i"][k], a["ocv"][k], a["p"][k] = I, ocv, p_del
-        a["v"][k] = ocv - I * R
+        a["v"][k] = e - I * R
+        ex = math.exp(-dt / self.tau)
+        a["v1"][k] = v1 * ex + self.r1_frac * R * (1.0 - ex) * I
         # an internal fault (overheating) dissipates q_fault inside the pack: that heat is stored
         # chemical energy, so it drains charge as a parallel current q_fault / OCV
         i_fault = a["q_fault"][k] / np.maximum(ocv, 1e-6)
         a["soc"][k] = np.maximum(0.0, a["soc"][k] - (I + i_fault) * dt / (3600.0 * a["qeff"][k]))
         a["e_out"][k] += (ocv * I + a["q_fault"][k]) * dt / 3600.0
         a["e_load"][k] += p_del * dt / 3600.0
-        a["e_heat"][k] += (I * I * R + a["q_fault"][k]) * dt / 3600.0
+        a["e_heat"][k] += (I * I * R + I * v1 + a["q_fault"][k]) * dt / 3600.0   # R0, RC branch, fault
         hp = a["hp0"][k] + a["hp1"][k] * np.sqrt(air)
-        a["tp"][k] += dt / a["cp"][k] * (I * I * R + a["q_fault"][k] - hp * (a["tp"][k] - self.t_amb))
+        a["tp"][k] += dt / a["cp"][k] * (I * I * R + I * v1 + a["q_fault"][k] - hp * (a["tp"][k] - self.t_amb))
         motor_loss = pm / (a["eta"][k] * a["mh"][k]) - pm
         hm = a["hm0"][k] + a["hm1"][k] * np.sqrt(air)
         a["tm"][k] += dt / a["cm"][k] * (motor_loss - hm * (a["tm"][k] - self.t_amb))
         a["tmax_p"][k] = np.maximum(a["tmax_p"][k], a["tp"][k])
         a["tmax_m"][k] = np.maximum(a["tmax_m"][k], a["tm"][k])
+
+    @staticmethod
+    def _mix64(x: np.ndarray) -> np.ndarray:
+        x = (x ^ (x >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+        x = (x ^ (x >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+        return x ^ (x >> np.uint64(31))
+
+    def _gauss(self, k: np.ndarray, stream: int) -> np.ndarray:
+        """Sensor noise N(0, 1) keyed by (seed, drone id, measurement count, stream): independent of
+        which other drones are flying, so replays and injected drones stay deterministic."""
+        a = self.a
+        with np.errstate(over="ignore"):
+            base = (self._seed_u64 * np.uint64(0x9E3779B97F4A7C15)
+                    + a["aid"][k].astype(np.uint64) * np.uint64(0xD1B54A32D192ED03)
+                    + a["nmeas"][k].astype(np.uint64) * np.uint64(0x8CB92BA72F3D8DD7)
+                    + np.uint64(stream) * np.uint64(0xABC98388FB8FAC03))
+            u1 = (self._mix64(base) >> np.uint64(11)).astype(np.float64) / float(1 << 53)
+            u2 = (self._mix64(base + np.uint64(0x632BE59BD9B4E019)) >> np.uint64(11)).astype(np.float64) / float(1 << 53)
+        return np.sqrt(-2.0 * np.log(np.maximum(u1, 1e-300))) * np.cos(2.0 * math.pi * u2)
+
+    def _ekf(self, k: np.ndarray, dt: float) -> None:
+        """BMS state estimate: extended Kalman filter on x = (SoC, V_RC, 1/Q) for drones drawing current.
+
+        The BMS only sees a noisy pack voltage and a noisy current (seeded gain error + noise); an
+        internal fault current (overheating) bypasses the current sensor. It coulomb-counts with its
+        capacity estimate 1/Q (so a sudden capacity loss is learnt, not known) and corrects with the
+        voltage residual through its model  sum_k OCV(SoC + delta_k) - V_RC - I*R0  (cell offsets and R0
+        are measured online from the cell voltages). With ``estimator.enabled: false`` it reads the truth.
+        """
+        a = self.a
+        if not len(k):
+            return
+        if not self.est_on:
+            a["soc_hat"][k] = a["soc"][k]
+            a["v1_hat"][k] = a["v1"][k]
+            a["qinv_hat"][k] = 1.0 / a["qeff"][k]
+            return
+        es = self.est
+        n = len(k)
+        a["nmeas"][k] += 1.0
+        I = a["i"][k]
+        i_meas = I * (1.0 + a["igain"][k]) + self._gauss(k, 1) * (
+            float(es.get("sigma_i_a", 0.2)) + float(es.get("sigma_i_frac", 0.01)) * np.abs(I))
+        sv = float(es.get("sigma_v_cell", 0.005)) * np.sqrt(a["ns"][k])
+        v_meas = a["v"][k] + self._gauss(k, 2) * sv
+        R0 = self._r(k)
+        ex = math.exp(-dt / self.tau)
+        qinv = a["qinv_hat"][k]
+        # predict
+        soc = a["soc_hat"][k] - i_meas * dt / 3600.0 * qinv
+        v1 = a["v1_hat"][k] * ex + self.r1_frac * R0 * (1.0 - ex) * i_meas
+        F = np.tile(np.eye(3), (n, 1, 1))
+        F[:, 0, 2] = -i_meas * dt / 3600.0
+        F[:, 1, 1] = ex
+        Q = np.zeros((n, 3, 3))
+        Q[:, 0, 0] = float(es.get("q_soc_per_s", 1e-6)) * dt
+        Q[:, 1, 1] = float(es.get("q_v1_per_s", 1e-4)) * dt
+        Q[:, 2, 2] = float(es.get("q_capacity_frac_per_s", 1e-4)) * dt * qinv * qinv
+        P = np.einsum("nij,njk,nlk->nil", F, self.Pm[k], F) + Q
+        # update with the pack voltage
+        ns, dm = a["ns"][k], a["dmean"][k]
+        sc = np.clip(soc + dm, 0.0, 1.0)
+        H = np.zeros((n, 3))
+        H[:, 0] = ns * (self._ocv_cell(np.clip(sc + 0.005, 0, 1)) - self._ocv_cell(np.clip(sc - 0.005, 0, 1))) / 0.01
+        H[:, 1] = -1.0
+        y = v_meas - (ns * self._ocv_cell(sc) - v1 - R0 * i_meas)
+        PH = np.einsum("nij,nj->ni", P, H)
+        S = np.einsum("ni,ni->n", H, PH) + sv * sv
+        K = PH / S[:, None]
+        a["soc_hat"][k] = np.clip(soc + K[:, 0] * y, 0.0, 1.0)
+        a["v1_hat"][k] = v1 + K[:, 1] * y
+        a["qinv_hat"][k] = np.maximum(qinv + K[:, 2] * y, 1e-6)
+        P = P - np.einsum("ni,nj->nij", K, PH)
+        P = 0.5 * (P + np.transpose(P, (0, 2, 1)))
+        self.Pm[k] = P
+        a["P11"][k] = np.maximum(P[:, 0, 0], 1e-12)
 
     def start_climb(self, aid: int, t: float, layers_up: int, layer_height_m: float) -> None:
         if layers_up > 0 and aid in self.index:
@@ -230,6 +337,7 @@ class HealthModel:
             delta[j] -= float(fc["cell_failure_soc_drop_pct"]) / 100.0
             eps[j] = float(fc["cell_failure_r_factor"]) - 1.0
             a["rmul"][k] = float(np.mean(1.0 + eps))
+            a["dmean"][k] = float(np.mean(delta))   # the BMS measures every cell voltage
         elif ftype == "overheating":
             a["q_fault"][k] = float(fc["overheating_heat_frac_hover"]) * a["p_hover_ref"][k]
         elif ftype == "motor_degradation":
@@ -246,10 +354,10 @@ class HealthModel:
         hs, hc, hm = float(th["hysteresis_soc_pct"]) * relax, float(th["hysteresis_c"]) * relax, float(th["hysteresis_mv"]) * relax
         lev = np.zeros(len(k), dtype=np.int8)
         if cat == "charge":
-            soc = a["soc"][k] * 100.0
+            soc = a["soc_hat"][k] * 100.0   # the BMS acts on its own estimate
             lev = np.where(soc < float(th["soc_warning_pct"]) + hs, 1, 0)
             lev = np.where(soc < float(th["soc_critical_pct"]) + hs, 2, lev)
-            lev = np.where(a["min_cell"][k] < float(th["cell_fault_v"]), 3, lev)
+            lev = np.where(a["min_cell"][k] < float(th["cell_fault_v"]) + hm / 1000.0, 3, lev)   # hysteresis
         elif cat == "pack_temp":
             T = a["tp"][k] + hc
             lev = np.select([T > th["pack_fault_c"], T > th["pack_critical_c"], T > th["pack_warning_c"]], [3, 2, 1], 0)
@@ -333,7 +441,7 @@ class HealthModel:
         a["hdop"][k] = hdop
 
     # ------------------------------------------------------------------ queries
-    def _usable_wh(self, kk: int, soc: float) -> float:
+    def _usable_wh(self, kk: int, soc: float, q_ah: float | None = None) -> float:
         """Energy the pack can deliver from ``soc`` until its WEAKEST cell reaches ``soc_min``.
 
         Cells in series carry the same charge, so every cell gives up the same SoC span
@@ -346,12 +454,31 @@ class HealthModel:
         if span <= 0.0:
             return 0.0
         F = lambda x: np.interp(x, self._F_grid, self._F)  # noqa: E731
-        return float(self.a["qeff"][kk] * np.sum(F(s) - F(s - span)))
+        q = float(self.a["qeff"][kk]) if q_ah is None else float(q_ah)
+        return float(q * np.sum(F(s) - F(s - span)))
 
     def e_rem_wh(self, aid: int) -> float:
-        """Usable energy left (Wh), limited by the weakest cell."""
+        """TRUE usable energy left (Wh), limited by the weakest cell (physics; the BMS cannot see it)."""
         kk = self.index[aid]
         return self._usable_wh(kk, float(self.a["soc"][kk]))
+
+    def soc_sigma(self, aid: int) -> float:
+        return float(math.sqrt(max(0.0, self.a["P11"][self.index[aid]])))
+
+    def soc_bms(self, aid: int) -> float:
+        """SoC as the BMS estimates it (= true SoC when the estimator is off)."""
+        return float(self.a["soc_hat"][self.index[aid]])
+
+    def e_rem_bms_wh(self, aid: int) -> float:
+        """Usable energy for DECISIONS: the BMS estimate lowered by ``chance_z`` standard deviations, with
+        the capacity the BMS believes. P(true SoC < SoC_hat - z·σ) ≈ 1 - Φ(z) for a Gaussian error."""
+        kk = self.index[aid]
+        a = self.a
+        soc = float(a["soc_hat"][kk]) - self.chance_z * self.soc_sigma(aid)
+        q = 1.0 / float(a["qinv_hat"][kk])
+        if self.est_on:   # capacity uncertainty, one-sided too
+            q *= max(0.0, 1.0 - self.chance_z * math.sqrt(max(0.0, self.Pm[kk, 2, 2])) * float(a["qinv_hat"][kk]))
+        return self._usable_wh(kk, soc, q)
 
     def _pack_at(self, kk: int, soc: float, power_w: float) -> tuple[bool, float, float]:
         """(power deliverable, pack current A, weakest cell voltage V) at ``soc`` while drawing ``power_w``."""
@@ -367,6 +494,20 @@ class HealthModel:
         r_cell = R / a["ns"][kk] / a["rmul"][kk]
         v_min = float((ocv_cells - I * r_cell * (1.0 + eps)).min())
         return True, I, v_min
+
+    def min_power_speed(self, aid: int, v_max: float) -> float:
+        """Airspeed with the least electrical power (bottom of the power bucket), capped at ``v_max``."""
+        k = np.array([self.index[aid]])
+        vs = np.linspace(2.0, max(2.0, v_max), 27)
+        pe = self.power(np.repeat(k, len(vs)), vs)[0]
+        return float(vs[int(np.argmin(pe))])
+
+    def low_voltage(self, aid: int) -> bool:
+        """Weakest cell within 3 sag margins of cut-off: fly at the minimum-power speed."""
+        kk = self.index[aid]
+        m = float(self.resp.get("sag_margin_v", 0.05))
+        v = float(self.a["min_cell"][kk])
+        return bool(np.isfinite(v) and v < float(self.th["cell_fault_v"]) + 3.0 * m)
 
     def climb_power_w(self, aid: int) -> float:
         """Electrical power while climbing out of a hover (the highest steady draw of a mission)."""
@@ -395,7 +536,8 @@ class HealthModel:
         """
         kk = self.index[aid]
         a = self.a
-        soc_end = float(a["soc"][kk]) - energy_wh / max(1e-9, float(a["qeff"][kk] * a["vnom"][kk]))
+        soc_end = (float(a["soc_hat"][kk]) - self.chance_z * self.soc_sigma(aid)
+                   - energy_wh * float(a["qinv_hat"][kk]) / max(1e-9, float(a["vnom"][kk])))
         p = self.climb_power_w(aid) if climb else float(self.power(np.array([kk]), np.array([0.0]))[0][0])
         ok, _, v_min = self._pack_at(kk, max(0.0, soc_end), p)
         margin = float(self.resp.get("sag_margin_v", 0.05))
@@ -408,7 +550,7 @@ class HealthModel:
         ``climb``: the mission starts with a climb (pre-flight); ``check_sag=False``: energy only.
         """
         need = self.energy_needed_wh(aid, distance_m, cruise_mps)
-        e_rem = self.e_rem_wh(aid)
+        e_rem = self.e_rem_bms_wh(aid)
         if need > e_rem:
             return False, need, e_rem, f"energy {e_rem:.0f} Wh < {need:.0f} Wh needed"
         if not check_sag:
@@ -442,7 +584,7 @@ class HealthModel:
         """Per drone (frame order): SoC int %, BMS status code, max(pack, motor) temperature int °C."""
         k = np.array([self.index[i] for i in ids], dtype=int)
         a = self.a
-        return {"soc": np.rint(a["soc"][k] * 100.0).astype(int).tolist(),
+        return {"soc": np.rint(a["soc_hat"][k] * 100.0).astype(int).tolist(),   # as the BMS reports it
                 "bms": a["status"][k].astype(int).tolist(),
                 "tmax": np.rint(np.maximum(a["tp"][k], a["tm"][k])).astype(int).tolist()}
 
@@ -452,14 +594,16 @@ class HealthModel:
         r_cell = self._r(np.array([kk]))[0] / a["ns"][kk] / a["rmul"][kk]
         vc = self._ocv_cell(np.clip(a["soc"][kk] + delta, 0.0, 1.0)) - a["i"][kk] * r_cell * (1.0 + eps)
         p = float(a["p"][kk])
-        e_rem = self.e_rem_wh(aid)
+        e_rem = self.e_rem_bms_wh(aid)
         t_left = e_rem * 3600.0 / p if p > a["avion"][kk] * 1.01 else None
         p_cruise = float(self.power(np.array([kk]), np.array([max(cruise_mps, 0.5)]))[0][0])
         range_m = e_rem * 3600.0 / p_cruise * max(cruise_mps, 0.5) if t_left is not None else None
         fin = lambda x, d=2: None if not np.isfinite(x) else round(float(x), d)  # noqa: E731
         hd = float(a["hdop"][kk])
         return {
-            "soc": fin(a["soc"][kk] * 100, 1), "soh": fin(a["soh"][kk] * 100, 1),
+            "soc": fin(a["soc_hat"][kk] * 100, 1), "soc_sigma": fin(self.soc_sigma(aid) * 100, 2),
+            "soc_true": fin(a["soc"][kk] * 100, 1), "e_rem_true_wh": fin(self.e_rem_wh(aid), 1),
+            "v_rc": fin(a["v1"][kk], 3), "soh": fin(a["soh"][kk] * 100, 1),
             "capacity_wh": fin(a["qeff"][kk] * a["vnom"][kk], 0), "v": fin(a["v"][kk], 2), "ocv": fin(a["ocv"][kk], 2),
             "i": fin(a["i"][kk], 2), "p": fin(p, 0), "e_rem_wh": fin(e_rem, 1),
             "time_left_s": None if t_left is None else round(t_left, 0),
@@ -480,12 +624,20 @@ class HealthModel:
         """Battery swap (or the end of a charge): the pack is replaced / topped up."""
         k = self.index[aid]
         self.a["soc"][k] = float(np.clip(soc, 0.0, 1.0))
+        self.a["soc_hat"][k] = self.a["soc"][k]          # fresh pack, read at rest
+        s0 = float(self.est.get("soc0_sigma_pct", 1.5)) / 100.0 if self.est_on else 0.0
+        self.a["P11"][k] = s0 * s0
+        self.Pm[k, 0, :] = self.Pm[k, :, 0] = 0.0
+        self.Pm[k, 0, 0] = s0 * s0
+        self.a["v1"][k] = self.a["v1_hat"][k] = 0.0
         self._update_ocv(np.array([k]))
 
     def charge(self, aid: int, dt: float, c_rate: float, target: float) -> None:
         """Constant-current charge at ``c_rate`` (1/h) up to ``target`` SoC (charging pad)."""
         k = self.index[aid]
-        self.a["soc"][k] = float(min(target, self.a["soc"][k] + c_rate * dt / 3600.0))
+        before = float(self.a["soc"][k])
+        self.a["soc"][k] = float(min(target, before + c_rate * dt / 3600.0))
+        self.a["soc_hat"][k] = float(min(1.0, self.a["soc_hat"][k] + self.a["soc"][k] - before))
         self._update_ocv(np.array([k]))
 
     def energy_used_wh(self, aid: int) -> float:

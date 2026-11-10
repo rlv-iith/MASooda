@@ -524,7 +524,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     def _rank(x) -> tuple:
         """Who yields in a tactical shift (larger rank moves): priority, then a medical emergency keeps
         its order, then between unhealthy drones the lower SoC goes first, then id."""
-        soc = health.soc(x.id) if (health is not None and x.id in unhealthy) else 1.0
+        soc = health.soc_bms(x.id) if (health is not None and x.id in unhealthy) else 1.0
         return (x.priority, 0 if x.type == AgentType.EMERGENCY else 1, soc, x.id)
 
     def _land_in_place(i: int, why: str, emit) -> None:
@@ -591,9 +591,11 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
     def _divert(i: int, why: str, emit, severity: str) -> bool:
         """Fly to the nearest pad (by corridor route, avoiding restricted areas) that the energy can reach."""
         f = by_id[i]
-        e_rem, cruise = health.e_rem_wh(i), cruise_of(f)
-        opts = _pad_options(i)   # a pad reserved for another urgent landing only as a last resort
-        opts.sort(key=lambda o: (reserved_pads.get(o[1], i) != i, o[0], o[1]))
+        e_rem, cruise = health.e_rem_bms_wh(i), cruise_of(f)
+        opts = _pad_options(i)   # a pad reserved for another urgent landing, or a hospital pad, as a last resort
+        hospital = {v.id for v in network.vertiports if v.role == "hospital"}
+        medical = f.type == AgentType.EMERGENCY
+        opts.sort(key=lambda o: (reserved_pads.get(o[1], i) != i, o[1] in hospital and not medical, o[0], o[1]))
         # first choice: energy and voltage margin; fallback: energy only (fly gently, still better than
         # landing off-pad)
         ok_full = {vid for length, vid, _ in opts if health.feasible(i, length, cruise)[0]}
@@ -621,7 +623,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         """Seconds the drone could still hover on its usable energy; a BMS CRITICAL/FAULT pack may fail
         any time, so its endurance is capped at ``responses.critical_endurance_s``."""
         p_hover = max(1.0, float(health.power(np.array([health.index[i]]), np.array([0.0]))[0][0]))
-        e = health.e_rem_wh(i) * 3600.0 / p_hover
+        e = health.e_rem_bms_wh(i) * 3600.0 / p_hover
         if health.status(i) >= CRITICAL:
             e = min(e, float(hresp.get("critical_endurance_s", 120.0)))
         return e
@@ -893,7 +895,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     and health.status(i) >= CRITICAL]
         if ctype == "fleet_recall_below_soc":
             return [i for i in ids if status[i] == AIRBORNE and i not in noncoop and health is not None
-                    and health.soc(i) * 100.0 < p["threshold_pct"]]
+                    and health.soc_bms(i) * 100.0 < p["threshold_pct"]]
         if ctype == "speed_limit" and p.get("sector") is not None and not cmd["targets"]:
             return [i for i in ids if status[i] == AIRBORNE
                     and _sector(network, agents[i].position[0], agents[i].position[1]) == p["sector"]]
@@ -1103,7 +1105,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
         w = np.exp(-d / 1500.0)
         nxt_dest = others[int(rng.choice(len(others), p=w / w.sum()))]
         turnaround = float(ops.get("turnaround_s", 30.0))
-        need_service = health is not None and health.soc(i) * 100.0 < float(ops.get("service_soc_pct", 35.0))
+        need_service = health is not None and health.soc_bms(i) * 100.0 < float(ops.get("service_soc_pct", 35.0))
         mode = str(ops.get("service_mode", "swap"))
         if need_service:
             pads = sorted(_service_pads(), key=lambda v: (RoutePath(network.vertiport_route(here, v)).length
@@ -1428,7 +1430,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                             row[int(agents[j].altitude_layer)] = row.get(int(agents[j].altitude_layer), 0) + 1
                 load = dep_load.get(_sector(network, float(pad[0]), float(pad[1])), {})
                 dep_layer = departure_layer(agree.allowed(direction_of[i]), {int(agents[j].altitude_layer) for j in near_join},
-                                            load, capacity, health.soc(i) if health is not None else 1.0, layer_h, la_cfg)
+                                            load, capacity, health.soc_bms(i) if health is not None else 1.0, layer_h, la_cfg)
             # merge gap: no same-layer traffic near the junction where the approach leg joins the corridor
             merge = sorted((j for j in near_join if agents[j].altitude_layer == dep_layer), key=index_of.__getitem__)
             if busy or merge:
@@ -1610,7 +1612,7 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                 tangent=lambda i: by_id[i].route.tangent_at(progress[i]),
                 remaining=lambda i: by_id[i].route.length - progress[i],
                 cruise=lambda i: cruise_of(by_id[i]),
-                soc=lambda i: health.soc(i) if health is not None else 1.0,
+                soc=lambda i: health.soc_bms(i) if health is not None else 1.0,
                 priority=lambda i: int(agents[i].priority),
                 direction=lambda i: direction_of[i],
                 constrained=_constrained,
@@ -1649,9 +1651,13 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
             v = min(cruise_of(a), math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - 1.0, 0.0))) + 0.3)
             if health is not None and health.overheating(a.id):   # onboard response: limit power until it cools
                 v = min(v, float(hresp["overheat_speed_frac"]) * cruise_of(a))
+            if health is not None and health.low_voltage(a.id):   # weak cell near cut-off: least-current speed
+                v = min(v, health.min_power_speed(a.id, cruise_of(a)))
             dest = by_id[a.id].destination
             holder = reserved_pads.get(dest)
-            if holder is not None and holder != a.id and remaining < pad_hold_m + 40.0 and _reservation_active(dest):
+            if (holder is not None and holder != a.id and remaining < pad_hold_m + 40.0 and _reservation_active(dest)
+                    and (by_id[a.id].type != AgentType.EMERGENCY or health.status(holder) >= CRITICAL)):
+                # (a medical emergency holds only for a BMS CRITICAL/FAULT landing, not for a low-reserve one)
                 # arrival on a pad reserved for a more urgent landing: stop short and hover until it is clear
                 v = min(v, math.sqrt(max(0.0, 2.0 * 0.6 * a_max * max(remaining - pad_hold_m, 0.0))))
                 if holding_short.get(a.id) != dest:
