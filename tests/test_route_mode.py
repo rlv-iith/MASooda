@@ -71,12 +71,16 @@ def test_boundary_conditions_hold_every_tick(network):
     by_index = list(flights)
     xmin, ymin, xmax, ymax = network.bounds
     frame = None
+    routes = {k: f.route for k, f in enumerate(by_index)}
+    index_of = {f.agent_id: k for k, f in enumerate(by_index)}
     for frame in simulate_routes(network, flights, 60.0, cfg):
+        for rr in frame.get("reroutes", []):   # a diversion gives the drone a new route (the engine copies flights)
+            routes[index_of[rr["id"]]] = RoutePath(np.asarray(rr["route"], dtype=float))
         for k, st in enumerate(frame["status"]):
             if st != AIRBORNE:
                 continue
             p = np.array([frame["x"][k], frame["y"][k]])
-            route = by_index[k].route
+            route = routes[k]
             _, q, _ = route.project(p, frame["progress"][k] * route.length)
             assert np.linalg.norm(p - q) <= half_w + 0.01, "drone left its corridor tube"  # frames round to 1 cm
             assert xmin - 0.01 <= p[0] <= xmax + 0.01 and ymin - 0.01 <= p[1] <= ymax + 0.01

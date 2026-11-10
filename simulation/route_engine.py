@@ -1794,6 +1794,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     continue
                 if float(np.asarray(nb.velocity[:2]) @ tan) < 0.0:
                     continue  # opposing flow is handled by the lane offset + separation
+                if nb.id in holding_short:
+                    continue  # parked at the tube edge for an urgent landing: not traffic ahead in the lane
                 v_ref = min(v_ref, max(0.0, (along - d_0) / h_gap))
                 if along <= r_plat and (lead is None or along < lead[1]):
                     lead = (int(nb.id), along)
@@ -1874,6 +1876,8 @@ def _simulate(network, flights, duration_s, cfg, use_overseer, use_admm, defende
                     v_coh = tan * float(np.mean([float((nb.position[:2] - p) @ tan) for nb in seg]))
                 v = (v_goal + v_avoid + w_sep * separation(a, nbrs) + w_ali * 0.5 * alignment(a, seg)
                      + w_coh * v_coh)
+            if a.id in holding_short:   # keep station at the hold point; boids forces would push it onto the pad
+                v = v_goal + v_avoid
             sp = float(np.linalg.norm(v))
             if sp > v_max:
                 v *= v_max / sp
