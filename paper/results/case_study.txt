@@ -1,0 +1,11 @@
+(36.0, 'dtc', 'DTC: no better layer free for stuck D-100 (sector S3) — keeps following')
+(70.0, 'bms', 'BMS NORMAL → CRITICAL (CELL_IMBALANCE) · SoC 77% · pack 36 °C · motor 50 °C')
+(70.0, 'divert', 'D-100 BMS CRITICAL (CELL_IMBALANCE): DIVERTING to V4 (328 m, needs 22 of 224 Wh)')
+(70.0, 'dtc', 'DTC: D-100 BMS CRITICAL → right of way to land (priority 0, stays on L0, pad V4 reserved)')
+(96.3, 'hold', 'D-7 holds short of V4 at the tube edge: pad reserved for D-100 (BMS CRITICAL) landing')
+(117.9, 'land', 'D-100 landed at V4')
+(144.0, 'divert', 'D-101 low reserve (44 Wh left, 45 Wh needed to reach V9): DIVERTING to V5 (285 m, needs 21 of 44 Wh)')
+(144.0, 'dtc', 'DTC: pad V5 reserved for D-101 (low reserve) landing')
+(158.9, 'hold', 'D-96 holds short of V5 at the tube edge: pad reserved for D-101 (low reserve) landing')
+(172.7, 'land', 'D-101 landed at V5')
+{'arrivals': 98, 'delivered': 96, 'diversions': 2, 'forced_landings': 0, 'precautionary_landings': 0, 'pads_held_short': 2, 'energy_depleted': 0, 'near_misses': 0, 'min_separation_m': 11.422137658551685}

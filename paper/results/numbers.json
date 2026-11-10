@@ -1,0 +1,2304 @@
+{
+"S1_nominal_blind_n": 20,
+"S1_nominal_blind_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_blind_diversions": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_blind_arrival_frac": [
+95.7,
+0.9123280339565603,
+20
+],
+"S1_nominal_blind_mean_delay_s": [
+6.281999999999999,
+0.7931583043698242,
+20
+],
+"S1_nominal_blind_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S1_nominal_blind_min_separation_m": [
+12.457271496096748,
+0.6752262014328527,
+20
+],
+"S1_nominal_blind_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_nominal_blind_fault_forced": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_blind_pad_holds": [
+46.7,
+1.7844083974823077,
+20
+],
+"S1_nominal_blind_mean_ground_hold_s": [
+1.1795000000000002,
+0.38537998441590404,
+20
+],
+"S1_nominal_blind_energy_per_delivered_wh": [
+28.325,
+0.7457183278096348,
+20
+],
+"S1_nominal_rule_n": 20,
+"S1_nominal_rule_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_rule_diversions": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_rule_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_rule_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_rule_arrival_frac": [
+95.7,
+0.9123280339565603,
+20
+],
+"S1_nominal_rule_mean_delay_s": [
+6.281999999999999,
+0.7931583043698242,
+20
+],
+"S1_nominal_rule_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S1_nominal_rule_min_separation_m": [
+12.457271496096748,
+0.6752262014328527,
+20
+],
+"S1_nominal_rule_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_rule_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_rule_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_nominal_rule_fault_forced": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_rule_pad_holds": [
+46.7,
+1.7844083974823077,
+20
+],
+"S1_nominal_rule_mean_ground_hold_s": [
+1.1795000000000002,
+0.38537998441590404,
+20
+],
+"S1_nominal_rule_energy_per_delivered_wh": [
+28.325,
+0.7457183278096348,
+20
+],
+"S1_nominal_full_n": 20,
+"S1_nominal_full_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_full_diversions": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_full_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_full_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_full_arrival_frac": [
+95.7,
+0.9123280339565603,
+20
+],
+"S1_nominal_full_mean_delay_s": [
+6.281999999999999,
+0.7931583043698242,
+20
+],
+"S1_nominal_full_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S1_nominal_full_min_separation_m": [
+12.457235999982496,
+0.6751953751737092,
+20
+],
+"S1_nominal_full_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_full_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_full_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_nominal_full_fault_forced": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_full_pad_holds": [
+46.7,
+1.7844083974823077,
+20
+],
+"S1_nominal_full_mean_ground_hold_s": [
+1.1795000000000002,
+0.38537998441590404,
+20
+],
+"S1_nominal_full_energy_per_delivered_wh": [
+28.325,
+0.7457183278096348,
+20
+],
+"S1_nominal_d_rule_vs_blind_diversions": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_mean_delay_s": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_on_time_rate": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_arrival_frac": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_min_separation_m": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_rule_vs_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_nominal_d_full_vs_blind_diversions": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_full_vs_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_full_vs_blind_mean_delay_s": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_full_vs_blind_on_time_rate": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_full_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_full_vs_blind_arrival_frac": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_full_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_nominal_d_full_vs_blind_min_separation_m": [
+-3.549611425253118e-05,
+7.429422096857344e-05,
+20
+],
+"S1_nominal_d_full_vs_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_nominal_identical_rule": 20,
+"S1_nominal_identical_full": 9,
+"S1_lowsoc_blind_n": 20,
+"S1_lowsoc_blind_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_blind_diversions": [
+5.9,
+1.223262796209887,
+20
+],
+"S1_lowsoc_blind_grounded_preflight": [
+12.1,
+1.5990542284994866,
+20
+],
+"S1_lowsoc_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_blind_arrival_frac": [
+88.05,
+1.3103963509211347,
+20
+],
+"S1_lowsoc_blind_mean_delay_s": [
+6.214999999999999,
+0.7801593946976797,
+20
+],
+"S1_lowsoc_blind_on_time_rate": [
+96.78,
+3.757534302182228,
+20
+],
+"S1_lowsoc_blind_min_separation_m": [
+12.852141418012948,
+0.653249271200902,
+20
+],
+"S1_lowsoc_blind_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_lowsoc_blind_fault_forced": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_blind_pad_holds": [
+39.6,
+2.2025221610290937,
+20
+],
+"S1_lowsoc_blind_mean_ground_hold_s": [
+1.234,
+0.4803248400623073,
+20
+],
+"S1_lowsoc_blind_energy_per_delivered_wh": [
+26.985000000000003,
+0.9832729493651785,
+20
+],
+"S1_lowsoc_rule_n": 20,
+"S1_lowsoc_rule_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_rule_diversions": [
+5.9,
+1.3315595354800986,
+20
+],
+"S1_lowsoc_rule_grounded_preflight": [
+12.1,
+1.5990542284994866,
+20
+],
+"S1_lowsoc_rule_pads_held_short": [
+7.35,
+2.0556493401844063,
+20
+],
+"S1_lowsoc_rule_arrival_frac": [
+87.65,
+1.2361531710986777,
+20
+],
+"S1_lowsoc_rule_mean_delay_s": [
+7.083,
+1.2809995689231446,
+20
+],
+"S1_lowsoc_rule_on_time_rate": [
+93.49,
+5.8699982053953885,
+20
+],
+"S1_lowsoc_rule_min_separation_m": [
+12.57119448335229,
+0.505720815092176,
+20
+],
+"S1_lowsoc_rule_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_rule_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_rule_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_lowsoc_rule_fault_forced": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_rule_pad_holds": [
+45.8,
+3.671358754737149,
+20
+],
+"S1_lowsoc_rule_mean_ground_hold_s": [
+1.7740000000000002,
+0.587206979015289,
+20
+],
+"S1_lowsoc_rule_energy_per_delivered_wh": [
+27.314999999999998,
+0.9715964601615812,
+20
+],
+"S1_lowsoc_full_n": 20,
+"S1_lowsoc_full_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_full_diversions": [
+5.95,
+1.3536696358963427,
+20
+],
+"S1_lowsoc_full_grounded_preflight": [
+12.1,
+1.5990542284994866,
+20
+],
+"S1_lowsoc_full_pads_held_short": [
+7.7,
+2.1746043341227708,
+20
+],
+"S1_lowsoc_full_arrival_frac": [
+87.6,
+1.2920124606797323,
+20
+],
+"S1_lowsoc_full_mean_delay_s": [
+7.083,
+1.2809995689231446,
+20
+],
+"S1_lowsoc_full_on_time_rate": [
+93.49,
+5.8699982053953885,
+20
+],
+"S1_lowsoc_full_min_separation_m": [
+12.556949006001421,
+0.5039352952891002,
+20
+],
+"S1_lowsoc_full_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_full_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_full_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_lowsoc_full_fault_forced": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_full_pad_holds": [
+45.65,
+3.9106075394074513,
+20
+],
+"S1_lowsoc_full_mean_ground_hold_s": [
+1.7740000000000002,
+0.587206979015289,
+20
+],
+"S1_lowsoc_full_energy_per_delivered_wh": [
+27.27,
+1.0281863289642477,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_diversions": [
+0.0,
+0.3036878484764388,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_pads_held_short": [
+7.35,
+2.0556493401844063,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_mean_delay_s": [
+0.868,
+0.8025028251345114,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_on_time_rate": [
+-0.0329,
+0.049864467374626006,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_arrival_frac": [
+-0.0040000000000000036,
+0.0035285339387844303,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_min_separation_m": [
+-0.2809469346606578,
+0.5390070322811665,
+20
+],
+"S1_lowsoc_d_rule_vs_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_lowsoc_d_full_vs_blind_diversions": [
+0.05,
+0.3212136104573995,
+20
+],
+"S1_lowsoc_d_full_vs_blind_pads_held_short": [
+7.7,
+2.1746043341227708,
+20
+],
+"S1_lowsoc_d_full_vs_blind_mean_delay_s": [
+0.868,
+0.8025028251345114,
+20
+],
+"S1_lowsoc_d_full_vs_blind_on_time_rate": [
+-0.0329,
+0.049864467374626006,
+20
+],
+"S1_lowsoc_d_full_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_d_full_vs_blind_arrival_frac": [
+-0.004499999999999999,
+0.0035529531501434152,
+20
+],
+"S1_lowsoc_d_full_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_lowsoc_d_full_vs_blind_min_separation_m": [
+-0.29519241201152757,
+0.536394210042988,
+20
+],
+"S1_lowsoc_d_full_vs_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_lowsoc_identical_rule": 0,
+"S1_lowsoc_identical_full": 0,
+"S1_faults_blind_n": 20,
+"S1_faults_blind_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S1_faults_blind_diversions": [
+2.0,
+0.0,
+20
+],
+"S1_faults_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_faults_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_faults_blind_arrival_frac": [
+95.33653846153847,
+1.1145645376272564,
+20
+],
+"S1_faults_blind_mean_delay_s": [
+6.3385,
+0.7919621807862323,
+20
+],
+"S1_faults_blind_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S1_faults_blind_min_separation_m": [
+12.580472693110012,
+0.4366546201531524,
+20
+],
+"S1_faults_blind_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_faults_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_faults_blind_fault_to_land_s": [
+35.222500000000004,
+7.029285099365079,
+20
+],
+"S1_faults_blind_fault_forced": [
+0.0,
+0.0,
+20
+],
+"S1_faults_blind_pad_holds": [
+48.95,
+1.754273826648249,
+20
+],
+"S1_faults_blind_mean_ground_hold_s": [
+1.262,
+0.3974733340068505,
+20
+],
+"S1_faults_blind_energy_per_delivered_wh": [
+29.2,
+0.7914841792502537,
+20
+],
+"S1_faults_rule_n": 20,
+"S1_faults_rule_forced_landings": [
+0.05,
+0.1046512027204155,
+20
+],
+"S1_faults_rule_diversions": [
+2.0,
+0.0,
+20
+],
+"S1_faults_rule_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_faults_rule_pads_held_short": [
+2.45,
+0.9660305209222502,
+20
+],
+"S1_faults_rule_arrival_frac": [
+95.38461538461539,
+1.068923129850647,
+20
+],
+"S1_faults_rule_mean_delay_s": [
+6.419499999999999,
+0.7968760970254493,
+20
+],
+"S1_faults_rule_on_time_rate": [
+96.5,
+3.487455310187181,
+20
+],
+"S1_faults_rule_min_separation_m": [
+12.49749440840204,
+0.43187214445574595,
+20
+],
+"S1_faults_rule_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_faults_rule_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_faults_rule_fault_to_land_s": [
+34.43,
+8.008436999437825,
+20
+],
+"S1_faults_rule_fault_forced": [
+0.05,
+0.1046512027204155,
+20
+],
+"S1_faults_rule_pad_holds": [
+50.45,
+1.6940978315642023,
+20
+],
+"S1_faults_rule_mean_ground_hold_s": [
+1.343,
+0.42372372864803426,
+20
+],
+"S1_faults_rule_energy_per_delivered_wh": [
+29.360000000000003,
+0.8010972308960262,
+20
+],
+"S1_faults_full_n": 20,
+"S1_faults_full_forced_landings": [
+0.05,
+0.1046512027204155,
+20
+],
+"S1_faults_full_diversions": [
+2.0,
+0.0,
+20
+],
+"S1_faults_full_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_faults_full_pads_held_short": [
+2.5,
+0.9781860554692945,
+20
+],
+"S1_faults_full_arrival_frac": [
+95.38461538461539,
+1.068923129850647,
+20
+],
+"S1_faults_full_mean_delay_s": [
+6.419499999999999,
+0.7968760970254493,
+20
+],
+"S1_faults_full_on_time_rate": [
+96.5,
+3.487455310187181,
+20
+],
+"S1_faults_full_min_separation_m": [
+12.49749440840204,
+0.43187214445574595,
+20
+],
+"S1_faults_full_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_faults_full_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_faults_full_fault_to_land_s": [
+34.465,
+8.018761404687378,
+20
+],
+"S1_faults_full_fault_forced": [
+0.05,
+0.1046512027204155,
+20
+],
+"S1_faults_full_pad_holds": [
+50.45,
+1.6940978315642023,
+20
+],
+"S1_faults_full_mean_ground_hold_s": [
+1.343,
+0.42372372864803426,
+20
+],
+"S1_faults_full_energy_per_delivered_wh": [
+29.360000000000003,
+0.8021039419939572,
+20
+],
+"S1_faults_d_rule_vs_blind_diversions": [
+0.0,
+0.0,
+20
+],
+"S1_faults_d_rule_vs_blind_pads_held_short": [
+2.45,
+0.9660305209222502,
+20
+],
+"S1_faults_d_rule_vs_blind_mean_delay_s": [
+0.0810000000000001,
+0.10403137426766548,
+20
+],
+"S1_faults_d_rule_vs_blind_on_time_rate": [
+-0.004999999999999999,
+0.01046512027204155,
+20
+],
+"S1_faults_d_rule_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_faults_d_rule_vs_blind_arrival_frac": [
+0.0004807692307692346,
+0.0022969507396431174,
+20
+],
+"S1_faults_d_rule_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_faults_d_rule_vs_blind_min_separation_m": [
+-0.0829782847079696,
+0.08317489060498182,
+20
+],
+"S1_faults_d_rule_vs_blind_fault_to_land_s": [
+-0.7925000000000019,
+2.6668746911583443,
+20
+],
+"S1_faults_d_full_vs_blind_diversions": [
+0.0,
+0.0,
+20
+],
+"S1_faults_d_full_vs_blind_pads_held_short": [
+2.5,
+0.9781860554692945,
+20
+],
+"S1_faults_d_full_vs_blind_mean_delay_s": [
+0.0810000000000001,
+0.10403137426766548,
+20
+],
+"S1_faults_d_full_vs_blind_on_time_rate": [
+-0.004999999999999999,
+0.01046512027204155,
+20
+],
+"S1_faults_d_full_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_faults_d_full_vs_blind_arrival_frac": [
+0.0004807692307692346,
+0.0022969507396431174,
+20
+],
+"S1_faults_d_full_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_faults_d_full_vs_blind_min_separation_m": [
+-0.0829782847079696,
+0.08317489060498182,
+20
+],
+"S1_faults_d_full_vs_blind_fault_to_land_s": [
+-0.7575000000000017,
+2.671485263788408,
+20
+],
+"S1_faults_identical_rule": 0,
+"S1_faults_identical_full": 0,
+"S1_heat_blind_n": 20,
+"S1_heat_blind_forced_landings": [
+4.0,
+0.0,
+20
+],
+"S1_heat_blind_diversions": [
+3.95,
+0.1046512027204155,
+20
+],
+"S1_heat_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_heat_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_heat_blind_arrival_frac": [
+91.77884615384615,
+0.9056354081574413,
+20
+],
+"S1_heat_blind_mean_delay_s": [
+6.3325,
+0.7921115175775888,
+20
+],
+"S1_heat_blind_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S1_heat_blind_min_separation_m": [
+12.59205538799039,
+0.43842953233079834,
+20
+],
+"S1_heat_blind_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_heat_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_heat_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_heat_blind_fault_forced": [
+4.0,
+0.0,
+20
+],
+"S1_heat_blind_pad_holds": [
+49.0,
+1.7772875664744043,
+20
+],
+"S1_heat_blind_mean_ground_hold_s": [
+1.256,
+0.39767862881226596,
+20
+],
+"S1_heat_blind_energy_per_delivered_wh": [
+28.625,
+0.7687075231819784,
+20
+],
+"S1_heat_rule_n": 20,
+"S1_heat_rule_forced_landings": [
+4.0,
+0.0,
+20
+],
+"S1_heat_rule_diversions": [
+3.9,
+0.14405179483524633,
+20
+],
+"S1_heat_rule_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_heat_rule_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_heat_rule_arrival_frac": [
+91.77884615384615,
+0.9056354081574413,
+20
+],
+"S1_heat_rule_mean_delay_s": [
+6.3325,
+0.7921115175775888,
+20
+],
+"S1_heat_rule_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S1_heat_rule_min_separation_m": [
+12.59205538799039,
+0.43842953233079834,
+20
+],
+"S1_heat_rule_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_heat_rule_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_heat_rule_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_heat_rule_fault_forced": [
+4.0,
+0.0,
+20
+],
+"S1_heat_rule_pad_holds": [
+49.0,
+1.7772875664744043,
+20
+],
+"S1_heat_rule_mean_ground_hold_s": [
+1.256,
+0.39767862881226596,
+20
+],
+"S1_heat_rule_energy_per_delivered_wh": [
+28.625,
+0.7687075231819784,
+20
+],
+"S1_heat_full_n": 20,
+"S1_heat_full_forced_landings": [
+4.0,
+0.0,
+20
+],
+"S1_heat_full_diversions": [
+3.9,
+0.14405179483524633,
+20
+],
+"S1_heat_full_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_heat_full_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_heat_full_arrival_frac": [
+91.77884615384615,
+0.9056354081574413,
+20
+],
+"S1_heat_full_mean_delay_s": [
+6.3325,
+0.7921115175775888,
+20
+],
+"S1_heat_full_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S1_heat_full_min_separation_m": [
+12.59205538799039,
+0.43842953233079834,
+20
+],
+"S1_heat_full_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S1_heat_full_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_heat_full_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_heat_full_fault_forced": [
+4.0,
+0.0,
+20
+],
+"S1_heat_full_pad_holds": [
+49.0,
+1.7772875664744043,
+20
+],
+"S1_heat_full_mean_ground_hold_s": [
+1.256,
+0.39767862881226596,
+20
+],
+"S1_heat_full_energy_per_delivered_wh": [
+28.630000000000003,
+0.7709874318656363,
+20
+],
+"S1_heat_d_rule_vs_blind_diversions": [
+-0.05,
+0.10465120272041552,
+20
+],
+"S1_heat_d_rule_vs_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_rule_vs_blind_mean_delay_s": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_rule_vs_blind_on_time_rate": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_rule_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_rule_vs_blind_arrival_frac": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_rule_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_rule_vs_blind_min_separation_m": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_rule_vs_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_heat_d_full_vs_blind_diversions": [
+-0.05,
+0.10465120272041552,
+20
+],
+"S1_heat_d_full_vs_blind_pads_held_short": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_full_vs_blind_mean_delay_s": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_full_vs_blind_on_time_rate": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_full_vs_blind_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_full_vs_blind_arrival_frac": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_full_vs_blind_near_misses": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_full_vs_blind_min_separation_m": [
+0.0,
+0.0,
+20
+],
+"S1_heat_d_full_vs_blind_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S1_heat_identical_rule": 5,
+"S1_heat_identical_full": 2,
+"S2_lowsoc_oracle_diversions": [
+9.45,
+1.2097587552478148,
+20
+],
+"S2_lowsoc_oracle_grounded_preflight": [
+5.7,
+1.3758433772177339,
+20
+],
+"S2_lowsoc_oracle_arrival_frac": [
+90.8,
+1.090742586556519,
+20
+],
+"S2_lowsoc_oracle_delivered": [
+81.85,
+1.672180138460188,
+20
+],
+"S2_lowsoc_oracle_mean_delay_s": [
+7.288499999999999,
+1.2727005512654699,
+20
+],
+"S2_lowsoc_oracle_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S2_lowsoc_oracle_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S2_lowsoc_oracle_fault_min_true_soc": [
+NaN,
+NaN,
+0
+],
+"S2_lowsoc_oracle_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S2_lowsoc_oracle_forced_runs": 0,
+"S2_lowsoc_oracle_forced_total": 0.0,
+"S2_lowsoc_ekf_z0_diversions": [
+9.0,
+1.2428960861552996,
+20
+],
+"S2_lowsoc_ekf_z0_grounded_preflight": [
+6.5,
+1.353882527245602,
+20
+],
+"S2_lowsoc_ekf_z0_arrival_frac": [
+90.85,
+0.9394096535758921,
+20
+],
+"S2_lowsoc_ekf_z0_delivered": [
+82.25,
+1.4475035283852142,
+20
+],
+"S2_lowsoc_ekf_z0_mean_delay_s": [
+7.164499999999999,
+1.263145675371181,
+20
+],
+"S2_lowsoc_ekf_z0_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S2_lowsoc_ekf_z0_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S2_lowsoc_ekf_z0_fault_min_true_soc": [
+NaN,
+NaN,
+0
+],
+"S2_lowsoc_ekf_z0_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S2_lowsoc_ekf_z0_forced_runs": 0,
+"S2_lowsoc_ekf_z0_forced_total": 0.0,
+"S2_lowsoc_ekf_diversions": [
+5.95,
+1.3536696358963427,
+20
+],
+"S2_lowsoc_ekf_grounded_preflight": [
+12.1,
+1.5990542284994866,
+20
+],
+"S2_lowsoc_ekf_arrival_frac": [
+87.6,
+1.2920124606797323,
+20
+],
+"S2_lowsoc_ekf_delivered": [
+81.65,
+1.7197623256593244,
+20
+],
+"S2_lowsoc_ekf_mean_delay_s": [
+7.083,
+1.2809995689231446,
+20
+],
+"S2_lowsoc_ekf_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S2_lowsoc_ekf_forced_landings": [
+0.0,
+0.0,
+20
+],
+"S2_lowsoc_ekf_fault_min_true_soc": [
+NaN,
+NaN,
+0
+],
+"S2_lowsoc_ekf_fault_to_land_s": [
+NaN,
+NaN,
+0
+],
+"S2_lowsoc_ekf_forced_runs": 0,
+"S2_lowsoc_ekf_forced_total": 0.0,
+"S2_lowsoc_d_ekf_vs_oracle_grounded_preflight": [
+6.4,
+0.9770068072341008,
+20
+],
+"S2_lowsoc_d_ekf_vs_oracle_arrival_frac": [
+-0.032000000000000015,
+0.007218577751982754,
+20
+],
+"S2_lowsoc_d_ekf_vs_oracle_diversions": [
+-3.5,
+1.0790538239898586,
+20
+],
+"S2_lowsoc_d_ekf_vs_oracle_delivered": [
+-0.2,
+0.6722417092311497,
+20
+],
+"S2_lowsoc_d_ekf_vs_ekf_z0_grounded_preflight": [
+5.6,
+1.1096040867437884,
+20
+],
+"S2_lowsoc_d_ekf_vs_ekf_z0_arrival_frac": [
+-0.032500000000000015,
+0.008837655554433565,
+20
+],
+"S2_lowsoc_d_ekf_vs_ekf_z0_diversions": [
+-3.05,
+1.1103830296875588,
+20
+],
+"S2_lowsoc_d_ekf_vs_ekf_z0_delivered": [
+-0.6,
+0.633391226264053,
+20
+],
+"S2_faults_oracle_diversions": [
+2.0,
+0.0,
+20
+],
+"S2_faults_oracle_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S2_faults_oracle_arrival_frac": [
+95.38461538461539,
+1.068923129850647,
+20
+],
+"S2_faults_oracle_delivered": [
+97.25,
+1.0936452573358613,
+20
+],
+"S2_faults_oracle_mean_delay_s": [
+6.419499999999999,
+0.7968760970254493,
+20
+],
+"S2_faults_oracle_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S2_faults_oracle_forced_landings": [
+0.05,
+0.1046512027204155,
+20
+],
+"S2_faults_oracle_fault_min_true_soc": [
+31.419999999999998,
+2.5866825306353918,
+20
+],
+"S2_faults_oracle_fault_to_land_s": [
+34.432500000000005,
+8.009152677780902,
+20
+],
+"S2_faults_oracle_forced_runs": 1,
+"S2_faults_oracle_forced_total": 1.0,
+"S2_faults_ekf_z0_diversions": [
+2.0,
+0.0,
+20
+],
+"S2_faults_ekf_z0_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S2_faults_ekf_z0_arrival_frac": [
+95.38461538461539,
+1.068923129850647,
+20
+],
+"S2_faults_ekf_z0_delivered": [
+97.25,
+1.0936452573358613,
+20
+],
+"S2_faults_ekf_z0_mean_delay_s": [
+6.419499999999999,
+0.7968760970254493,
+20
+],
+"S2_faults_ekf_z0_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S2_faults_ekf_z0_forced_landings": [
+0.05,
+0.1046512027204155,
+20
+],
+"S2_faults_ekf_z0_fault_min_true_soc": [
+31.419999999999998,
+2.5866825306353918,
+20
+],
+"S2_faults_ekf_z0_fault_to_land_s": [
+34.43,
+8.008436999437825,
+20
+],
+"S2_faults_ekf_z0_forced_runs": 1,
+"S2_faults_ekf_z0_forced_total": 1.0,
+"S2_faults_ekf_diversions": [
+2.0,
+0.0,
+20
+],
+"S2_faults_ekf_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S2_faults_ekf_arrival_frac": [
+95.38461538461539,
+1.068923129850647,
+20
+],
+"S2_faults_ekf_delivered": [
+97.25,
+1.0936452573358613,
+20
+],
+"S2_faults_ekf_mean_delay_s": [
+6.419499999999999,
+0.7968760970254493,
+20
+],
+"S2_faults_ekf_energy_depleted": [
+0.0,
+0.0,
+20
+],
+"S2_faults_ekf_forced_landings": [
+0.05,
+0.1046512027204155,
+20
+],
+"S2_faults_ekf_fault_min_true_soc": [
+31.419999999999998,
+2.5866825306353918,
+20
+],
+"S2_faults_ekf_fault_to_land_s": [
+34.465,
+8.018761404687378,
+20
+],
+"S2_faults_ekf_forced_runs": 1,
+"S2_faults_ekf_forced_total": 1.0,
+"S2_faults_d_ekf_vs_oracle_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S2_faults_d_ekf_vs_oracle_arrival_frac": [
+0.0,
+0.0,
+20
+],
+"S2_faults_d_ekf_vs_oracle_diversions": [
+0.0,
+0.0,
+20
+],
+"S2_faults_d_ekf_vs_oracle_delivered": [
+0.0,
+0.0,
+20
+],
+"S2_faults_d_ekf_vs_ekf_z0_grounded_preflight": [
+0.0,
+0.0,
+20
+],
+"S2_faults_d_ekf_vs_ekf_z0_arrival_frac": [
+0.0,
+0.0,
+20
+],
+"S2_faults_d_ekf_vs_ekf_z0_diversions": [
+0.0,
+0.0,
+20
+],
+"S2_faults_d_ekf_vs_ekf_z0_delivered": [
+0.0,
+0.0,
+20
+],
+"S3_hierarchical_arrival_frac": [
+95.7,
+0.9123280339565603,
+20
+],
+"S3_hierarchical_near_misses": [
+0.0,
+0.0,
+20
+],
+"S3_hierarchical_safety_violation_ticks": [
+0.0,
+0.0,
+20
+],
+"S3_hierarchical_min_separation_m": [
+12.457235999982496,
+0.6751953751737092,
+20
+],
+"S3_hierarchical_crashes": [
+0.0,
+0.0,
+20
+],
+"S3_hierarchical_mean_delay_s": [
+6.281999999999999,
+0.7931583043698242,
+20
+],
+"S3_hierarchical_admm_groups": [
+432.3,
+73.83583151071045,
+20
+],
+"S3_hierarchical_rtf": [
+11.918349999999998,
+0.30836092653540925,
+20
+],
+"S3_hierarchical_admm_ms_p95": [
+0.42405,
+0.037783356040967636,
+20
+],
+"S3_hierarchical_energy_per_delivered_wh": [
+28.325,
+0.7457183278096348,
+20
+],
+"S3_hierarchical_on_time_rate": [
+97.0,
+3.429118609396834,
+20
+],
+"S3_centralized_arrival_frac": [
+88.0,
+1.399931810084077,
+20
+],
+"S3_centralized_near_misses": [
+9.85,
+1.7130457902312788,
+20
+],
+"S3_centralized_safety_violation_ticks": [
+77.6,
+12.381938672324955,
+20
+],
+"S3_centralized_min_separation_m": [
+1.6824930439273842,
+0.26189142021012274,
+20
+],
+"S3_centralized_crashes": [
+1.1,
+0.4529939715048677,
+20
+],
+"S3_centralized_mean_delay_s": [
+5.8195,
+0.3608377655078841,
+20
+],
+"S3_centralized_admm_groups": [
+0.0,
+0.0,
+20
+],
+"S3_centralized_rtf": [
+12.50545,
+0.5331888964079586,
+20
+],
+"S3_centralized_admm_ms_p95": [
+NaN,
+NaN,
+0
+],
+"S3_centralized_energy_per_delivered_wh": [
+26.044999999999998,
+0.7126116414332816,
+20
+],
+"S3_centralized_on_time_rate": [
+99.5,
+1.0465120272041553,
+20
+],
+"S3_decentralized_arrival_frac": [
+95.7,
+0.9123280339565603,
+20
+],
+"S3_decentralized_near_misses": [
+0.0,
+0.0,
+20
+],
+"S3_decentralized_safety_violation_ticks": [
+0.0,
+0.0,
+20
+],
+"S3_decentralized_min_separation_m": [
+12.454330044615087,
+0.6748108862889477,
+20
+],
+"S3_decentralized_crashes": [
+0.0,
+0.0,
+20
+],
+"S3_decentralized_mean_delay_s": [
+6.334999999999999,
+0.7830002413335738,
+20
+],
+"S3_decentralized_admm_groups": [
+451.75,
+72.45610774267595,
+20
+],
+"S3_decentralized_rtf": [
+12.372050000000002,
+0.2843433669529277,
+20
+],
+"S3_decentralized_admm_ms_p95": [
+0.3909,
+0.027778267904614247,
+20
+],
+"S3_decentralized_energy_per_delivered_wh": [
+28.325,
+0.7492655318487914,
+20
+],
+"S3_decentralized_on_time_rate": [
+96.5,
+3.487455310187181,
+20
+],
+"S3_decentralized_undefended_arrival_frac": [
+95.7,
+0.9123280339565603,
+20
+],
+"S3_decentralized_undefended_near_misses": [
+0.0,
+0.0,
+20
+],
+"S3_decentralized_undefended_safety_violation_ticks": [
+0.0,
+0.0,
+20
+],
+"S3_decentralized_undefended_min_separation_m": [
+12.454554075821902,
+0.6750059450226249,
+20
+],
+"S3_decentralized_undefended_crashes": [
+0.0,
+0.0,
+20
+],
+"S3_decentralized_undefended_mean_delay_s": [
+6.334999999999999,
+0.7830002413335738,
+20
+],
+"S3_decentralized_undefended_admm_groups": [
+448.55,
+70.71518030572348,
+20
+],
+"S3_decentralized_undefended_rtf": [
+12.8065,
+0.3781601674667213,
+20
+],
+"S3_decentralized_undefended_admm_ms_p95": [
+0.43000000000000005,
+0.0475683659841148,
+20
+],
+"S3_decentralized_undefended_energy_per_delivered_wh": [
+28.325,
+0.7492655318487914,
+20
+],
+"S3_decentralized_undefended_on_time_rate": [
+96.5,
+3.487455310187181,
+20
+],
+"S4_No attack_spoofed_reports_accepted": [
+0.0,
+0.0,
+20
+],
+"S4_No attack_min_separation_m": [
+12.457235999982496,
+0.6751953751737092,
+20
+],
+"S4_No attack_arrival_frac": [
+95.7,
+0.9123280339565603,
+20
+],
+"S4_No attack_near_misses": [
+0.0,
+0.0,
+20
+],
+"S4_No attack_safety_violation_ticks": [
+0.0,
+0.0,
+20
+],
+"S4_No attack_crashes": [
+0.0,
+0.0,
+20
+],
+"S4_No attack_mean_delay_s": [
+6.281999999999999,
+0.7931583043698242,
+20
+],
+"S4_No attack_attack_active_ticks": [
+0.0,
+0.0,
+20
+],
+"S4_No attack_overseer_dropped": [
+0.0,
+0.0,
+20
+],
+"S4_No attack_dtc_directives": [
+120.1,
+0.20930240544083104,
+20
+],
+"S4_Attack, defended_spoofed_reports_accepted": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, defended_min_separation_m": [
+12.455711154620555,
+0.675271194720671,
+20
+],
+"S4_Attack, defended_arrival_frac": [
+95.85,
+0.8626418916695414,
+20
+],
+"S4_Attack, defended_near_misses": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, defended_safety_violation_ticks": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, defended_crashes": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, defended_mean_delay_s": [
+6.282500000000001,
+0.7927807129567175,
+20
+],
+"S4_Attack, defended_attack_active_ticks": [
+1801.0,
+0.0,
+20
+],
+"S4_Attack, defended_overseer_dropped": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, defended_dtc_directives": [
+120.1,
+0.20930240544083104,
+20
+],
+"S4_Attack, undefended_spoofed_reports_accepted": [
+193.0,
+109.46525282873031,
+20
+],
+"S4_Attack, undefended_min_separation_m": [
+12.389195132278097,
+0.67164712411876,
+20
+],
+"S4_Attack, undefended_arrival_frac": [
+95.75,
+0.8837655554433563,
+20
+],
+"S4_Attack, undefended_near_misses": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, undefended_safety_violation_ticks": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, undefended_crashes": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, undefended_mean_delay_s": [
+6.281999999999999,
+0.7931583043698242,
+20
+],
+"S4_Attack, undefended_attack_active_ticks": [
+1801.0,
+0.0,
+20
+],
+"S4_Attack, undefended_overseer_dropped": [
+0.0,
+0.0,
+20
+],
+"S4_Attack, undefended_dtc_directives": [
+120.1,
+0.20930240544083104,
+20
+],
+"S4_DTC outage_spoofed_reports_accepted": [
+0.0,
+0.0,
+10
+],
+"S4_DTC outage_min_separation_m": [
+11.873127448318083,
+1.2700943624341394,
+10
+],
+"S4_DTC outage_arrival_frac": [
+96.0,
+1.0116674383609678,
+10
+],
+"S4_DTC outage_near_misses": [
+0.0,
+0.0,
+10
+],
+"S4_DTC outage_safety_violation_ticks": [
+0.0,
+0.0,
+10
+],
+"S4_DTC outage_crashes": [
+0.0,
+0.0,
+10
+],
+"S4_DTC outage_mean_delay_s": [
+6.362,
+1.4725112165590057,
+10
+],
+"S4_DTC outage_attack_active_ticks": [
+0.0,
+0.0,
+10
+],
+"S4_DTC outage_overseer_dropped": [
+35.0,
+0.0,
+10
+],
+"S4_DTC outage_dtc_directives": [
+85.0,
+0.3372224794536559,
+10
+],
+"S6_d_arrival_frac": [
+0.0,
+0.0,
+10
+],
+"S6_d_near_misses": [
+0.0,
+0.0,
+10
+],
+"S6_d_mean_delay_s": [
+0.0,
+0.0,
+10
+],
+"S6_d_min_separation_m": [
+0.0,
+0.0,
+10
+],
+"S4_d_undef_vs_def_near_misses": [
+0.0,
+0.0,
+20
+],
+"S4_d_undef_vs_def_safety_violation_ticks": [
+0.0,
+0.0,
+20
+],
+"S4_d_undef_vs_def_min_separation_m": [
+-0.06651602234245617,
+0.09581893137472906,
+20
+],
+"S4_d_undef_vs_def_spoofed_reports_accepted": [
+193.0,
+109.46525282873031,
+20
+],
+"S5_N50_admm_groups": [
+145.8,
+43.293115213559865,
+10
+],
+"S5_N50_admm_it_mean": [
+8.969,
+0.7639071731465236,
+10
+],
+"S5_N50_admm_it_p95": [
+10.6,
+0.36940871778917955,
+10
+],
+"S5_N50_admm_ms_mean": [
+0.2823,
+0.033056490485002143,
+10
+],
+"S5_N50_admm_ms_p95": [
+0.4438,
+0.10390218065468684,
+10
+],
+"S5_N50_admm_conv": [
+1.0,
+0.0,
+10
+],
+"S5_N50_rtf": [
+22.231099999999998,
+1.9363679019349633,
+10
+],
+"S5_N50_near_misses": [
+0.0,
+0.0,
+10
+],
+"S5_N50_arrival_frac": [
+0.958,
+0.01574507610062713,
+10
+],
+"S5_N50_min_separation_m": [
+13.984182839868268,
+0.7761028017090242,
+10
+],
+"S5_N100_admm_groups": [
+520.6,
+111.9031019197022,
+10
+],
+"S5_N100_admm_it_mean": [
+9.129000000000001,
+0.2641003227051833,
+10
+],
+"S5_N100_admm_it_p95": [
+10.7,
+0.3455502144136434,
+10
+],
+"S5_N100_admm_ms_mean": [
+0.2681,
+0.015029873879675457,
+10
+],
+"S5_N100_admm_ms_p95": [
+0.43789999999999996,
+0.05592247930299816,
+10
+],
+"S5_N100_admm_conv": [
+1.0,
+0.0,
+10
+],
+"S5_N100_rtf": [
+11.4953,
+0.3293940518513424,
+10
+],
+"S5_N100_near_misses": [
+0.0,
+0.0,
+10
+],
+"S5_N100_arrival_frac": [
+0.9600000000000002,
+0.010116674383609667,
+10
+],
+"S5_N100_min_separation_m": [
+11.873127448318083,
+1.2700943624341394,
+10
+],
+"S5_N150_admm_groups": [
+832.9,
+158.47391809016509,
+10
+],
+"S5_N150_admm_it_mean": [
+8.957,
+0.18700043126830262,
+10
+],
+"S5_N150_admm_it_p95": [
+10.8,
+0.30162095503976033,
+10
+],
+"S5_N150_admm_ms_mean": [
+0.26050000000000006,
+0.007359257711143503,
+10
+],
+"S5_N150_admm_ms_p95": [
+0.38839999999999997,
+0.04161549476675477,
+10
+],
+"S5_N150_admm_conv": [
+1.0,
+0.0,
+10
+],
+"S5_N150_rtf": [
+7.974200000000001,
+0.32944199314518935,
+10
+],
+"S5_N150_near_misses": [
+0.0,
+0.0,
+10
+],
+"S5_N150_arrival_frac": [
+0.9299999999999999,
+0.012963464508764571,
+10
+],
+"S5_N150_min_separation_m": [
+11.294143197127728,
+0.869435046671921,
+10
+],
+"S5_N200_admm_groups": [
+1199.8,
+126.01512697215729,
+10
+],
+"S5_N200_admm_it_mean": [
+8.716999999999999,
+0.1253656032756883,
+10
+],
+"S5_N200_admm_it_p95": [
+10.8,
+0.30162095503976033,
+10
+],
+"S5_N200_admm_ms_mean": [
+0.26970000000000005,
+0.009680399913469608,
+10
+],
+"S5_N200_admm_ms_p95": [
+0.446,
+0.04671231298544899,
+10
+],
+"S5_N200_admm_conv": [
+1.0,
+0.0,
+10
+],
+"S5_N200_rtf": [
+5.667,
+0.2790609236033387,
+10
+],
+"S5_N200_near_misses": [
+0.0,
+0.0,
+10
+],
+"S5_N200_arrival_frac": [
+0.9085000000000001,
+0.01617701611061865,
+10
+],
+"S5_N200_min_separation_m": [
+11.785195531589302,
+0.7234736330279895,
+10
+]
+}

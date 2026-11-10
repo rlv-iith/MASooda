@@ -1,0 +1,50 @@
+{
+ "nominal": {
+  "n": 43200,
+  "rmse_pct": 0.20892030488240831,
+  "max_abs_pct": 0.9121829331253273,
+  "within_2sigma": 1.0,
+  "within_3sigma": 1.0,
+  "mean_sigma_pct": 0.5518492617504359,
+  "p_overestimate_energy": 0.0,
+  "p_overestimate_energy_after180": 0.0,
+  "max_over_wh": -33.603579851019674,
+  "q_ratio_end_mean": 1.0077261064316787
+ },
+ "capacity_loss": {
+  "n": 36000,
+  "rmse_pct": 0.2586394337103611,
+  "max_abs_pct": 0.9740193123157104,
+  "within_2sigma": 1.0,
+  "within_3sigma": 1.0,
+  "mean_sigma_pct": 0.6111853516985942,
+  "p_overestimate_energy": 0.0898888888888889,
+  "p_overestimate_energy_after180": 0.0,
+  "max_over_wh": 36.54984220965861,
+  "q_ratio_end_mean": 1.0122043787410862
+ },
+ "cell_failure": {
+  "n": 36000,
+  "rmse_pct": 0.2837487829094025,
+  "max_abs_pct": 1.2399949992551562,
+  "within_2sigma": 0.9999444444444444,
+  "within_3sigma": 1.0,
+  "mean_sigma_pct": 0.5921838504056565,
+  "p_overestimate_energy": 0.0,
+  "p_overestimate_energy_after180": 0.0,
+  "max_over_wh": -43.13009400269743,
+  "q_ratio_end_mean": 0.9636055396637498
+ },
+ "overheating": {
+  "n": 36000,
+  "rmse_pct": 0.33479338878214754,
+  "max_abs_pct": 1.1191575900038275,
+  "within_2sigma": 1.0,
+  "within_3sigma": 1.0,
+  "mean_sigma_pct": 0.6252348358119926,
+  "p_overestimate_energy": 0.0,
+  "p_overestimate_energy_after180": 0.0,
+  "max_over_wh": -78.41754261599112,
+  "q_ratio_end_mean": 0.605043260198101
+ }
+}

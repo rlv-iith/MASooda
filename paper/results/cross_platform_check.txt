@@ -1,0 +1,6 @@
+runs on both platforms (code unchanged between them): 132
+discrete metrics compared: arrivals, delivered, diversions, grounded_preflight, forced_landings, energy_depleted, near_misses, safety_violation_ticks, crashes, pads_held_short
+runs with any discrete difference: 0
+max |difference| in min_separation_m: 0.000125727
+max |difference| in mean_delay_s: 0.01
+max |difference| in energy_per_delivered_wh: 0.1

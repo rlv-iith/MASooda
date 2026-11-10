@@ -1,0 +1,28 @@
+    9.0  depart   D-101 DELIVERY departs V10 → V2 on layer L3 (2.00 km corridor route)
+   14.0  wall     Corridor boundary: lateral 10.0 m > 10 m → held on tube wall
+   15.7  depart   D-100 DELIVERY departs V12 → V1 on layer L1 (2.04 km corridor route)
+   23.8  wall     Corridor boundary: lateral 10.5 m > 10 m → held on tube wall
+   54.0  bms      BMS NORMAL → CRITICAL (CELL_IMBALANCE) · SoC 53% · pack 36 °C · motor 48 °C
+   54.0  divert   D-101 BMS CRITICAL (CELL_IMBALANCE): DIVERTING to V11 (571 m, needs 30 of 124 Wh)
+   60.0  admm     ADMM conflict detected with D-100 — negotiating velocities (10 iterations, converged)
+   60.0  admm     ADMM conflict detected with D-14 — negotiating velocities (10 iterations, converged)
+   60.7  admm_ok  ADMM conflict resolved in 0.7 s with D-100
+   60.7  admm_ok  ADMM conflict resolved in 0.7 s with D-14
+   61.0  bms      BMS NORMAL → CRITICAL (CELL_IMBALANCE) · SoC 56% · pack 36 °C · motor 49 °C
+   61.0  divert   D-100 BMS CRITICAL (CELL_IMBALANCE): DIVERTING to V10 (59 m, needs 13 of 139 Wh)
+   61.9  wall     Corridor boundary: lateral 10.1 m > 10 m → held on tube wall
+   64.3  hold     D-78 ground hold at V10: waiting for a merge gap — D-100 near the corridor junction on L1
+   64.3  wall     Corridor boundary: lateral 13.8 m > 10 m → held on tube wall
+   67.7  hold     D-12 ground hold at V10: pad airspace occupied by D-100
+   68.5  land     D-100 landed at V10
+   68.6  admm     ADMM conflict detected with D-101 — negotiating velocities (8 iterations, converged)
+   68.6  admm     ADMM conflict detected with D-57 — negotiating velocities (8 iterations, converged)
+   70.6  admm_ok  ADMM conflict resolved in 2.0 s with D-101
+   70.6  admm_ok  ADMM conflict resolved in 2.0 s with D-57
+   84.8  admm     ADMM conflict detected with D-101 — negotiating velocities (8 iterations, converged)
+   84.8  admm     ADMM conflict detected with D-42 — negotiating velocities (8 iterations, converged)
+   86.8  admm_ok  ADMM conflict resolved in 2.0 s with D-101
+   86.8  admm_ok  ADMM conflict resolved in 2.0 s with D-42
+  102.7  wall     Corridor boundary: lateral 10.3 m > 10 m → held on tube wall
+  109.5  land     D-101 landed at V11
+stats: {'arrivals': 98, 'diversions': 2, 'forced_landings': 0, 'pads_held_short': 0, 'near_misses': 0}
