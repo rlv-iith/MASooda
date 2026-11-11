@@ -2,7 +2,7 @@
  "id": "summer_ops",
  "order": 11,
  "title": "Summer afternoon at 350 drones: every case",
- "description": "A sunny 44 °C May afternoon on campus with a 3 m/s westerly. 350 drones fly repeated sorties for 10 minutes (battery swaps at the Mess A, Mess B and Sampoorna depots), and every case the demo handles happens at least once. A drone parked on a sun-baked pad during a ground stop heats up and is refused at pre-flight. Every BMS code shows up at WARNING, CRITICAL and FAULT: low charge, cell failure, unknown capacity loss, cell sag, pack overheating, motor overheating, over-current, take-off mass and low-energy pre-flight refusals and a GNSS sensor fault. Alongside: a non-cooperative intruder, two blood runs, a medevac upgrade, GPS spoofing and quarantine, every operator console command, a VIP restricted area lifted early, a DTC outage with a queued command, and a storm cell with a second ground stop and a low-charge recall.",
+ "description": "A sunny 44 °C May afternoon on campus with a 3 m/s westerly. 350 drones fly repeated sorties for 10 minutes (battery swaps at the Mess A, Mess B and Sampoorna depots), and every case the demo handles happens at least once. A drone parked on a sun-baked pad during a ground stop heats up and is refused at pre-flight. Every BMS code shows up at each level it has (WARNING, CRITICAL, FAULT): low charge, cell failure, unknown capacity loss, cell sag, pack overheating, motor overheating, over-current, take-off mass and low-energy pre-flight refusals and a GNSS sensor fault. Alongside: a non-cooperative intruder, two blood runs, a medevac upgrade, GPS spoofing and quarantine, every operator console command, a VIP restricted area lifted early, a DTC outage with a queued command, and a storm cell with a second ground stop and a low-charge recall.",
  "kpi_focus": [
   "BMS alerts by code and level",
   "pre-flight refusals (heat, mass)",
@@ -522,15 +522,15 @@
   ],
   [
    35,
-   "Ground stop on the west campus (S3); @sunbaked is parked on the hot Guest House pad"
+   "Ground stop on the west campus (S3); @sunbaked sits powered on the sun-baked Guest House pad"
   ],
   [
    45,
    "@blood2 EMERGENCY Academic Area → Hospital: same pad, pad arbitration"
   ],
   [
-   54,
-   "@sunbaked pack heats in the sun: OVER_TEMP WARNING, then CRITICAL"
+   74,
+   "@sunbaked pack heats on the pad: OVER_TEMP WARNING (55 °C), CRITICAL at 106 s (65 °C)"
   ],
   [
    80,
@@ -538,7 +538,7 @@
   ],
   [
    90,
-   "Console on @courier: change layer, hold, resume, reroute to Mess B"
+   "Console on @courier: change layer (refused by the layer safety check), hold, resume, reroute to Mess B"
   ],
   [
    120,
@@ -546,15 +546,11 @@
   ],
   [
    140,
-   "Operator quarantines both spoofers"
-  ],
-  [
-   140,
-   "@capacity (31 %) loses 30 % capacity, BMS learns it from voltage → low-reserve diversion"
+   "Operator quarantines both spoofers; @capacity loses 30 % capacity unseen, BMS learns it from voltage"
   ],
   [
    150,
-   "Operator: @courier2 return to base; @lowbatt (28 %) UNDER_VOLTAGE WARNING → CRITICAL"
+   "Operator: @courier2 return to base"
   ],
   [
    160,
@@ -569,10 +565,6 @@
    "VIP restricted area announced (active 180 s)"
   ],
   [
-   175,
-   "@overheat pack overheating in flight: speed limit, CRITICAL hold, then FAULT"
-  ],
-  [
    190,
    "@cellfail cell failure → CELL_IMBALANCE CRITICAL, right of way, pad reserved, diverts"
   ],
@@ -581,12 +573,16 @@
    "@sag cell failure at 45 % → cell sags below 3.0 V → UNDER_VOLTAGE FAULT, lands in place"
   ],
   [
-   200,
-   "@motor 4 kg payload + worn motor → OVER_CURRENT, motor 110 °C CRITICAL, diverts"
+   201,
+   "@motor (4 kg payload, worn motor) flickers OVER_CURRENT WARNING ↔ all clear"
+  ],
+  [
+   207,
+   "@overheat pack overheating in flight: WARNING, CRITICAL (speed limit, 30 s hold), FAULT at 269 s"
   ],
   [
    210,
-   "@overload 12 kg payload refused at pre-flight (over maximum take-off mass); @drained (16 %) refused for too little energy at 215 s"
+   "@overload 12 kg payload refused at pre-flight (over maximum take-off mass); @drained (16 %) refused for too little energy"
   ],
   [
    245,
@@ -594,11 +590,27 @@
   ],
   [
    260,
-   "@gnss GNSS degradation → SENSOR_FAULT; VIP area lifted early (tfr_cancel)"
+   "VIP area lifted early (tfr_cancel)"
+  ],
+  [
+   277,
+   "@cellfail refused for its next sortie: BMS CRITICAL (CELL_IMBALANCE)"
+  ],
+  [
+   290,
+   "@gnss GNSS degradation → SENSOR_FAULT, lands in place"
   ],
   [
    300,
    "DTC link down (to 345 s): routine traffic loiters, emergencies continue; command at 330 s queued"
+  ],
+  [
+   314,
+   "@motor reaches 110 °C: OVER_TEMP + OVER_CURRENT CRITICAL, diverts after 30 s"
+  ],
+  [
+   381,
+   "@lowbatt (32 %) reaches UNDER_VOLTAGE CRITICAL, lands at the nearest pad, queues for a battery swap"
   ],
   [
    385,
