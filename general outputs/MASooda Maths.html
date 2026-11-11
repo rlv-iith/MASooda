@@ -1,0 +1,1021 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>MASooda Maths</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
+<style>
+/* Layout: a textbook column with a sticky chapter rail on wide screens; one column on phones. */
+:root {
+  --bg: #f7f8fb;
+  --paper: #ffffff;
+  --fg: #16202e;
+  --muted: #5a6577;
+  --rule: #dde2ea;
+  --accent: #1f6fd1;      /* airspace blue */
+  --accent-soft: #e6f0fc;
+  --warm: #c0641a;        /* highlight / warnings */
+  --warm-soft: #fbefe4;
+  --good: #23824a;
+  --bad: #c23b3b;
+  --code-bg: #eef1f6;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141c; --paper: #151c27; --fg: #e4e9f1; --muted: #9aa6b8; --rule: #2a3442;
+    --accent: #6fa8f0; --accent-soft: #1a2a40; --warm: #e59a5c; --warm-soft: #33261b;
+    --good: #5cc488; --bad: #ef7f7f; --code-bg: #1d2533; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141c; --paper: #151c27; --fg: #e4e9f1; --muted: #9aa6b8; --rule: #2a3442;
+  --accent: #6fa8f0; --accent-soft: #1a2a40; --warm: #e59a5c; --warm-soft: #33261b;
+  --good: #5cc488; --bad: #ef7f7f; --code-bg: #1d2533; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.62; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); } nav.rail { display: none; } }
+nav.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start; max-height: calc(100vh - 40px); overflow-y: auto; font-family: var(--display); font-size: 13.5px; }
+nav.rail a { display: block; color: var(--muted); text-decoration: none; padding: 4px 0 4px 10px; border-left: 2px solid var(--rule); }
+nav.rail a:hover, nav.rail a:focus-visible { color: var(--accent); border-left-color: var(--accent); outline: none; }
+nav.rail .k { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 6px; }
+main { min-width: 0; }
+header.hero { padding: 8px 0 26px; border-bottom: 1px solid var(--rule); margin-bottom: 18px; }
+.eyebrow { font-family: var(--display); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+h1 { font-family: var(--display); font-size: clamp(32px, 5vw, 48px); line-height: 1.08; margin: 10px 0 14px; text-wrap: balance; letter-spacing: -0.01em; }
+.lede { font-size: 19px; color: var(--muted); max-width: 66ch; }
+h2 { font-family: var(--display); font-size: 28px; line-height: 1.2; margin: 56px 0 6px; text-wrap: balance; }
+h2 .num { color: var(--accent); margin-right: 10px; font-variant-numeric: tabular-nums; }
+h3 { font-family: var(--display); font-size: 20px; margin: 30px 0 6px; }
+p, li { max-width: 72ch; }
+.sub { color: var(--muted); margin-top: 0; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font-family: var(--mono); font-size: 13.5px; background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
+a { color: var(--accent); }
+.box { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 20px; margin: 18px 0; }
+.rule { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 18px 0; }
+.rule strong:first-child { font-family: var(--display); color: var(--accent); display: block; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+.ex { border-left: 4px solid var(--warm); background: var(--warm-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 18px 0; }
+.ex strong:first-child { font-family: var(--display); color: var(--warm); display: block; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+.code-link { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; font-family: var(--display); font-size: 13px; }
+.code-link span { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 999px; padding: 3px 10px; font-family: var(--mono); font-size: 12.5px; }
+.code-link b { color: var(--muted); font-weight: 600; align-self: center; }
+figure { margin: 20px 0; }
+figure .svgwrap { overflow-x: auto; background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 10px; }
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+figcaption { color: var(--muted); font-size: 14.5px; margin-top: 6px; font-family: var(--display); }
+.tbl { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; background: var(--paper); }
+th, td { border: 1px solid var(--rule); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { font-family: var(--display); font-size: 13px; color: var(--muted); font-weight: 600; background: var(--code-bg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 13.5px; }
+.mjx { overflow-x: auto; overflow-y: hidden; }
+mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+/* SVG classes (theme-aware) */
+.s-ln { stroke: var(--fg); fill: none; stroke-width: 1.4; }
+.s-mut { stroke: var(--muted); fill: none; stroke-width: 1; }
+.s-grid { stroke: var(--rule); fill: none; stroke-width: 1; }
+.s-acc { stroke: var(--accent); fill: none; stroke-width: 2.2; }
+.s-warm { stroke: var(--warm); fill: none; stroke-width: 2.2; }
+.s-good { stroke: var(--good); fill: none; stroke-width: 2.2; }
+.s-bad { stroke: var(--bad); fill: none; stroke-width: 2; }
+.f-acc { fill: var(--accent); } .f-warm { fill: var(--warm); } .f-fg { fill: var(--fg); } .f-mut { fill: var(--muted); }
+.f-soft { fill: var(--accent-soft); } .f-wsoft { fill: var(--warm-soft); } .f-paper { fill: var(--paper); } .f-good { fill: var(--good); } .f-bad { fill: var(--bad); }
+.t { font-family: var(--display); font-size: 13px; fill: var(--fg); }
+.t-s { font-family: var(--display); font-size: 11.5px; fill: var(--muted); }
+.t-m { font-family: var(--mono); font-size: 12px; fill: var(--fg); }
+.dash { stroke-dasharray: 5 4; }
+/* interactive widgets */
+.widget { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; margin: 20px 0; }
+.widget h4 { font-family: var(--display); margin: 0 0 8px; font-size: 16px; }
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; margin-bottom: 12px; font-family: var(--display); font-size: 14px; }
+.controls label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.controls input[type="text"], .controls input[type="number"], .controls select { font-family: var(--mono); font-size: 14px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
+.controls input[type="range"] { width: 220px; max-width: 100%; accent-color: var(--accent); }
+.out { font-family: var(--mono); font-size: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip { font-family: var(--mono); font-size: 13.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--bg); }
+.chip.own { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.chip.cut { text-decoration: line-through; color: var(--bad); border-color: var(--bad); }
+.chip.keep { color: var(--good); border-color: var(--good); }
+button { font-family: var(--display); font-size: 14px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--paper); cursor: pointer; }
+button.ghost { background: transparent; color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.index td:first-child { font-family: var(--display); font-weight: 600; }
+.small { font-size: 14.5px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+<nav class="rail" aria-label="Chapters">
+  <a href="#notation"><span class="k">0</span>Notation</a>
+  <a href="#arrays"><span class="k">1</span>Arrays, vectors, matrices</a>
+  <a href="#motion"><span class="k">2</span>Motion of one drone</a>
+  <a href="#geometry"><span class="k">3</span>Corridors and maps</a>
+  <a href="#graphs"><span class="k">4</span>Graphs and networks</a>
+  <a href="#local"><span class="k">5</span>Local rules</a>
+  <a href="#admm"><span class="k">6</span>Optimisation and ADMM</a>
+  <a href="#resilience"><span class="k">7</span>Consensus and W-MSR</a>
+  <a href="#global"><span class="k">8</span>The DTC and layers</a>
+  <a href="#stl"><span class="k">9</span>Signal temporal logic</a>
+  <a href="#power"><span class="k">10</span>Flight power</a>
+  <a href="#battery"><span class="k">11</span>Battery circuit</a>
+  <a href="#ekf"><span class="k">12</span>Kalman filtering</a>
+  <a href="#decisions"><span class="k">13</span>Energy decisions</a>
+  <a href="#tick"><span class="k">14</span>One tick, end to end</a>
+  <a href="#index"><span class="k">15</span>Function index</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">MASooda · the maths behind the simulator</div>
+  <h1>From arrays to ADMM: every equation in MASooda, explained</h1>
+  <p class="lede">This guide starts from what an array is and builds up to every equation the simulator uses: separation, consensus ADMM, resilient consensus, signal temporal logic, the battery circuit and the Kalman filter. Each idea comes with a picture, a worked example with real numbers from the code, the rule it obeys, and the exact function in the repository that computes it.</p>
+  <p class="small">Numbers in the worked examples were computed with the repository's own functions on branch <code>bms/publishable</code> (configuration <code>configs/base_config.yaml</code>). Where the code and an equation differ in a detail, the code wins and the text says so.</p>
+</header>
+
+<!-- ============================================================ 0 -->
+<section id="notation">
+<h2><span class="num">0</span>How to read the notation</h2>
+<p class="sub">A few symbols appear everywhere. Learn these and the rest reads like sentences.</p>
+<div class="tbl"><table>
+<tr><th>Symbol</th><th>Read it as</th><th>In MASooda</th></tr>
+<tr><td>\(x,\ t,\ d\)</td><td>a plain number (scalar)</td><td>time \(t\) in s, a distance \(d\) in m</td></tr>
+<tr><td>\(\mathbf{p}_i\)</td><td>a vector: a short list of numbers, here for drone \(i\)</td><td>position \(\mathbf{p}_i=(x_i,y_i)\) in metres</td></tr>
+<tr><td>\(A,\ P,\ F\)</td><td>a matrix: a table of numbers</td><td>adjacency matrix \(A\), covariance \(P\)</td></tr>
+<tr><td>\(\lVert\mathbf{v}\rVert\)</td><td>length (norm) of a vector</td><td>speed \(\lVert\mathbf{v}\rVert\), distance \(\lVert\mathbf{p}_i-\mathbf{p}_j\rVert\)</td></tr>
+<tr><td>\(\mathbf{a}\cdot\mathbf{b}\) or \(\mathbf{a}^\top\mathbf{b}\)</td><td>dot product</td><td>how far \(\mathbf{a}\) points along \(\mathbf{b}\)</td></tr>
+<tr><td>\(\sum_{i},\ \min_{i},\ \arg\min_{L}\)</td><td>add over \(i\); smallest value; the \(L\) that gives the smallest value</td><td>STL robustness, layer choice</td></tr>
+<tr><td>\(\mathcal{N}_i\)</td><td>the set of neighbours of \(i\)</td><td>drones within 40 m over V2V</td></tr>
+<tr><td>\(\operatorname{clip}(x,a,b)\)</td><td>\(x\), but pushed back into \([a,b]\)</td><td><code>np.clip</code></td></tr>
+<tr><td>\(\mathbf{G}\,\varphi,\ \mathbf{F}\,\varphi\)</td><td>"always \(\varphi\)", "eventually \(\varphi\)"</td><td>STL safety and reachability</td></tr>
+<tr><td>\(\hat{x}\)</td><td>an estimate of \(x\)</td><td>\(\widehat{\mathrm{SoC}}\), the BMS estimate</td></tr>
+</table></div>
+<p>Units are SI throughout: metres, seconds, metres per second, watts (W), watt-hours (Wh), volts (V), amperes (A), ohms (Ω), kelvin or °C for temperature differences.</p>
+</section>
+
+<!-- ============================================================ 1 -->
+<section id="arrays">
+<h2><span class="num">1</span>Arrays, vectors and matrices</h2>
+<p class="sub">The whole simulator is arithmetic on arrays. This chapter builds every tool the later chapters use.</p>
+
+<h3>1.1 Arrays and their shape</h3>
+<p>An <b>array</b> is a grid of numbers with a <b>shape</b>. NumPy, the library MASooda uses, writes the shape as a tuple:</p>
+<ul>
+<li>shape <code>(2,)</code>: one position \((x, y)\);</li>
+<li>shape <code>(N, 2)</code>: the positions of \(N\) drones, one row each;</li>
+<li>shape <code>(T, N, D)</code>: a trajectory, \(T\) time samples × \(N\) drones × \(D\) coordinates. The STL monitor reads exactly this shape.</li>
+</ul>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 720 190" role="img" aria-label="Array shapes used in MASooda">
+  <text class="t" x="20" y="24">one drone · shape (2,)</text>
+  <rect x="20" y="36" width="60" height="30" class="s-ln f-paper"/><rect x="80" y="36" width="60" height="30" class="s-ln f-paper"/>
+  <text class="t-m" x="38" y="56">x</text><text class="t-m" x="98" y="56">y</text>
+  <text class="t" x="200" y="24">N drones · shape (N, 2)</text>
+  <g>
+   <rect x="200" y="36" width="60" height="26" class="s-ln f-soft"/><rect x="260" y="36" width="60" height="26" class="s-ln f-soft"/>
+   <rect x="200" y="62" width="60" height="26" class="s-ln f-paper"/><rect x="260" y="62" width="60" height="26" class="s-ln f-paper"/>
+   <rect x="200" y="88" width="60" height="26" class="s-ln f-paper"/><rect x="260" y="88" width="60" height="26" class="s-ln f-paper"/>
+   <text class="t-m" x="214" y="54">x₁</text><text class="t-m" x="274" y="54">y₁</text>
+   <text class="t-m" x="214" y="80">x₂</text><text class="t-m" x="274" y="80">y₂</text>
+   <text class="t-m" x="214" y="106">x₃</text><text class="t-m" x="274" y="106">y₃</text>
+   <text class="t-s" x="330" y="54">← row = drone 1</text>
+  </g>
+  <text class="t" x="470" y="24">trajectory · shape (T, N, D)</text>
+  <g>
+   <rect x="510" y="76" width="120" height="78" class="s-mut f-paper"/>
+   <rect x="500" y="66" width="120" height="78" class="s-mut f-paper"/>
+   <rect x="490" y="56" width="120" height="78" class="s-ln f-soft"/>
+   <text class="t-s" x="500" y="100">N rows × D cols</text>
+   <text class="t-s" x="500" y="116">at time t₀</text>
+   <text class="t-s" x="626" y="170">T time slices →</text>
+  </g>
+</svg></div>
+<figcaption>The same positions, seen at three scales. Most functions take <code>(N, 2)</code> or <code>(T, N, D)</code> arrays.</figcaption></figure>
+
+<h3>1.2 Vectors: adding, scaling, length</h3>
+<p>A vector is an arrow. Adding vectors puts arrows head to tail; multiplying by a number stretches the arrow.</p>
+\[ \mathbf{a}+\mathbf{b}=(a_x+b_x,\ a_y+b_y),\qquad c\,\mathbf{a}=(c\,a_x,\ c\,a_y),\qquad \lVert\mathbf{a}\rVert=\sqrt{a_x^2+a_y^2}. \]
+<p>The length \(\lVert\mathbf{a}\rVert\) is Pythagoras. The distance between two drones is the length of their difference:</p>
+\[ d_{ij}=\lVert\mathbf{p}_i-\mathbf{p}_j\rVert . \]
+<p>A <b>unit vector</b> has length 1 and only carries a direction: \(\hat{\mathbf{a}}=\mathbf{a}/\lVert\mathbf{a}\rVert\).</p>
+<div class="rule"><strong>Rule · clamp a vector</strong>To keep a speed or acceleration under a limit \(m\) without changing its direction, rescale it when it is too long: \(\mathbf{v}\leftarrow \mathbf{v}\cdot \min\!\big(1,\ m/\lVert\mathbf{v}\rVert\big)\).</div>
+<div class="code-link"><b>In code</b><span>simulation/dynamics.py › clamp_vector_2d</span></div>
+<div class="ex"><strong>Example</strong>A command \(\mathbf{v}=(12,\,9)\) m/s has length \(\sqrt{144+81}=15\) m/s. With the 15 m/s limit it passes unchanged. The command \((16,\,12)\) has length 20 and is scaled by \(15/20=0.75\) to \((12,\,9)\).</div>
+
+<h3>1.3 The dot product, projection and the "left" vector</h3>
+<p>The dot product multiplies matching entries and adds them:</p>
+\[ \mathbf{a}\cdot\mathbf{b}=a_xb_x+a_yb_y=\lVert\mathbf{a}\rVert\,\lVert\mathbf{b}\rVert\cos\theta . \]
+<p>If \(\hat{\mathbf{t}}\) is a unit vector, \(\mathbf{a}\cdot\hat{\mathbf{t}}\) is <b>how far \(\mathbf{a}\) reaches along \(\hat{\mathbf{t}}\)</b>. MASooda uses this constantly: "along-track" distance to the drone ahead is \(\mathbf{r}\cdot\hat{\mathbf{t}}\), and the sideways ("lateral") offset is \(\mathbf{r}\cdot\hat{\mathbf{n}}\), where \(\hat{\mathbf{n}}\) is the unit vector to the left of the direction of travel:</p>
+\[ \hat{\mathbf{t}}=(t_x,t_y)\quad\Rightarrow\quad \hat{\mathbf{n}}_{\text{left}}=(-t_y,\ t_x). \]
+<figure><div class="svgwrap">
+<svg viewBox="0 0 640 230" role="img" aria-label="Dot product as projection: along-track and lateral components">
+  <line x1="60" y1="170" x2="580" y2="170" class="s-grid"/>
+  <line x1="80" y1="170" x2="300" y2="170" class="s-acc"/><polygon points="300,170 290,165 290,175" class="f-acc"/>
+  <text class="t" x="170" y="192">t̂ (direction of travel)</text>
+  <line x1="80" y1="170" x2="80" y2="80" class="s-warm"/><polygon points="80,80 75,90 85,90" class="f-warm"/>
+  <text class="t" x="20" y="120">n̂ (left)</text>
+  <line x1="80" y1="170" x2="430" y2="70" class="s-ln"/><polygon points="430,70 418,70 423,79" class="f-fg"/>
+  <text class="t" x="440" y="68">r = p_ahead − p_me</text>
+  <line x1="430" y1="70" x2="430" y2="170" class="s-mut dash"/>
+  <text class="t" x="438" y="128">lateral = r·n̂</text>
+  <line x1="80" y1="210" x2="430" y2="210" class="s-mut"/><line x1="80" y1="204" x2="80" y2="216" class="s-mut"/><line x1="430" y1="204" x2="430" y2="216" class="s-mut"/>
+  <text class="t" x="200" y="226">along-track = r·t̂</text>
+  <circle cx="80" cy="170" r="5" class="f-acc"/><circle cx="430" cy="70" r="5" class="f-warm"/>
+</svg></div>
+<figcaption>Two dot products split the vector to another drone into "ahead of me" and "beside me".</figcaption></figure>
+<div class="ex"><strong>Example</strong>I fly east, \(\hat{\mathbf{t}}=(1,0)\), so \(\hat{\mathbf{n}}=(0,1)\). A drone sits at \(\mathbf{r}=(30,4)\) m from me. Along-track \(=30\cdot1+4\cdot0=30\) m; lateral \(=30\cdot0+4\cdot1=4\) m. It is 30 m ahead, 4 m to my left, inside my 20 m tube (half-width 10 m), so it counts as traffic ahead.</div>
+<div class="code-link"><b>In code</b><span>simulation/route_engine.py › _simulate (car-following: along = rel @ tan)</span><span>simulation/layer_agreement.py › LayerAgreement._gap</span></div>
+
+<h3>1.4 Matrices</h3>
+<p>A matrix is a table of numbers that acts on vectors. Multiplying matrix \(M\) by vector \(\mathbf{v}\) takes the dot product of each row with \(\mathbf{v}\):</p>
+\[ M\mathbf{v}=\begin{pmatrix} m_{11} & m_{12}\\ m_{21} & m_{22}\end{pmatrix}\begin{pmatrix}v_1\\ v_2\end{pmatrix}=\begin{pmatrix} m_{11}v_1+m_{12}v_2\\ m_{21}v_1+m_{22}v_2\end{pmatrix}. \]
+<ul>
+<li>The <b>transpose</b> \(M^\top\) swaps rows and columns. A matrix with \(M=M^\top\) is <b>symmetric</b>; adjacency matrices, Laplacians and covariance matrices all are.</li>
+<li>The <b>identity</b> \(I\) has ones on the diagonal and leaves vectors unchanged: \(I\mathbf{v}=\mathbf{v}\).</li>
+<li>The <b>trace</b> \(\operatorname{tr}(M)\) is the sum of the diagonal.</li>
+<li>An <b>eigenvalue</b> \(\lambda\) and eigenvector \(\mathbf{u}\) satisfy \(M\mathbf{u}=\lambda\mathbf{u}\): the matrix only stretches \(\mathbf{u}\). A symmetric matrix has real eigenvalues; <code>np.linalg.eigvalsh</code> computes them. Chapter 4 uses the second-smallest eigenvalue of the graph Laplacian.</li>
+</ul>
+
+<h3>1.5 All pairwise distances at once: broadcasting</h3>
+<p>Many functions need every distance \(d_{ij}\) between \(N\) drones, an \(N\times N\) matrix. NumPy builds it without loops by <b>broadcasting</b>: subtract a <code>(N,1,2)</code> copy from a <code>(1,N,2)</code> copy to get every difference in a <code>(N,N,2)</code> array, then take lengths along the last axis.</p>
+<pre>deltas    = positions[:, None, :] - positions[None, :, :]   # (N, N, 2)
+distances = np.sqrt(np.sum(deltas * deltas, axis=2))        # (N, N)</pre>
+<div class="ex"><strong>Example</strong>Three drones at \((0,0)\), \((12,5)\), \((30,0)\):
+\[ D=\begin{pmatrix}0 & 13 & 30\\ 13 & 0 & 18.68\\ 30 & 18.68 & 0\end{pmatrix}\ \text{m}. \]
+\(d_{12}=\sqrt{12^2+5^2}=13\); \(d_{23}=\sqrt{18^2+5^2}=18.68\). With the 20 m ADMM detection radius, pairs (1,2) and (2,3) are in conflict and (1,3) is not. Section 4.4 uses this example again.</div>
+<div class="code-link"><b>In code</b><span>conflict_resolution/detection.py › detect_conflicts</span><span>verification/stl_monitor.py › _pairwise_min</span><span>simulation/route_engine.py › layered_min_separation</span></div>
+<p class="small">The route engine also uses <code>np.einsum("ijk,ijk->ij", diff, diff)</code>, which is the same sum of squares written as an index formula, and a uniform grid (<code>simulation/spatial_grid.py › UniformGrid</code>) so that it only compares drones in nearby cells. That turns \(O(N^2)\) work into roughly \(O(N)\) at 500 drones.</p>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="motion">
+<h2><span class="num">2</span>Motion of one drone</h2>
+<p class="sub">Every drone is a point that obeys a double integrator: acceleration changes velocity, velocity changes position.</p>
+
+<h3>2.1 The double integrator and Euler steps</h3>
+<p>Continuous motion is \(\dot{\mathbf{p}}=\mathbf{v}\), \(\dot{\mathbf{v}}=\mathbf{a}\). The simulator advances in small steps \(\Delta t=0.1\) s (forward Euler):</p>
+\[ \mathbf{p}_{t+1}=\mathbf{p}_t+\mathbf{v}_t\,\Delta t,\qquad \mathbf{v}_{t+1}=\operatorname{clamp}\!\big(\mathbf{v}_t+\operatorname{clamp}(\mathbf{a}_t,a_{\max})\,\Delta t,\ v_{\max}\big), \]
+<p>with \(v_{\max}=15\) m/s. Altitude is not integrated: a drone sits on a discrete layer \(L\in\{0,\dots,6\}\) whose height is \(30+15L\) m.</p>
+
+<h3>2.2 Tracking a desired velocity</h3>
+<p>The higher layers (local rules, ADMM) produce a desired velocity \(\mathbf{v}^{\text{des}}\). The engine turns it into an acceleration with a first-order lag of time constant \(\tau_v=0.5\) s:</p>
+\[ \mathbf{a}=\frac{\mathbf{v}^{\text{des}}-\mathbf{v}}{\tau_v}. \]
+<p>The gap between actual and desired velocity shrinks by a factor \(e^{-\Delta t/\tau_v}\) per step, roughly 18% per tick.</p>
+<div class="ex"><strong>Example</strong>Flying \(\mathbf{v}=(10,0)\), desired \((12,0)\): \(\mathbf{a}=(2,0)/0.5=(4,0)\) m/s². After one tick \(\mathbf{v}=(10.4,0)\) and the drone moved \(10\times0.1=1\) m.</div>
+<div class="code-link"><b>In code</b><span>simulation/dynamics.py › step_dynamics</span><span>simulation/route_engine.py › _simulate (accel = (desired − velocity) / tau_v)</span></div>
+<div class="rule"><strong>Rule · order of updates</strong><code>step_dynamics</code> moves the position with the <em>old</em> velocity, then updates the velocity. The project audit (D21) noted that ADMM's one-step prediction \(\mathbf{p}+\mathbf{v}^{\text{des}}\Delta t\) therefore differs slightly from the state the engine produces; the STL monitor measures the real outcome independently.</div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="geometry">
+<h2><span class="num">3</span>Corridors, maps and routes</h2>
+<p class="sub">Roads become a graph, routes become polylines, and the corridor tube is a distance rule around each polyline.</p>
+
+<h3>3.1 From map to local metres</h3>
+<p>Map coordinates are longitude \(\lambda\) and latitude \(\varphi\) in degrees. Over a few kilometres the Earth is flat enough for a local tangent plane around a reference point \((\lambda_0,\varphi_0)\). A degree of latitude is about 111 km everywhere; a degree of longitude shrinks with \(\cos\varphi_0\):</p>
+\[ x=(\lambda-\lambda_0)\,m_{\text{lon}}\cos\varphi_0,\qquad y=(\varphi-\varphi_0)\,m_{\text{lat}},\qquad m_{\text{lon}}\approx m_{\text{lat}}\approx1.11\times10^5\ \text{m per degree}. \]
+<p>At Hyderabad (\(\varphi_0\approx17.6^\circ\)), \(\cos\varphi_0\approx0.953\), so a degree of longitude is about 106 km. The inverse, <code>to_geo</code>, divides by the same factors.</p>
+<div class="code-link"><b>In code</b><span>simulation/road_network.py › GeoFrame.to_local / to_geo</span></div>
+
+<h3>3.2 Shortest paths: Dijkstra</h3>
+<p>Junctions are nodes, road pieces are edges weighted by length. A route between two vertiports is the shortest path. Dijkstra's algorithm keeps a priority queue of tentative distances and repeatedly settles the closest unsettled node:</p>
+\[ \text{dist}(v)\leftarrow\min\big(\text{dist}(v),\ \text{dist}(u)+w(u,v)\big)\quad\text{for each edge }(u,v). \]
+<p>On the campus graph (105 junctions) this takes well under a millisecond; on the Hyderabad graph (1,533 junctions) a few milliseconds.</p>
+<div class="code-link"><b>In code</b><span>simulation/road_network.py › RoadNetwork.shortest_path</span><span>simulation/dtc_console.py › plan_route (avoids restricted areas)</span></div>
+
+<h3>3.3 A route as an arc-length polyline</h3>
+<p>A route is a list of points \(\mathbf{q}_0,\dots,\mathbf{q}_K\). Each segment has length \(\ell_k=\lVert\mathbf{q}_{k+1}-\mathbf{q}_k\rVert\) and unit direction \(\hat{\mathbf{t}}_k\). The cumulative length \(c_k=\sum_{m\lt k}\ell_m\) lets any distance \(s\) along the route map to a point:</p>
+\[ \mathbf{q}(s)=\mathbf{q}_k+\hat{\mathbf{t}}_k\,(s-c_k)\quad\text{for }c_k\le s\lt c_{k+1}. \]
+
+<h3>3.4 Nearest point on a segment and the lateral error</h3>
+<p>To find where a drone at \(\mathbf{p}\) is along its route, project onto each nearby segment, clip to the segment, and keep the closest:</p>
+\[ \tau_k=\operatorname{clip}\big((\mathbf{p}-\mathbf{q}_k)\cdot\hat{\mathbf{t}}_k,\ 0,\ \ell_k\big),\qquad \mathbf{q}^\ast=\mathbf{q}_k+\tau_k\hat{\mathbf{t}}_k,\qquad e=(\mathbf{p}-\mathbf{q}^\ast)\cdot\hat{\mathbf{n}}. \]
+<p>\(e\) is the signed lateral error: positive to the left of the centreline. The search is limited to a window \([s-40,\ s+120]\) m around the last known progress so a route that crosses itself cannot make the drone "jump".</p>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 700 250" role="img" aria-label="Corridor tube around a route with lateral error and the tube wall">
+  <path d="M40,170 L260,170 L420,90 L660,90" class="s-grid" style="stroke-width:62;stroke-linejoin:round;stroke:var(--accent-soft)"/>
+  <path d="M40,170 L260,170 L420,90 L660,90" class="s-acc"/>
+  <path d="M40,140 L252,140 L408,62 L660,62" class="s-mut dash"/>
+  <path d="M40,200 L268,200 L432,118 L660,118" class="s-mut dash"/>
+  <text class="t-s" x="560" y="56">tube wall (+10 m)</text><text class="t-s" x="560" y="136">tube wall (−10 m)</text>
+  <circle cx="160" cy="152" r="6" class="f-warm"/><line x1="160" y1="152" x2="160" y2="170" class="s-warm"/>
+  <text class="t" x="168" y="150">p (inside, e = +4 m)</text>
+  <circle cx="330" cy="100" r="6" class="f-bad"/><line x1="330" y1="100" x2="352" y2="140" class="s-bad dash"/>
+  <circle cx="345" cy="112" r="5" class="f-good"/>
+  <text class="t" x="230" y="94">p (outside, |e| = 14 m)</text>
+  <text class="t" x="356" y="124">projected back to the wall</text>
+  <circle cx="400" cy="99" r="4" class="f-acc"/><text class="t-s" x="392" y="160">look-ahead point q(s+40)</text>
+  <line x1="400" y1="99" x2="400" y2="150" class="s-mut"/>
+</svg></div>
+<figcaption>Each 20 m tube surrounds the route centreline. A drone more than 10 m off the line is put back on the wall and loses its outward velocity.</figcaption></figure>
+<div class="rule"><strong>Rule · tube boundary</strong>If \(\lvert e\rvert\gt w/2\) (10 m), set \(\mathbf{p}\leftarrow\mathbf{q}^\ast+\operatorname{sign}(e)\,\tfrac{w}{2}\,\hat{\mathbf{n}}\) and remove the outward velocity: \(\mathbf{v}\leftarrow\mathbf{v}-\max(0,\mathbf{v}\cdot\hat{\mathbf{w}})\,\hat{\mathbf{w}}\), where \(\hat{\mathbf{w}}=\operatorname{sign}(e)\hat{\mathbf{n}}\). The map edge is a geofence handled the same way.</div>
+<div class="code-link"><b>In code</b><span>simulation/road_network.py › RoutePath.project</span><span>RoutePath.point_at</span><span>RoutePath.tangent_at</span><span>RoadNetwork.clamp</span><span>route_engine.py › _simulate (tube + geofence)</span></div>
+
+<h3>3.5 Pure-pursuit steering with a keep-left lane</h3>
+<p>A drone steers towards a point 40 m ahead on its route, shifted left by a lane offset (a quarter of the tube width, 5 m; India keeps left). With reference speed \(v_{\text{ref}}\) and lateral gain \(k_{\text{lat}}=0.5\ \text{s}^{-1}\):</p>
+\[ \mathbf{v}^{\text{goal}}=v_{\text{ref}}\,\frac{\mathbf{q}_{\text{look}}-\mathbf{p}}{\lVert\mathbf{q}_{\text{look}}-\mathbf{p}\rVert}\;-\;k_{\text{lat}}\,(e-e_{\text{lane}})\,\hat{\mathbf{n}}. \]
+<p>The second term is a proportional controller: 4 m off the lane line produces a 2 m/s correction towards it.</p>
+
+<h3>3.6 Sectors, polygons and restricted areas</h3>
+<p>The map's bounding box is cut into a 3 × 2 grid of sectors. With column \(c=\lfloor 3(x-x_{\min})/(x_{\max}-x_{\min})\rfloor\) and row \(r=\lfloor 2(y-y_{\min})/(y_{\max}-y_{\min})\rfloor\), the sector id is \(3r+c\in\{0,\dots,5\}\).</p>
+<p>A restricted area (TFR) is a polygon. A point is inside if a ray from it crosses the boundary an odd number of times (the even–odd rule). A route segment enters a polygon if it crosses an edge, which is tested with the sign of the cross product \(\operatorname{orient}(\mathbf{a},\mathbf{b},\mathbf{c})=(b_x-a_x)(c_y-a_y)-(b_y-a_y)(c_x-a_x)\).</p>
+<div class="code-link"><b>In code</b><span>route_engine.py › _sector</span><span>dtc_console.py › points_in_polygon</span><span>segments_cross_polygon</span><span>route_hits_zones</span><span>polygon_area (shoelace formula)</span></div>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="graphs">
+<h2><span class="num">4</span>Graphs and network theory</h2>
+<p class="sub">Who can talk to whom is a graph. Its matrix tells you how well the swarm can agree.</p>
+
+<h3>4.1 The communication graph</h3>
+<p>Each drone is a node. Two drones share an edge if they are within the V2V radius \(R=40\) m. The <b>adjacency matrix</b> \(A\) has \(A_{ij}=1\) for an edge, 0 otherwise; it is symmetric with zeros on the diagonal. The <b>degree</b> \(\deg_i=\sum_j A_{ij}\) counts neighbours.</p>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 700 220" role="img" aria-label="A four-drone graph and its adjacency matrix">
+  <line x1="90" y1="60" x2="210" y2="60" class="s-ln"/><line x1="90" y1="60" x2="150" y2="150" class="s-ln"/><line x1="210" y1="60" x2="150" y2="150" class="s-ln"/><line x1="150" y1="150" x2="290" y2="170" class="s-ln"/>
+  <circle cx="90" cy="60" r="18" class="f-soft s-acc"/><text class="t" x="86" y="65">1</text>
+  <circle cx="210" cy="60" r="18" class="f-soft s-acc"/><text class="t" x="206" y="65">2</text>
+  <circle cx="150" cy="150" r="18" class="f-wsoft s-warm"/><text class="t" x="146" y="155">3</text>
+  <circle cx="290" cy="170" r="18" class="f-soft s-acc"/><text class="t" x="286" y="175">4</text>
+  <text class="t-s" x="60" y="205">triangle 1–2–3 · drone 3 is the hub (degree 3)</text>
+  <text class="t" x="390" y="34">A =</text>
+  <g class="t-m">
+   <text x="440" y="62">0  1  1  0</text><text x="440" y="92">1  0  1  0</text><text x="440" y="122">1  1  0  1</text><text x="440" y="152">0  0  1  0</text>
+  </g>
+  <path d="M432,44 L426,44 L426,160 L432,160" class="s-ln"/><path d="M548,44 L554,44 L554,160 L548,160" class="s-ln"/>
+  <text class="t-s" x="570" y="62">deg 2</text><text class="t-s" x="570" y="92">deg 2</text><text class="t-s" x="570" y="122">deg 3</text><text class="t-s" x="570" y="152">deg 1</text>
+</svg></div>
+<figcaption>Row \(i\) of \(A\) lists drone \(i\)'s neighbours. Summing a row gives its degree.</figcaption></figure>
+<div class="code-link"><b>In code</b><span>simulation/comm_graph.py › build_radius_graph</span><span>build_knn_graph</span><span>spatial_grid.py › radius_adjacency</span></div>
+
+<h3>4.2 The numbers in the Network panel</h3>
+<div class="tbl"><table>
+<tr><th>Measure</th><th>Formula</th><th class="num">Example graph</th></tr>
+<tr><td>Edges \(m\)</td><td>\(\tfrac12\sum_{ij}A_{ij}\)</td><td class="num">4</td></tr>
+<tr><td>Average degree</td><td>\(\tfrac1n\sum_i\deg_i=2m/n\)</td><td class="num">2.0</td></tr>
+<tr><td>Density</td><td>\(\dfrac{2m}{n(n-1)}\): edges present out of all possible</td><td class="num">0.667</td></tr>
+<tr><td>Triangles</td><td>\(\operatorname{tr}(A^3)/6\): a closed walk of length 3 is a triangle, counted 6 times</td><td class="num">1</td></tr>
+<tr><td>Connected triples</td><td>\(\sum_i\binom{\deg_i}{2}=\sum_i\deg_i(\deg_i-1)/2\)</td><td class="num">1+1+3+0 = 5</td></tr>
+<tr><td>Transitivity</td><td>\(3\times\text{triangles}/\text{triples}\): how often "my neighbours are neighbours"</td><td class="num">0.6</td></tr>
+<tr><td>Max degree centrality</td><td>\(\max_i\deg_i/(n-1)\)</td><td class="num">1.0 (drone 3)</td></tr>
+<tr><td>Components</td><td>groups reachable from each other (depth-first search)</td><td class="num">1</td></tr>
+<tr><td>Algebraic connectivity \(\lambda_2\)</td><td>second-smallest eigenvalue of \(L=D-A\)</td><td class="num">1.0</td></tr>
+</table></div>
+<div class="code-link"><b>In code</b><span>simulation/route_engine.py › _graph_metrics</span></div>
+
+<h3>4.3 The Laplacian and why \(\lambda_2\) matters</h3>
+<p>The graph Laplacian is \(L=D-A\), where \(D\) is the diagonal matrix of degrees. For the example:</p>
+\[ L=\begin{pmatrix}2&-1&-1&0\\-1&2&-1&0\\-1&-1&3&-1\\0&0&-1&1\end{pmatrix},\qquad \text{eigenvalues } 0,\ 1,\ 3,\ 4. \]
+<ul>
+<li>The smallest eigenvalue is always 0 (eigenvector: all ones), because each row of \(L\) sums to zero.</li>
+<li>The number of zero eigenvalues equals the number of connected components. So \(\lambda_2\gt0\) exactly when the graph is connected; the code reports \(\lambda_2=0\) for any disconnected graph.</li>
+<li>For averaging consensus \(\dot{\mathbf{x}}=-L\mathbf{x}\), disagreement decays like \(e^{-\lambda_2 t}\). A larger \(\lambda_2\) means the swarm agrees faster. That is why it is called algebraic connectivity, or the Fiedler value.</li>
+</ul>
+<div class="ex"><strong>Example</strong>Remove edge 3–4 and drone 4 is isolated: two components, two zero eigenvalues, \(\lambda_2=0\). The Network panel would show "Components 2 (1 isolated)" and \(\lambda_2=0\), while the giant-component value is still computed on drones 1–3.</div>
+
+<h3>4.4 The conflict graph and connected components</h3>
+<p>ADMM uses a second graph: an edge joins two drones on the <b>same layer</b> closer than 20 m. Each <b>connected component</b> of this graph is solved together. Breadth-first search finds components: start from a drone, visit its neighbours, then theirs, until nothing new appears.</p>
+<p>In the three-drone example of 1.5, edges (1,2) and (2,3) put all three drones in one component even though drones 1 and 3 are 30 m apart. An earlier version split large components into chunks of five; that could separate two drones that were in conflict and silently drop their constraint (audit finding D05). The fix keeps every component whole.</p>
+<div class="code-link"><b>In code</b><span>conflict_resolution/detection.py › detect_conflicts</span><span>conflict_resolution/adapter.py › resolve_all_conflicts</span><span>spatial_grid.py › close_same_layer_pairs</span></div>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="local">
+<h2><span class="num">5</span>Local rules: the decentralised tier</h2>
+<p class="sub">Each drone computes its own desired velocity from what it hears from neighbours.</p>
+
+<h3>5.1 Car-following: the time-headway law</h3>
+<p>A drone keeps a gap to the drone ahead in its lane that grows with speed: \(g\ge d_0+h\,v\). Solving for speed gives the rule</p>
+\[ v_{\text{ref}}\le\frac{g-d_0}{h},\qquad d_0=12\ \text{m},\ h=1\ \text{s}. \]
+<div class="ex"><strong>Example</strong>Gap 20 m: \(v\le(20-12)/1=8\) m/s, so a drone cruising at 12 m/s slows to 8. Gap 12 m or less: speed 0, it waits. Gap 30 m: limit 18 m/s, above cruise, so no effect.</div>
+<p>The same law gives the layer-agreement "follow penalty" \(\varphi=1-v_{\text{eff}}/v_c\), the fraction of cruise speed lost behind traffic on a layer (Chapter 8).</p>
+<div class="code-link"><b>In code</b><span>route_engine.py › _simulate (v_ref = min(v_ref, (along − d_0) / h))</span><span>layer_agreement.py › follow_penalty</span><span>route_formation.py › platoon_stats</span></div>
+
+<h3>5.2 Boids: separation, alignment, cohesion</h3>
+<p>Reynolds' boids rules, as the code implements them:</p>
+\[ \mathbf{s}_i=\sum_{j:\,0\lt d_{ij}\lt r_{\text{sep}}}\frac{\mathbf{p}_i-\mathbf{p}_j}{d_{ij}^2},\qquad \mathbf{a}_i=\overline{\mathbf{v}}_{\mathcal{N}}-\mathbf{v}_i,\qquad \mathbf{c}_i=\big(\overline{\mathbf{p}}_{\mathcal{N}}-\mathbf{p}_i\big)\ \text{along the road}. \]
+<ul>
+<li><b>Separation</b> pushes away from neighbours closer than \(r_{\text{sep}}=20\) m. Dividing the unit direction by distance once more (\(1/d^2\) overall) makes close neighbours push much harder.</li>
+<li><b>Alignment</b> steers towards the average velocity of same-direction neighbours.</li>
+<li><b>Cohesion</b> pulls towards the average position, only along the road, and is switched off when any segment mate is closer than \(\max(r_{\text{sep}},\ d_0+hv)\), so it can never pull a drone inside its headway.</li>
+</ul>
+<div class="ex"><strong>Example</strong>A neighbour 5 m to my right: \(\mathbf{p}_i-\mathbf{p}_j=(0,5)\), \(d=5\), so \(\mathbf{s}=(0,5)/25=(0,0.2)\). With weight \(w_{\text{sep}}=35\) this adds 7 m/s to the left. At 10 m the push is \(35\times0.1=3.5\) m/s; at 20 m it stops.</div>
+<div class="code-link"><b>In code</b><span>local_behavior/boids.py › separation</span><span>alignment</span><span>cohesion</span><span>corridor_following</span><span>compute_desired_velocity</span></div>
+
+<h3>5.3 Closest point of approach (CPA)</h3>
+<p>For crossing or head-on traffic, a drone predicts where a neighbour will be if both keep their velocities. With relative position \(\mathbf{r}=\mathbf{p}_j-\mathbf{p}_i\) and relative velocity \(\mathbf{u}=\mathbf{v}_j-\mathbf{v}_i\), the distance at time \(\tau\) is \(\lVert\mathbf{r}+\mathbf{u}\tau\rVert\). Setting the derivative of its square to zero gives</p>
+\[ \tau^\ast=-\frac{\mathbf{r}\cdot\mathbf{u}}{\mathbf{u}\cdot\mathbf{u}},\qquad \text{miss}=\lVert\mathbf{r}+\mathbf{u}\,\tau^\ast\rVert. \]
+<figure><div class="svgwrap">
+<svg viewBox="0 0 680 210" role="img" aria-label="Closest point of approach between two drones on a head-on course">
+  <line x1="40" y1="120" x2="640" y2="120" class="s-grid"/>
+  <circle cx="80" cy="120" r="9" class="f-acc"/><text class="t" x="62" y="150">me, v = (10, 0)</text>
+  <line x1="90" y1="120" x2="160" y2="120" class="s-acc"/><polygon points="160,120 150,115 150,125" class="f-acc"/>
+  <circle cx="560" cy="82" r="9" class="f-warm"/><text class="t" x="520" y="64">neighbour, v = (−10, 0)</text>
+  <line x1="550" y1="82" x2="480" y2="82" class="s-warm"/><polygon points="480,82 490,77 490,87" class="f-warm"/>
+  <line x1="80" y1="120" x2="560" y2="82" class="s-mut dash"/><text class="t-s" x="300" y="94">r = (40, 3) m at scale</text>
+  <circle cx="320" cy="120" r="7" class="s-acc f-paper"/><circle cx="320" cy="82" r="7" class="s-warm f-paper"/>
+  <line x1="320" y1="82" x2="320" y2="120" class="s-bad"/><text class="t" x="328" y="106">miss 3 m at τ* = 2 s</text>
+  <text class="t-s" x="280" y="180">predicted positions at the closest point of approach</text>
+</svg></div>
+<figcaption>Projecting both drones forward finds when they will be closest and by how much.</figcaption></figure>
+<div class="ex"><strong>Example</strong>\(\mathbf{r}=(40,3)\), my velocity \((10,0)\), theirs \((-10,0)\), so \(\mathbf{u}=(-20,0)\). \(\tau^\ast=-(40\cdot-20)/400=2\) s; miss \(=\lVert(40,3)+(-40,0)\rVert=3\) m. That is below \(1.6\,d_{\min}=12.8\) m, so the drone adds an avoidance velocity away from the miss vector with urgency \(2(12.8-3)/\max(\tau^\ast,0.5)=9.8\), capped at 6 m/s, and slows because the threat is ahead. Because 3 m &lt; 8 m and \(\tau^\ast\lt3\) s, it is also flagged as a threat for a tactical altitude shift.</div>
+<div class="code-link"><b>In code</b><span>route_engine.py › _simulate (tactical CPA avoidance, threat list)</span><span>route_engine.py › _layer_transition_clear (10 s CPA check before a layer change)</span></div>
+
+<h3>5.4 Putting the local velocity together</h3>
+\[ \mathbf{v}^{\text{des}}_i=\mathbf{v}^{\text{goal}}_i+\mathbf{v}^{\text{avoid}}_i+w_{\text{sep}}\,\mathbf{s}_i+0.5\,w_{\text{ali}}\,\mathbf{a}_i+w_{\text{coh}}\,\mathbf{c}_i,\qquad w_{\text{sep}}=35,\ w_{\text{ali}}=0.4,\ w_{\text{coh}}=0.1. \]
+<p>The goal term is already slowed by car-following and junction merging (a merge factor in \([0,1]\) when a junction gap is blocked). ADMM may then overwrite \(\mathbf{v}^{\text{des}}\) for drones in a conflict group.</p>
+<div class="code-link"><b>In code</b><span>route_engine.py › _simulate</span><span>route_formation.py › MergeTracker.factor</span></div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="admm">
+<h2><span class="num">6</span>Optimisation and consensus ADMM</h2>
+<p class="sub">When drones are about to get too close, they negotiate their next positions by solving a small optimisation problem together.</p>
+
+<h3>6.1 The problem each conflict group solves</h3>
+<p>Every drone \(i\) in a group has its current position \(\mathbf{p}_i\) and an intended next position \(\mathbf{t}_i=\mathbf{p}_i+\mathbf{v}_i\Delta t\). The group picks next positions \(\mathbf{x}_i\) that stay as close as possible to the intentions while keeping apart:</p>
+\[ \min_{\{\mathbf{x}_i\}}\ \sum_i\frac{w_i}{2}\lVert\mathbf{x}_i-\mathbf{t}_i\rVert^2\quad\text{s.t.}\quad \hat{\mathbf{n}}_{ij}\cdot(\mathbf{x}_i-\mathbf{x}_j)\ge d_s\ \ \forall(i,j),\qquad \lVert\mathbf{x}_i-\mathbf{p}_i\rVert\le v_{\max}\Delta t. \]
+<p>Here \(d_s=1.01\,d_{\min}=8.08\) m and \(v_{\max}\Delta t=1.5\) m. The weights \(w_i\) say who should move less: 10 for emergency, 3 for eVTOL, 1 for delivery.</p>
+
+<h3>6.2 Convex sets and why we linearise</h3>
+<p>A set is <b>convex</b> if the straight line between any two of its points stays inside it. Minimising a convex bowl (sum of squares) over a convex set has one answer and fast algorithms. "Stay at least 8 m apart", \(\lVert\mathbf{x}_i-\mathbf{x}_j\rVert\ge d_s\), is <b>not</b> convex: it is the outside of a circle. The code replaces it with a <b>half-space</b>, using the current direction between the drones \(\hat{\mathbf{n}}_{ij}=(\mathbf{p}_i-\mathbf{p}_j)/\lVert\mathbf{p}_i-\mathbf{p}_j\rVert\):</p>
+\[ \hat{\mathbf{n}}_{ij}\cdot(\mathbf{x}_i-\mathbf{x}_j)\ge d_s. \]
+<div class="rule"><strong>Rule · the half-space is safe</strong>For any unit vector \(\hat{\mathbf{n}}\) and any vector \(\mathbf{v}\), Cauchy–Schwarz gives \(\hat{\mathbf{n}}\cdot\mathbf{v}\le\lVert\mathbf{v}\rVert\). So if \(\hat{\mathbf{n}}\cdot(\mathbf{x}_i-\mathbf{x}_j)\ge d_s\), then \(\lVert\mathbf{x}_i-\mathbf{x}_j\rVert\ge d_s\). The linear rule is stricter than the real one, never looser.</div>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 660 250" role="img" aria-label="Convexifying the separation constraint with a half-space">
+  <circle cx="200" cy="115" r="70" class="s-bad dash f-paper"/><text class="t-s" x="20" y="238">dashed circle = true rule: stay outside 8.08 m of x_j (not convex)</text>
+  <circle cx="200" cy="115" r="6" class="f-warm"/><text class="t" x="168" y="108">x_j</text>
+  <rect x="270" y="20" width="370" height="190" class="f-soft"/>
+  <line x1="270" y1="20" x2="270" y2="210" class="s-acc"/>
+  <text class="t" x="290" y="44">allowed half-space: n̂·(x_i − x_j) ≥ d_s</text>
+  <line x1="200" y1="115" x2="250" y2="115" class="s-ln"/><polygon points="250,115 240,110 240,120" class="f-fg"/><text class="t" x="214" y="104">n̂</text>
+  <circle cx="420" cy="115" r="6" class="f-acc"/><text class="t" x="430" y="120">current p_i</text>
+  <circle cx="240" cy="150" r="6" class="f-bad"/><text class="t-s" x="96" y="200">x_i here is too close</text>
+  <line x1="240" y1="150" x2="270" y2="150" class="s-good"/><circle cx="270" cy="150" r="5" class="f-good"/><text class="t-s" x="278" y="166">projection</text>
+</svg></div>
+<figcaption>The half-space sits entirely outside the circle, so satisfying it keeps the true separation.</figcaption></figure>
+<p>Drones on different layers get no constraint at all (their layer index differs by at least 1), and a pair only gets one if it starts within \(d_s+2v_{\max}\Delta t=11.08\) m: farther pairs cannot meet in one tick.</p>
+<div class="code-link"><b>In code</b><span>conflict_resolution/constraints.py › build_pair_constraints</span><span>PairConstraint</span></div>
+
+<h3>6.3 Projection: the closest point in a set</h3>
+<p>ADMM only needs one operation per constraint: the Euclidean projection, the closest point inside the set.</p>
+<ul>
+<li><b>Pair half-space.</b> If the pair violates the rule by \(\delta=d_s-\hat{\mathbf{n}}\cdot(\mathbf{a}-\mathbf{b})\gt0\), move each drone half of it along \(\pm\hat{\mathbf{n}}\):
+\[ \mathbf{a}\leftarrow\mathbf{a}+\tfrac{\delta}{2}\hat{\mathbf{n}},\qquad \mathbf{b}\leftarrow\mathbf{b}-\tfrac{\delta}{2}\hat{\mathbf{n}}. \]</li>
+<li><b>Speed ball.</b> If \(\mathbf{x}\) is farther than \(r=v_{\max}\Delta t\) from \(\mathbf{p}\), pull it back to the ball: \(\mathbf{x}\leftarrow\mathbf{p}+r\,(\mathbf{x}-\mathbf{p})/\lVert\mathbf{x}-\mathbf{p}\rVert\).</li>
+</ul>
+<div class="code-link"><b>In code</b><span>constraints.py › project_pair</span><span>project_ball</span></div>
+
+<h3>6.4 Consensus ADMM, step by step</h3>
+<p>ADMM (alternating direction method of multipliers) splits a hard problem into easy pieces that agree with each other. Each drone \(i\) keeps its own decision \(\mathbf{x}_i\). Every constraint \(k\) it takes part in keeps a <b>copy</b> \(\mathbf{z}_{ik}\) of that decision that satisfies the constraint, plus a running disagreement (scaled dual variable) \(\mathbf{u}_{ik}\). \(K_i\) is the number of copies drone \(i\) has: one speed ball plus one per pair constraint. Then repeat:</p>
+\[ \begin{aligned}
+&\textbf{x-update (each drone, closed form):}&& \mathbf{x}_i=\frac{w_i\,\mathbf{t}_i+\rho\sum_k(\mathbf{z}_{ik}-\mathbf{u}_{ik})}{w_i+\rho K_i}\\
+&\textbf{z-update (each constraint):}&& \mathbf{z}_k=\operatorname{Proj}_{C_k}\!\big(\mathbf{x}+\mathbf{u}_k\big)\\
+&\textbf{u-update (dual):}&& \mathbf{u}_k\leftarrow\mathbf{u}_k+\mathbf{x}-\mathbf{z}_k
+\end{aligned} \]
+<p>The x-update is a <b>weighted average</b> of the drone's own intention (weight \(w_i\)) and what its constraints want (weight \(\rho\) each). It comes from setting the gradient of \(\tfrac{w_i}{2}\lVert\mathbf{x}-\mathbf{t}_i\rVert^2+\tfrac{\rho}{2}\sum_k\lVert\mathbf{x}-\mathbf{z}_{ik}+\mathbf{u}_{ik}\rVert^2\) to zero. A heavy emergency drone (\(w=10\)) stays near its intention and the others move.</p>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 700 170" role="img" aria-label="ADMM loop: x-update, z-update, u-update, check residuals">
+  <rect x="20" y="50" width="150" height="64" rx="8" class="s-acc f-soft"/><text class="t" x="38" y="78">x-update</text><text class="t-s" x="38" y="98">weighted average</text>
+  <rect x="200" y="50" width="150" height="64" rx="8" class="s-acc f-soft"/><text class="t" x="218" y="78">z-update</text><text class="t-s" x="218" y="98">project onto each rule</text>
+  <rect x="380" y="50" width="150" height="64" rx="8" class="s-acc f-soft"/><text class="t" x="398" y="78">u-update</text><text class="t-s" x="398" y="98">add disagreement</text>
+  <rect x="560" y="50" width="120" height="64" rx="8" class="s-warm f-wsoft"/><text class="t" x="574" y="78">r ≤ ε_pri and</text><text class="t" x="574" y="98">s ≤ ε_dual?</text>
+  <line x1="170" y1="82" x2="196" y2="82" class="s-ln"/><polygon points="198,82 190,78 190,86" class="f-fg"/>
+  <line x1="350" y1="82" x2="376" y2="82" class="s-ln"/><polygon points="378,82 370,78 370,86" class="f-fg"/>
+  <line x1="530" y1="82" x2="556" y2="82" class="s-ln"/><polygon points="558,82 550,78 550,86" class="f-fg"/>
+  <path d="M620,114 L620,150 L95,150 L95,118" class="s-mut"/><polygon points="95,116 91,124 99,124" class="f-mut"/>
+  <text class="t-s" x="300" y="164">no: iterate (at most 50 times)</text>
+  <text class="t-s" x="590" y="40">yes: done</text>
+</svg></div>
+<figcaption>One ADMM iteration. A conflict group typically converges in about 9–11 iterations.</figcaption></figure>
+
+<h3>6.5 When to stop: residuals</h3>
+<p>The <b>primal residual</b> \(r=\big(\sum\lVert\mathbf{x}-\mathbf{z}\rVert^2\big)^{1/2}\) measures how far decisions are from their rule-satisfying copies. The <b>dual residual</b> \(s=\rho\big(\sum\lVert\mathbf{z}^{\text{new}}-\mathbf{z}^{\text{old}}\rVert^2\big)^{1/2}\) measures whether the copies are still moving. Stop when both are small:</p>
+\[ r\le\sqrt{m}\,\varepsilon_{\text{abs}}+\varepsilon_{\text{rel}}\max(\lVert\mathbf{x}\rVert,\lVert\mathbf{z}\rVert),\qquad s\le\sqrt{m}\,\varepsilon_{\text{abs}}+\varepsilon_{\text{rel}}\,\rho\,\lVert\mathbf{u}\rVert, \]
+<p>with \(m=\sum_iK_i\), \(\varepsilon_{\text{abs}}=10^{-3}\), \(\varepsilon_{\text{rel}}=10^{-4}\), \(\rho=1\), at most 50 iterations. If it has not converged after 50, the group keeps its original intended velocities and counts as a <b>fallback</b>. An unverified iterate is never used (audit finding D07).</p>
+<div class="code-link"><b>In code</b><span>conflict_resolution/solver.py › ADMMSolver.solve</span><span>ADMMSolver.from_config</span><span>adapter.py › resolve_conflict_event</span><span>simulation/admm_probe.py › ADMMProbe (live timer)</span></div>
+
+<h3>6.6 Worked example: two drones head-on</h3>
+<div class="ex"><strong>Example · computed with ADMMSolver</strong>Drone 1 at \(x=0\) flies east at 12 m/s; drone 2 at \(x=9\) flies west at 12 m/s, same layer. Intentions after one tick: \(t_1=1.2\), \(t_2=7.8\), a gap of only 6.6 m, but \(d_s=8.08\) m. The constraint normal is \(\hat{\mathbf{n}}=(-1,0)\), so the rule reads \(x_2-x_1\ge8.08\).
+<br><br><b>Iteration 1 by hand.</b> Copies start at the current positions, duals at zero, \(K_1=K_2=2\) (ball + pair):
+\[ x_1=\frac{1\cdot1.2+1\cdot(0+0)}{1+2}=0.40,\qquad x_2=\frac{7.8+(9+9)}{3}=8.60. \]
+The gap \(8.2\ge8.08\) already holds, so the pair copy accepts \((0.40,\ 8.60)\) unchanged; both are inside their 1.5 m speed balls. The primal residual is 0, but the copies moved from \((0,9)\) to \((0.4,8.6)\), so \(s=\sqrt{0.4^2\cdot2+0.4^2\cdot2}=0.8\): not converged yet.
+<br><br><b>Result.</b> Equal weights: converged in 13 iterations to \(x_1=0.460\), \(x_2=8.540\), gap 8.080 m. Each drone gave up exactly half of the 1.48 m shortfall (0.74 m each), which is the exact solution of the problem.
+<br>Emergency drone 1 (\(w=10\)) vs. delivery drone 2 (\(w=1\)): converged in 18 iterations to \(x_1=1.066\), \(x_2=9.146\). The shortfall is shared in proportion \(1/w\): drone 1 gives up 0.134 m, drone 2 gives up 1.346 m, ten times more.</div>
+<div class="tbl"><table>
+<tr><th class="num">Iteration</th><th class="num">primal r (equal)</th><th class="num">dual s (equal)</th><th class="num">primal r (10 : 1)</th><th class="num">dual s (10 : 1)</th></tr>
+<tr><td class="num">1</td><td class="num">0.000</td><td class="num">0.800</td><td class="num">0.339</td><td class="num">1.328</td></tr>
+<tr><td class="num">2</td><td class="num">0.292</td><td class="num">0.387</td><td class="num">0.504</td><td class="num">0.166</td></tr>
+<tr><td class="num">3</td><td class="num">0.349</td><td class="num">0.057</td><td class="num">0.430</td><td class="num">0.101</td></tr>
+<tr><td class="num">4</td><td class="num">0.251</td><td class="num">0.097</td><td class="num">0.313</td><td class="num">0.166</td></tr>
+<tr><td class="num">5</td><td class="num">0.135</td><td class="num">0.116</td><td class="num">0.203</td><td class="num">0.167</td></tr>
+<tr><td class="num">6</td><td class="num">0.051</td><td class="num">0.084</td><td class="num">0.115</td><td class="num">0.138</td></tr>
+</table></div>
+
+<div class="widget" id="admm-widget">
+<h4>Try it: the same solver, running in your browser</h4>
+<p class="small">This is a line-by-line port of <code>ADMMSolver.solve</code> for two drones flying at each other on one layer. Change the starting gap or the weights and step through the iterations.</p>
+<div class="controls">
+  <label for="admm-gap">Starting gap (m) <input id="admm-gap" type="range" min="8.5" max="11" step="0.1" value="9"><span class="out" id="admm-gap-out">9.0</span></label>
+  <label for="admm-w">Weights (drone 1 : drone 2)
+    <select id="admm-w"><option value="1,1">1 : 1 (delivery vs delivery)</option><option value="10,1">10 : 1 (emergency vs delivery)</option><option value="3,1">3 : 1 (eVTOL vs delivery)</option><option value="1,10">1 : 10 (delivery vs emergency)</option></select></label>
+  <label for="admm-it">Iteration <input id="admm-it" type="range" min="1" max="13" step="1" value="13"><span class="out" id="admm-it-out">13</span></label>
+</div>
+<svg id="admm-svg" viewBox="0 0 680 150" role="img" aria-label="Positions of two drones during ADMM iterations"></svg>
+<p class="out" id="admm-text"></p>
+</div>
+
+<h3>6.7 Health-aware weights</h3>
+<p>The class weight can rise with a drone's energy shortage. With energy margin \(m=E^{\text{BMS}}/E^{\text{need}}\) (Chapter 13), reference margin \(m_{\text{ref}}=2\) and top weight \(w^{\text{top}}=10\):</p>
+\[ u=\operatorname{clip}\!\Big(\frac{m_{\text{ref}}-m}{m_{\text{ref}}-1},\,0,\,1\Big),\qquad w=w^{c}+(w^{\text{top}}-w^{c})\,u, \]
+<p>with \(u=1\) for a drone at BMS CRITICAL or FAULT.</p>
+<div class="ex"><strong>Example</strong>A delivery drone (\(w^c=1\)) with margin \(m=1.5\): \(u=(2-1.5)/1=0.5\), so \(w=1+9\times0.5=5.5\). With \(m\ge2\) it keeps \(w=1\); with \(m\le1\) it gets 10, the same as an emergency.</div>
+<div class="rule"><strong>Rule · what the weights can and cannot do</strong>(i) \(w^c\le w\le w^{\text{top}}\); (ii) \(w\) never increases as the margin grows; (iii) the feasible set does not depend on \(w\), so weights only choose which feasible answer is picked, never whether separation holds; (iv) the share a drone keeps of its own target in the x-update, \(w/(w+\rho K)\), rises with \(w\).</div>
+<div class="code-link"><b>In code</b><span>route_engine.py › _health_tick (health_w)</span><span>adapter.py › resolve_conflict_event (weights)</span><span>configs/base_config.yaml › admm.priority_weights, admm.health_weight</span></div>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="resilience">
+<h2><span class="num">7</span>Consensus, attacks and W-MSR</h2>
+<p class="sub">Averaging is how a swarm agrees. One liar can break plain averaging; W-MSR stops that.</p>
+
+<h3>7.1 Averaging consensus as a matrix</h3>
+<p>Each honest drone replaces its value by the average of its own and its neighbours' values:</p>
+\[ x_i(k+1)=\frac{1}{1+\deg_i}\Big(x_i(k)+\sum_{j\in\mathcal{N}_i}x_j(k)\Big)\quad\Longleftrightarrow\quad \mathbf{x}(k+1)=W\mathbf{x}(k), \]
+<p>where \(W=(I+D)^{-1}(I+A)\). Every row of \(W\) is non-negative and sums to 1 (it is <b>row-stochastic</b>), so each new value lies between the smallest and largest old values. On a connected graph all values converge to one common value.</p>
+
+<h3>7.2 What a liar does</h3>
+<p>A malicious drone that always reports a fixed value \(c\) never updates. Its neighbours keep averaging \(c\) in, and on a connected graph every honest value is dragged to \(c\). In the position-spoofing attack, the liar broadcasts its true position plus an offset (constant, 25–30 m in the presets, or growing over time at a set rate).</p>
+<div class="code-link"><b>In code</b><span>resilience/consensus.py › plain_average</span><span>run_consensus</span><span>resilience/attack.py › inject_attack</span><span>apply_attack</span></div>
+
+<h3>7.3 The W-MSR rule</h3>
+<p>W-MSR (weighted mean-subsequence-reduced) assumes at most \(f\) liars in any neighbourhood. Before averaging, drone \(i\) sorts the reports and removes up to \(f\) values strictly <b>above</b> its own value (the largest ones) and up to \(f\) strictly <b>below</b> (the smallest ones). It averages its own value with what is left.</p>
+\[ x_i(k+1)=\operatorname{mean}\Big(\{x_i(k)\}\cup\mathcal{R}_i(k)\Big),\quad \mathcal{R}_i=\text{reports minus the }f\text{ largest above }x_i\text{ and the }f\text{ smallest below }x_i. \]
+<p>If there are \(2f\) or fewer reports, the code takes the median of own value and reports instead.</p>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 680 140" role="img" aria-label="W-MSR trims the most extreme report on each side">
+  <line x1="40" y1="70" x2="650" y2="70" class="s-ln"/>
+  <g class="t-s"><text x="66" y="96">8</text><text x="116" y="96">9</text><text x="166" y="96">10</text><text x="216" y="96">11</text><text x="266" y="96">12</text><text x="620" y="96">50</text><text x="560" y="96">…</text></g>
+  <circle cx="120" cy="70" r="8" class="f-bad"/><line x1="110" y1="50" x2="130" y2="90" class="s-bad"/>
+  <circle cx="170" cy="70" r="10" class="f-acc"/><text class="t" x="150" y="40">own value 10</text>
+  <circle cx="220" cy="70" r="8" class="f-good"/><circle cx="270" cy="70" r="8" class="f-good"/>
+  <circle cx="624" cy="70" r="8" class="f-bad"/><line x1="614" y1="50" x2="634" y2="90" class="s-bad"/><text class="t" x="560" y="40">liar reports 50</text>
+  <text class="t-s" x="190" y="124">kept: 11, 12 · trimmed: the largest above (50) and the smallest below (9)</text>
+</svg></div>
+<figcaption>With \(f=1\): the result is mean(10, 11, 12) = 11. Plain averaging would give 18.4.</figcaption></figure>
+<div class="ex"><strong>Example · computed with wmsr_scalar</strong>Own value 10, reports 9, 11, 12, 50, \(f=1\). Above 10: \(\{11,12,50\}\), drop the largest one, keep 11 and 12. Below 10: \(\{9\}\), drop it. Result \(\operatorname{mean}(10,11,12)=11.0\). Plain averaging: \((10+9+11+12+50)/5=18.4\). One liar moved the plain average by 8.4; it barely moved W-MSR.</div>
+<div class="rule"><strong>Rule · when W-MSR is guaranteed to work</strong>The classic result (LeBlanc et al., 2013) needs the graph to be \((2f+1)\)-robust: roughly, every group of drones has some member with at least \(2f+1\) neighbours outside the group. With sparse V2V graphs (the live Network panel often shows average degree near 1) that condition does not hold everywhere, so MASooda reports W-MSR's effect empirically, not as a guarantee.</div>
+<div class="code-link"><b>In code</b><span>resilience/wmsr.py › wmsr_scalar</span><span>wmsr_vector (per coordinate)</span><span>consensus.py › run_wmsr_consensus</span><span>layer_agreement.py › LayerAgreement.round (W-MSR on layer prices)</span></div>
+
+<div class="widget" id="wmsr-widget">
+<h4>Try it: W-MSR on your own numbers</h4>
+<div class="controls">
+  <label for="w-own">Own value <input id="w-own" type="number" value="10" step="any"></label>
+  <label for="w-rep" style="flex:1;min-width:200px">Neighbour reports (comma separated) <input id="w-rep" type="text" value="9, 11, 12, 50"></label>
+  <label for="w-f">f (liars tolerated) <select id="w-f"><option>0</option><option selected>1</option><option>2</option></select></label>
+</div>
+<div class="chips" id="w-chips"></div>
+<p class="out" id="w-out"></p>
+</div>
+
+<h3>7.4 The trusted-range check</h3>
+<p>Before W-MSR, each receiver compares the distance a report claims with the distance its own sensor measures. If they disagree by more than 3 m, the report is moved along its bearing to the sensed range. The neighbour is <b>not</b> deleted, because deleting it would make the receiver blind to a real aircraft:</p>
+\[ \lvert\,\lVert\mathbf{p}^{\text{rep}}_j-\mathbf{p}_i\rVert-\rho_{ij}\rvert\gt3\ \text{m}\ \Rightarrow\ \mathbf{p}^{\text{corr}}_j=\mathbf{p}_i+\rho_{ij}\,\frac{\mathbf{p}^{\text{rep}}_j-\mathbf{p}_i}{\lVert\mathbf{p}^{\text{rep}}_j-\mathbf{p}_i\rVert}. \]
+<div class="ex"><strong>Example</strong>I am at the origin. A neighbour reports \((40,30)\), 50 m away, but my range sensor reads \(\rho=20\) m. The difference is 30 m, more than 3 m, so the corrected position is \(20\times(0.8,0.6)=(16,12)\). Separation then reacts to a drone 20 m away, which is the truth along that bearing.</div>
+<div class="code-link"><b>In code</b><span>resilience/defense.py › defend_neighbor_reports</span><span>resilience/spoofer_estimate.py › estimate_spoofer_position</span></div>
+<p class="small">The audit (D02) records that the sensed range \(\rho_{ij}\) comes from the simulator's true positions, i.e. an ideal range sensor. That is a modelling assumption, stated as such.</p>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="global">
+<h2><span class="num">8</span>The global tier: the DTC and altitude layers</h2>
+<p class="sub">The Drone Traffic Controller counts traffic in a sector × layer grid and moves drones out of crowded cells, slowly and only when it is safe.</p>
+
+<h3>8.1 The occupancy matrix</h3>
+<p>Every 2 s the DTC fills a \(6\times7\) matrix \(N\), where \(N_{s,L}\) is the number of airborne cooperative drones in sector \(s\) on layer \(L\). The capacity per cell is \(C=15\). This is the "sector × layer load" table in the DTC console.</p>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 660 250" role="img" aria-label="Seven altitude layers with the semicircular rule and the emergency layer">
+  <g>
+   <rect x="60" y="20" width="420" height="26" class="f-wsoft s-warm"/><text class="t" x="70" y="38">L6 · 120 m · emergency only</text>
+   <rect x="60" y="50" width="420" height="26" class="f-paper s-grid"/><text class="t" x="70" y="68">L5 · 105 m · westbound</text>
+   <rect x="60" y="80" width="420" height="26" class="f-soft s-grid"/><text class="t" x="70" y="98">L4 · 90 m · eastbound</text>
+   <rect x="60" y="110" width="420" height="26" class="f-paper s-grid"/><text class="t" x="70" y="128">L3 · 75 m · westbound</text>
+   <rect x="60" y="140" width="420" height="26" class="f-soft s-grid"/><text class="t" x="70" y="158">L2 · 60 m · eastbound</text>
+   <rect x="60" y="170" width="420" height="26" class="f-paper s-grid"/><text class="t" x="70" y="188">L1 · 45 m · westbound</text>
+   <rect x="60" y="200" width="420" height="26" class="f-soft s-grid"/><text class="t" x="70" y="218">L0 · 30 m · eastbound</text>
+  </g>
+  <text class="t" x="500" y="100">eastbound: L mod 2 = 0</text>
+  <text class="t" x="500" y="122">westbound: L mod 2 = 1</text>
+  <text class="t" x="500" y="144">height = 30 + 15·L m</text>
+  <text class="t-s" x="500" y="168">all inside the 400 ft</text><text class="t-s" x="500" y="184">(≈120 m) green-zone ceiling</text>
+  <line x1="300" y1="210" x2="360" y2="210" class="s-acc"/><polygon points="360,210 352,206 352,214" class="f-acc"/>
+  <line x1="360" y1="180" x2="300" y2="180" class="s-acc"/><polygon points="300,180 308,176 308,184" class="f-acc"/>
+</svg></div>
+<figcaption>The semicircular rule splits directions by layer parity, so head-on traffic is always one layer apart.</figcaption></figure>
+
+<h3>8.2 Priority-aware allocation</h3>
+<p>The DTC processes drones in priority order (emergency first, then eVTOL, then delivery; ties by id). An emergency goes to the reserved layer. Every other drone may only use layers allowed for its direction, \(\mathcal{A}_d=\{L\ne L_{\text{emg}}: L\bmod2=d\}\), and keeps its current cell while that cell has room; otherwise it is offered the emptiest allowed cell. Every proposed move passes a <b>safety gate</b>: the target layer must have nobody within \(3d_{\min}\) now and no CPA closer than \(2d_{\min}\) within 10 s. Otherwise the move is deferred (the "gated" count).</p>
+<div class="code-link"><b>In code</b><span>simulation/overseer.py › GlobalOverseer.update (priority_aware)</span><span>overseer_link.py › OverseerLink</span><span>route_engine.py › _layer_transition_clear</span></div>
+
+<h3>8.3 Layer agreement: choosing a layer by cost</h3>
+<p>Each drone also negotiates its layer with neighbours. For each allowed layer \(L\) it scores</p>
+\[ J_i(L)=w_f\,\varphi_i(L)+w_p\,\lambda_i(L)+w_e\,c_i(L)+w_s[L\ne L_i]+w_{\text{dir}}[L\notin\mathcal{A}_d], \]
+<ul>
+<li>\(\varphi_i(L)=1-v_{\text{eff}}/v_c\) with \(v_{\text{eff}}=\min\!\big(v_c,\max(0,(g_i(L)-d_0)/h)\big)\): speed lost behind the drone ahead on \(L\) (1 if traffic is head-on);</li>
+<li>\(\lambda_i(L)\): the congestion price of (my sector, \(L\));</li>
+<li>\(c_i(L)=\max(0,L-L_i)\,H/H_{\text{ref}}\,\big(1+k_b(1-\mathrm{SoC}_i)\big)\): climb energy, costlier on a low battery;</li>
+<li>\([\cdot]\) is 1 when the condition is true: a small cost for switching, and a penalty for the wrong-parity layer.</li>
+</ul>
+<p>The drone wants \(L^\ast_i=\arg\min_LJ_i(L)\). It moves only if the gain \(J_i(L_i)-J_i(L^\ast_i)\) exceeds a threshold, no neighbour with a stronger claim wants the same layer (larger gain, then higher priority, then lower id), and the safety gate passes. So at most one drone enters a layer per neighbourhood per round.</p>
+
+<h3>8.4 Agreeing on prices: consensus-based dual ascent</h3>
+<p>Prices are the dual variables of the constraint "load ≤ target". Each round (1 s), every drone averages its neighbours' price vectors (with W-MSR when the defence is on) and nudges each entry by how overloaded it hears that layer is:</p>
+\[ \lambda_i(L)\leftarrow\operatorname{clip}\!\Big(\operatorname{mean}_{j\in\mathcal{N}_i\cup\{i\}}\lambda_j(L)+\alpha\,\frac{\ell_i(L)-\kappa}{\kappa},\ 0,\ \lambda_{\max}\Big). \]
+<p>When the DTC link is up, the DTC overrides the estimate with the true global count:</p>
+\[ \lambda^{\text{DTC}}_{s,L}=\frac{\max\big(0,\ N_{s,L}/C-\theta\big)}{1-\theta}. \]
+<p>Configured values: \(\alpha=0.3\), target load \(\kappa=2\) drones per layer within V2V range, \(\lambda_{\max}=2\), \(\theta=0.6\).</p>
+<div class="ex"><strong>Example</strong>With \(C=15\) and \(\theta=0.6\): a cell with 6 drones has load 0.4 and price 0; 12 drones give \((0.8-0.6)/0.4=0.5\); 15 drones give 1.0. Prices stay at zero until a cell is 60% full, then climb linearly.
+<br>On the V2V side, a drone that hears 4 drones on a layer (\(\ell=4\), \(\kappa=2\)) with neighbour prices averaging 0.2 updates to \(0.2+0.3\times(4-2)/2=0.5\). With the link down, drones keep agreeing among themselves, so congestion pricing degrades gracefully.</div>
+<div class="code-link"><b>In code</b><span>simulation/layer_agreement.py › LayerAgreement.round</span><span>dtc_seed_prices</span><span>dtc_resolve</span><span>direction_layers</span><span>follow_penalty</span><span>climb_cost</span><span>departure_layer</span></div>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="stl">
+<h2><span class="num">9</span>Signal temporal logic: measuring safety</h2>
+<p class="sub">STL turns "the drones are always at least 8 m apart" into a number that says how safely the rule holds.</p>
+
+<h3>9.1 Signals, predicates and operators</h3>
+<p>A <b>signal</b> is a value over time, here \(d_{ij}(t)\). A <b>predicate</b> is a test on it, \(d_{ij}(t)\ge d_{\min}\). STL adds time operators:</p>
+<ul>
+<li>\(\mathbf{G}\,\varphi\) ("globally" or "always"): \(\varphi\) holds at every time in the window;</li>
+<li>\(\mathbf{F}\,\varphi\) ("finally" or "eventually"): \(\varphi\) holds at some time in the window.</li>
+</ul>
+<p>MASooda's safety specification is \(\varphi_{\text{safe}}=\mathbf{G}\,\big(d_{ij}(t)\ge d_{\min}\big)\) for all pairs \(i\ne j\), with \(d_{\min}=8\) m.</p>
+
+<h3>9.2 Robustness: how much margin is left</h3>
+<p>Quantitative semantics give each formula a signed number \(\rho\): positive means satisfied with that much margin, negative means violated by that much. The rules are mechanical: a predicate \(f\ge c\) has robustness \(f-c\); "and" and "always" take the minimum; "or" and "eventually" take the maximum.</p>
+\[ \rho(t)=\min_{i\ne j}\big(d_{ij}(t)-d_{\min}\big),\qquad \rho\big(\mathbf{G}\varphi\big)=\min_t\rho(t),\qquad \rho\big(\mathbf{F}\varphi\big)=\max_t\rho(t). \]
+<figure><div class="svgwrap">
+<svg viewBox="0 0 680 220" role="img" aria-label="Robustness signal crossing zero during a violation">
+  <line x1="60" y1="20" x2="60" y2="190" class="s-mut"/><line x1="60" y1="130" x2="650" y2="130" class="s-ln"/>
+  <text class="t-s" x="10" y="134">ρ = 0</text><text class="t-s" x="16" y="40">+10 m</text><text class="t-s" x="16" y="190">−4 m</text>
+  <rect x="330" y="130" width="70" height="40" class="f-wsoft"/>
+  <path d="M60,60 C140,50 200,70 260,100 C300,120 330,150 360,160 C385,165 400,140 420,120 C470,90 540,70 650,66" class="s-acc"/>
+  <text class="t" x="430" y="178">violation: ρ &lt; 0 (pair closer than 8 m)</text>
+  <circle cx="362" cy="160" r="5" class="f-bad"/><text class="t-s" x="250" y="200">ρ(G φ) over the window = the lowest point</text>
+  <text class="t-s" x="500" y="56">recovered</text>
+</svg></div>
+<figcaption>The Safety panel plots exactly this \(\rho(t)\). A dip below zero is a loss of separation; its depth says by how much.</figcaption></figure>
+<div class="ex"><strong>Example</strong>Three snapshots of the closest pair: 16.1 m, 9.0 m, 6.5 m. Then \(\rho=8.1,\ 1.0,\ -1.5\) m and \(\rho(\mathbf{G}\varphi)=-1.5\) m: violated, by 1.5 m, at the third sample.</div>
+
+<h3>9.3 Layer-aware distance</h3>
+<p>Two drones on different layers are not close even if they overlap on the map. The final system measures a 3D distance with the layer gap converted to metres (\(H=15\) m per layer):</p>
+\[ d_{ij}=\big\lVert(\Delta x,\ \Delta y,\ \Delta L\cdot H)\big\rVert. \]
+<div class="ex"><strong>Example</strong>Drones directly above each other on L0 and L1: \(d=\sqrt{0+0+15^2}=15\) m, \(\rho=+7\) m. On the same layer 5 m apart: \(\rho=-3\) m. The earlier XY-only metric (audit D01) would have scored both pairs as violations; that is why the Week 6 violation counts were inflated.</div>
+
+<h3>9.4 Reachability: "eventually arrive"</h3>
+\[ \rho\big(\mathbf{F}(\lVert\mathbf{p}_i-\mathbf{g}_i\rVert\le r)\big)=\min_i\max_t\big(r-\lVert\mathbf{p}_i(t)-\mathbf{g}_i\rVert\big). \]
+<p>"Every drone eventually gets within \(r\) of its goal": max over time (eventually), min over drones (for all).</p>
+<div class="code-link"><b>In code</b><span>verification/stl_monitor.py › instantaneous_robustness</span><span>robustness_series</span><span>stl_monitor</span><span>SlidingSTLMonitor</span><span>liveness_robustness</span><span>verification/metrics.py › robustness_series (layer_height_m)</span><span>route_engine.py › layered_min_separation</span><span>live_monitor.py › LiveSTLMonitor</span></div>
+<p>A <b>near miss</b> is one loss-of-separation episode: a run of consecutive ticks with \(\rho\lt0\). A <b>crash</b> is a pair closer than 2 m. Recovery time is how long an episode lasts until \(\rho\ge0\) holds for at least 1 s (<code>metrics.py › recovery_times</code>).</p>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="power">
+<h2><span class="num">10</span>Flight power from momentum theory</h2>
+<p class="sub">How many watts a drone needs depends on its weight, rotor area, speed and the air density.</p>
+
+<h3>10.1 Air density</h3>
+<p>The standard atmosphere gives the pressure at elevation \(h\), and the ideal gas law gives the density:</p>
+\[ p=101325\,(1-2.25577\times10^{-5}h)^{5.25588}\ \text{Pa},\qquad \rho_a=\frac{p}{R_{\text{air}}\,T},\quad R_{\text{air}}=287.05\ \tfrac{\text{J}}{\text{kg K}}. \]
+<div class="ex"><strong>Example · Kandi, 542 m</strong>\(\rho_a=1.148\) kg/m³ at 15 °C, 1.074 at 35 °C and 1.043 at 44 °C. Hot, thin air means more power to hover: at 35 °C hover power is 3.4% higher than at 15 °C, which is the number the Setup panel shows.</div>
+<div class="code-link"><b>In code</b><span>simulation/drone_health.py › air_density</span></div>
+
+<h3>10.2 Hover, induced velocity and forward flight</h3>
+<p>Rotors push air down. Momentum theory says that to make thrust \(T=mg\) over disc area \(A\), the air through the disc must move at the hover-induced velocity</p>
+\[ v_h=\sqrt{\frac{T}{2\rho_aA}}. \]
+<p>In forward flight at airspeed \(v\), the rotor meets fresh air and needs less induced velocity:</p>
+\[ v_i=\sqrt{-\tfrac{v^2}{2}+\sqrt{\tfrac{v^4}{4}+v_h^4}}. \]
+<p>Mechanical power is induced power (divided by the figure of merit FM) plus drag on the body; electrical power divides by propulsion efficiency \(\eta\) and motor health \(h_m\) and adds avionics:</p>
+\[ P_{\text{mech}}=\frac{T\,v_i}{\mathrm{FM}}+\tfrac12\rho_aC_DA_f\,v^3\ (+\,T\,v_{\text{climb}}\text{ while climbing}),\qquad P_{\text{el}}=\frac{P_{\text{mech}}}{\eta\,h_m}+P_{\text{av}}. \]
+<div class="ex"><strong>Example · delivery drone at 35 °C</strong>\(m=8\) kg, so \(T=78.45\) N. Four 0.38 m rotors: \(A=4\pi(0.19)^2=0.454\) m². \(v_h=\sqrt{78.45/(2\cdot1.074\cdot0.454)}=8.97\) m/s.
+<br>Hover (\(v=0\)): \(P_{\text{mech}}=78.45\times8.97/0.65=1083\) W, so \(P_{\text{el}}=1083/0.8+25=1379\) W.
+<br>Cruise at 10.8 m/s: \(v_i=6.41\) m/s, \(P_{\text{mech}}=773.8+54.1=828\) W, \(P_{\text{el}}=1060\) W. Cruising costs less than hovering, because forward flight feeds the rotor fresh air.</div>
+<p>Since \(P_{\text{el}}(v)\) falls and then rises with speed (a "power bucket"), there is a minimum-power speed. A drone whose weakest cell is near cut-off flies at that speed (<code>min_power_speed</code>).</p>
+<div class="code-link"><b>In code</b><span>drone_health.py › HealthModel.power</span><span>HealthModel._hover_mech</span><span>min_power_speed</span><span>climb_power_w</span></div>
+</section>
+
+<!-- ============================================================ 11 -->
+<section id="battery">
+<h2><span class="num">11</span>The battery: a 1-RC equivalent circuit</h2>
+<p class="sub">A lithium pack behaves like a voltage source with resistors and one capacitor. That small circuit predicts voltage sag, heat and remaining energy.</p>
+
+<h3>11.1 The circuit</h3>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 680 210" role="img" aria-label="1-RC Thevenin equivalent circuit of the battery pack">
+  <circle cx="90" cy="110" r="30" class="s-ln f-paper"/><text class="t" x="70" y="106">OCV</text><text class="t-s" x="68" y="122">(SoC)</text>
+  <line x1="90" y1="80" x2="90" y2="40" class="s-ln"/><line x1="90" y1="40" x2="180" y2="40" class="s-ln"/>
+  <rect x="180" y="30" width="70" height="20" class="s-warm f-wsoft"/><text class="t" x="204" y="24">R₀</text>
+  <line x1="250" y1="40" x2="300" y2="40" class="s-ln"/>
+  <line x1="300" y1="40" x2="300" y2="20" class="s-ln"/><line x1="300" y1="40" x2="300" y2="60" class="s-ln"/>
+  <line x1="300" y1="20" x2="340" y2="20" class="s-ln"/><rect x="340" y="10" width="60" height="20" class="s-warm f-wsoft"/><line x1="400" y1="20" x2="440" y2="20" class="s-ln"/><text class="t" x="360" y="6">R₁</text>
+  <line x1="300" y1="60" x2="362" y2="60" class="s-ln"/><line x1="362" y1="48" x2="362" y2="72" class="s-ln"/><line x1="378" y1="48" x2="378" y2="72" class="s-ln"/><line x1="378" y1="60" x2="440" y2="60" class="s-ln"/><text class="t" x="362" y="90">C₁</text>
+  <line x1="440" y1="20" x2="440" y2="60" class="s-ln"/><line x1="440" y1="40" x2="540" y2="40" class="s-ln"/>
+  <text class="t-s" x="320" y="108">V_RC across the RC pair</text>
+  <circle cx="560" cy="40" r="6" class="s-ln f-paper"/><text class="t" x="574" y="45">+ terminal V</text>
+  <line x1="90" y1="140" x2="90" y2="180" class="s-ln"/><line x1="90" y1="180" x2="540" y2="180" class="s-ln"/>
+  <circle cx="560" cy="180" r="6" class="s-ln f-paper"/><text class="t" x="574" y="185">−</text>
+  <line x1="480" y1="60" x2="480" y2="160" class="s-acc"/><polygon points="480,164 475,154 485,154" class="f-acc"/><text class="t" x="488" y="118">load draws power P</text>
+</svg></div>
+<figcaption>Open-circuit voltage depends on state of charge. \(R_0\) causes instant sag; the \(R_1C_1\) pair causes slow polarisation with time constant \(\tau=R_1C_1=20\) s.</figcaption></figure>
+<p>The terminal voltage is \(V=\mathrm{OCV}-V_{RC}-IR_0\). The drone asks for an electrical power \(P\), so \(P=VI=(E-IR_0)I\) with \(E=\mathrm{OCV}-V_{RC}\). That is a quadratic in \(I\):</p>
+\[ R_0I^2-EI+P=0\quad\Rightarrow\quad I=\frac{E-\sqrt{E^2-4R_0P}}{2R_0}. \]
+<p>The smaller root is the physical one. If \(E^2\lt4R_0P\) there is no real root: the pack cannot deliver that power (the BMS flags it as a current FAULT).</p>
+<div class="ex"><strong>Example</strong>\(E=23.5\) V, \(R_0=0.02\ \Omega\), \(P=1219\) W: \(I=(23.5-\sqrt{552.25-97.52})/0.04=54.4\) A and \(V=23.5-54.4\times0.02=22.41\) V. The live site showed 22.3 V · 54.8 A · 1219 W for drone D-37.</div>
+
+<h3>11.2 Updating the state over one step</h3>
+<p>The RC voltage relaxes exponentially towards \(R_1I\); state of charge falls by the charge drawn (coulomb counting):</p>
+\[ V_{RC}^{+}=V_{RC}\,e^{-\Delta t/\tau}+R_1\big(1-e^{-\Delta t/\tau}\big)I,\qquad \mathrm{SoC}^{+}=\mathrm{SoC}-\frac{(I+I_f)\,\Delta t}{3600\,Q}, \]
+<p>with \(R_1=0.5R_0\), \(Q\) the capacity in Ah (scaled by state of health), and \(I_f\) an internal fault current that drains charge without reaching the current sensor (the overheating fault). Resistance rises as the pack ages and in the cold: \(R_0=R_{\text{pack}}\,(1+0.5(1-\mathrm{SoH}))\,(1+\alpha_R\max(0,25-T_p))\).</p>
+<div class="code-link"><b>In code</b><span>drone_health.py › HealthModel._discharge</span><span>HealthModel._r</span><span>HealthModel._update_ocv</span></div>
+
+<h3>11.3 Open-circuit voltage by interpolation</h3>
+<p>Each cell's OCV is a table of (SoC, volts) pairs joined by straight lines, which is piecewise-linear interpolation:</p>
+<div class="tbl"><table><tr><th>SoC %</th><td class="num">0</td><td class="num">5</td><td class="num">10</td><td class="num">20</td><td class="num">40</td><td class="num">60</td><td class="num">80</td><td class="num">100</td></tr>
+<tr><th>OCV (V/cell)</th><td class="num">3.00</td><td class="num">3.30</td><td class="num">3.45</td><td class="num">3.60</td><td class="num">3.72</td><td class="num">3.85</td><td class="num">4.00</td><td class="num">4.20</td></tr></table></div>
+<p>Between table points \(\mathrm{OCV}(s)=V_k+(V_{k+1}-V_k)\frac{s-s_k}{s_{k+1}-s_k}\). At 50%: \(3.72+0.13\times\tfrac{10}{20}=3.785\) V per cell. The pack OCV is the sum of the \(n_s\) cells in series.</p>
+<div class="code-link"><b>In code</b><span>drone_health.py › HealthModel._ocv_cell (np.interp)</span><span>_pack_ocv</span><span>configs/base_config.yaml › ocv_cell_v</span></div>
+
+<h3>11.4 Weakest-cell usable energy</h3>
+<p>Cells in series carry the same current, but each has a slightly different charge offset \(\delta_k\). The pack must stop when its <b>weakest</b> cell reaches \(\mathrm{SoC}_{\min}=5\%\). Every cell gives up the same span \(\Delta=\min_ks_k-\mathrm{SoC}_{\min}\), where \(s_k=\mathrm{SoC}+\delta_k\), and the energy is the area under each cell's OCV curve over that span:</p>
+\[ E^{\text{use}}=Q\sum_{k=1}^{n_s}\int_{s_k-\Delta}^{s_k}\mathrm{OCV}(s)\,ds. \]
+<p>The integral of a piecewise-linear function is computed once as a running table \(F(s)=\int_0^s\mathrm{OCV}\), so each call is \(Q\sum_k\big(F(s_k)-F(s_k-\Delta)\big)\). One bad cell (a cell-failure fault: −15% charge, 4× resistance) shrinks the span for the whole pack.</p>
+<div class="code-link"><b>In code</b><span>drone_health.py › HealthModel._usable_wh</span><span>e_rem_wh (true)</span><span>e_rem_bms_wh (estimated, Chapter 13)</span></div>
+
+<h3>11.5 Temperature: first-order heat balance</h3>
+<p>Heat in minus heat out, divided by heat capacity:</p>
+\[ C_p\,\dot{T}_p=I^2R_0+IV_{RC}+q_f-\big(h_0+h_1\sqrt{v}\big)(T_p-T_{\text{amb}}),\qquad C_m\,\dot{T}_m=(1-\eta h_m)P^{\text{prop}}_{\text{el}}-\big(h_{m0}+h_{m1}\sqrt{v}\big)(T_m-T_{\text{amb}}). \]
+<p>Airflow (\(\sqrt{v}\)) cools: a hovering drone runs hotter than a cruising one. Steady state is where heat in equals heat out; for the delivery drone at cruise the pack sits about 7 K above ambient.</p>
+
+<h3>11.6 BMS states with hysteresis</h3>
+<p>The BMS gives each category a level 0–3 (NORMAL, WARNING, CRITICAL, FAULT) by comparing with thresholds, e.g. pack temperature &gt; 55 / 65 / 75 °C, SoC &lt; 30 / 15 %, any cell &lt; 3.0 V, imbalance &gt; 50 / 100 mV. The drone's status is the worst category. To stop flickering, a level only clears once the value is a margin past the threshold (2% SoC, 3 °C, 10 mV): <b>hysteresis</b>.</p>
+<div class="code-link"><b>In code</b><span>drone_health.py › HealthModel._level</span><span>HealthModel.bms</span><span>configs/base_config.yaml › health.thresholds</span></div>
+</section>
+
+<!-- ============================================================ 12 -->
+<section id="ekf">
+<h2><span class="num">12</span>Estimation: the extended Kalman filter</h2>
+<p class="sub">The BMS cannot see the true charge. It infers it from noisy voltage and current, and it knows how unsure it is.</p>
+
+<h3>12.1 Gaussian uncertainty</h3>
+<p>An estimate is a mean \(\hat{x}\) plus a variance \(\sigma^2\) (or, for several numbers, a covariance matrix \(P\)). For a Gaussian error, the true value lies below \(\hat{x}-z\sigma\) with probability \(1-\Phi(z)\), where \(\Phi\) is the standard normal cumulative distribution. For \(z=1.645\), that probability is 5%.</p>
+
+<h3>12.2 The Kalman filter in one dimension</h3>
+<p>Each step has two halves. <b>Predict</b> with the model, which adds uncertainty \(q\). <b>Update</b> with a measurement of variance \(r\), weighting it by the Kalman gain \(k\):</p>
+\[ \text{predict: } \hat{x}^-=f(\hat{x}),\ \ p^-=p+q;\qquad \text{update: } k=\frac{p^-}{p^-+r},\ \ \hat{x}=\hat{x}^-+k\,(y-\hat{y}),\ \ p=(1-k)\,p^-. \]
+<div class="ex"><strong>Example</strong>Prior SoC estimate 50% with \(p^-=4\) (σ = 2 points). A voltage reading implies 47% with \(r=1\). Then \(k=4/5=0.8\), the new estimate is \(50+0.8(47-50)=47.6\%\), and \(p=0.2\times4=0.8\) (σ ≈ 0.9). The filter trusts whichever source is less uncertain, and the uncertainty shrinks after every measurement.</div>
+
+<h3>12.3 MASooda's three-state EKF</h3>
+<p>The state is \(\mathbf{x}=(\mathrm{SoC},\ V_{RC},\ 1/Q)\). Estimating \(1/Q\) lets the BMS learn a sudden capacity loss from the voltage instead of being told. With measured current \(\tilde{I}\):</p>
+\[ \begin{aligned}
+\textbf{predict:}\quad &\widehat{\mathrm{SoC}}^-=\widehat{\mathrm{SoC}}-\tilde{I}\,\Delta t\,\widehat{q}/3600,\qquad \hat{V}_{RC}^-=\hat{V}_{RC}e^{-\Delta t/\tau}+R_1(1-e^{-\Delta t/\tau})\tilde{I},\\
+&F=\begin{pmatrix}1&0&-\tilde{I}\Delta t/3600\\0&e^{-\Delta t/\tau}&0\\0&0&1\end{pmatrix},\qquad P^-=FPF^\top+Q_{\text{proc}},\\[4pt]
+\textbf{update:}\quad &\hat{V}=n_s\,\mathrm{OCV}(\widehat{\mathrm{SoC}}^-+\bar\delta)-\hat{V}_{RC}^--R_0\tilde{I},\qquad y=V_{\text{meas}}-\hat{V},\\
+&H=\big(n_s\,\mathrm{OCV}'(\cdot),\ -1,\ 0\big),\quad S=HP^-H^\top+\sigma_V^2,\quad K=P^-H^\top/S,\\
+&\hat{\mathbf{x}}=\hat{\mathbf{x}}^-+K\,y,\qquad P=P^--K\,HP^-.
+\end{aligned} \]
+<ul>
+<li>\(F\) is the <b>Jacobian</b> of the prediction: how each new state depends on each old one. Its top-right entry links capacity errors to charge errors.</li>
+<li>\(H\) is the Jacobian of the voltage model. The OCV slope \(\mathrm{OCV}'\) is computed by a central difference over ±0.5% SoC. Where the OCV curve is flat, voltage tells little about SoC and the gain is small.</li>
+<li>\(P\) is kept symmetric after every update: \(P\leftarrow\tfrac12(P+P^\top)\).</li>
+<li>Sensor noise comes from a hash of (seed, drone, sample count), so a drone's measurements do not depend on which other drones fly, and replays are exact.</li>
+</ul>
+<figure><div class="svgwrap">
+<svg viewBox="0 0 680 160" role="img" aria-label="Kalman filter cycle: predict, measure, update">
+  <rect x="20" y="40" width="190" height="70" rx="8" class="s-acc f-soft"/><text class="t" x="36" y="68">Predict</text><text class="t-s" x="36" y="88">coulomb count, RC decay</text><text class="t-s" x="36" y="102">P ← FPFᵀ + Q</text>
+  <rect x="245" y="40" width="190" height="70" rx="8" class="s-warm f-wsoft"/><text class="t" x="261" y="68">Measure</text><text class="t-s" x="261" y="88">noisy V and I</text><text class="t-s" x="261" y="102">residual y = V − V̂</text>
+  <rect x="470" y="40" width="190" height="70" rx="8" class="s-acc f-soft"/><text class="t" x="486" y="68">Update</text><text class="t-s" x="486" y="88">K = PHᵀ / S</text><text class="t-s" x="486" y="102">x ← x + K y, P shrinks</text>
+  <line x1="210" y1="75" x2="241" y2="75" class="s-ln"/><polygon points="243,75 235,71 235,79" class="f-fg"/>
+  <line x1="435" y1="75" x2="466" y2="75" class="s-ln"/><polygon points="468,75 460,71 460,79" class="f-fg"/>
+  <path d="M565,110 L565,140 L115,140 L115,114" class="s-mut"/><polygon points="115,112 111,120 119,120" class="f-mut"/>
+  <text class="t-s" x="270" y="155">repeat for every drone drawing current</text>
+</svg></div>
+<figcaption>All drones are filtered at once: <code>np.einsum</code> handles a stack of 3 × 3 matrices, one per drone.</figcaption></figure>
+<div class="code-link"><b>In code</b><span>drone_health.py › HealthModel._ekf</span><span>HealthModel._gauss (Box–Muller from a hash)</span><span>soc_bms</span><span>soc_sigma</span></div>
+<p>In the paper's validation (40 drones × 3 seeds), the SoC error stayed within ±3σ in every sample, with RMSE 0.21–0.33%.</p>
+</section>
+
+<!-- ============================================================ 13 -->
+<section id="decisions">
+<h2><span class="num">13</span>Energy decisions under uncertainty</h2>
+<p class="sub">Every "can I make it?" question uses a cautious bound on the BMS estimate, never the estimate itself.</p>
+
+<h3>13.1 The chance-constrained energy bound</h3>
+\[ E^{\text{BMS}}=E^{\text{use}}\Big(\widehat{\mathrm{SoC}}-z\,\sigma_{\mathrm{SoC}},\ \ \frac{1}{\hat{q}+z\,\sigma_q}\Big),\qquad z=1.645. \]
+<p>Both the charge and the capacity are taken at their pessimistic one-sided bounds. For a Gaussian error, each bound is too optimistic only about 5% of the time.</p>
+<div class="ex"><strong>Example</strong>\(\widehat{\mathrm{SoC}}=40\%\) with σ = 1%: decisions use \(40-1.645=38.4\%\). The 1.6-point haircut is the price of not overestimating. In the paper's low-charge fleet it kept 6.4 more drones on the ground per run instead of letting them take off and divert.</div>
+
+<h3>13.2 Energy needed for the rest of the route</h3>
+\[ E^{\text{need}}(L)=P_{\text{el}}(v_c)\,\frac{L}{v_c}\,(1+\mu)+P_{\text{el}}(0)\,t_{\text{land}},\qquad \mu=0.2,\ t_{\text{land}}=30\ \text{s}. \]
+<div class="ex"><strong>Example</strong>1 km left at 10.8 m/s: flight time 92.6 s. Cruise energy \(1060\times92.6/3600=27.3\) Wh, ×1.2 = 32.7 Wh, plus landing hover \(1379\times30/3600=11.5\) Wh: \(E^{\text{need}}=44.2\) Wh.</div>
+
+<h3>13.3 The feasibility test</h3>
+<p>A route is feasible when \(E^{\text{need}}\le E^{\text{BMS}}\) <b>and</b> the weakest cell, at the charge left on arrival, stays above \(3.0+0.05=3.05\) V while carrying the landing hover (before take-off it must also carry a climb). The cell voltage is \(\mathrm{OCV}(s_k)-I\,r_{\text{cell}}(1+\varepsilon_k)\) with \(I\) from the quadratic in 11.1. The voltage test catches a high-resistance cell that would hit cut-off under load long before its charge runs out.</p>
+<div class="ex"><strong>Seen on the live site (preset 8)</strong>"D-101 low reserve (57 Wh left, 66 Wh needed to reach V9): DIVERTING to V4 (265 m, needs 20 of 57 Wh)." That is this test failing for the original destination and passing for the nearest pad.</div>
+<div class="code-link"><b>In code</b><span>drone_health.py › energy_needed_wh</span><span>feasible</span><span>sag_ok</span><span>_pack_at</span><span>lift_ok</span><span>route_engine.py › _energy_check</span><span>_divert</span></div>
+
+<h3>13.4 Pad arbitration by endurance</h3>
+<p>When several urgent drones want the same landing pad, it goes to the one that can hover the shortest time:</p>
+\[ \tau_i=\frac{3600\,E^{\text{BMS}}_i}{P_{\text{el},i}(0)}\ \text{s},\qquad \tau_i\leftarrow\min(\tau_i,120\ \text{s})\ \text{at CRITICAL or FAULT}. \]
+<p>The current holder keeps the pad unless a challenger has at least 15 s less endurance, so reservations do not flip-flop. Other arrivals stop 60 m short and loiter at the tube edge.</p>
+<div class="ex"><strong>Example</strong>57 Wh left with 1379 W hover: \(\tau=3600\times57/1379=149\) s. A drone at BMS CRITICAL is capped at 120 s, so it wins the pad over this one by 29 s, more than the 15 s swap margin.</div>
+<div class="code-link"><b>In code</b><span>route_engine.py › _endurance_s</span><span>_reserve_pads</span><span>_reservation_active</span><span>_rank (who yields in a tactical shift)</span></div>
+</section>
+
+<!-- ============================================================ 14 -->
+<section id="tick">
+<h2><span class="num">14</span>One tick, end to end</h2>
+<p class="sub">Every 0.1 s, the pieces above run in this order inside <code>simulation/route_engine.py › _simulate</code>.</p>
+<div class="tbl"><table>
+<tr><th>#</th><th>Step</th><th>Maths</th><th>Chapter</th></tr>
+<tr><td>1</td><td>Departures: pad clear and junction merge gap open?</td><td>distances, merge factor</td><td>3, 5</td></tr>
+<tr><td>2</td><td>Neighbour search within 40 m</td><td>radius graph, spatial grid</td><td>1.5, 4</td></tr>
+<tr><td>3</td><td>Spoofed broadcasts; trusted-range check and W-MSR</td><td>norms, trimmed mean</td><td>7</td></tr>
+<tr><td>4</td><td>Local velocity: pursuit, car-following, boids, CPA</td><td>dot products, headway law, \(\tau^\ast\)</td><td>3.5, 5</td></tr>
+<tr><td>5</td><td>Conflict groups solve consensus ADMM</td><td>projections, weighted averages</td><td>4.4, 6</td></tr>
+<tr><td>6</td><td>Dynamics, tube and geofence projection, crash check</td><td>Euler step, clamp, projection</td><td>2, 3.4</td></tr>
+<tr><td>7</td><td>Battery, temperatures, EKF, BMS (every 0.5–1 s)</td><td>quadratic, exponentials, Kalman</td><td>10–12</td></tr>
+<tr><td>8</td><td>Feasibility, diversions, pad arbitration, health weights (every 1 s)</td><td>chance bound, endurance</td><td>6.7, 13</td></tr>
+<tr><td>9</td><td>Layer agreement (1 s) and DTC allocation (2 s)</td><td>prices, argmin, occupancy</td><td>8</td></tr>
+<tr><td>10</td><td>STL robustness, KPIs, network metrics; stream a frame</td><td>min over pairs, Laplacian</td><td>4.2, 9</td></tr>
+</table></div>
+</section>
+
+<!-- ============================================================ 15 -->
+<section id="index">
+<h2><span class="num">15</span>Function index</h2>
+<p class="sub">Every concept above, and where it lives in the repository.</p>
+<div class="tbl index"><table>
+<tr><th>Concept</th><th>File</th><th>Function / class</th></tr>
+<tr><td>Vector clamp</td><td>simulation/dynamics.py</td><td><code>clamp_vector_2d</code></td></tr>
+<tr><td>Double-integrator step</td><td>simulation/dynamics.py</td><td><code>step_dynamics</code></td></tr>
+<tr><td>Radius / kNN graph</td><td>simulation/comm_graph.py</td><td><code>build_radius_graph</code>, <code>build_knn_graph</code></td></tr>
+<tr><td>Spatial grid index</td><td>simulation/spatial_grid.py</td><td><code>UniformGrid</code>, <code>radius_adjacency</code>, <code>close_same_layer_pairs</code>, <code>layered_min_separation_grid</code></td></tr>
+<tr><td>Graph metrics, Laplacian λ₂</td><td>simulation/route_engine.py</td><td><code>_graph_metrics</code></td></tr>
+<tr><td>Map projection</td><td>simulation/road_network.py</td><td><code>GeoFrame.to_local</code>, <code>to_geo</code></td></tr>
+<tr><td>Dijkstra</td><td>simulation/road_network.py</td><td><code>RoadNetwork.shortest_path</code></td></tr>
+<tr><td>Arc-length polyline, projection</td><td>simulation/road_network.py</td><td><code>RoutePath.point_at</code>, <code>tangent_at</code>, <code>project</code></td></tr>
+<tr><td>Sector index</td><td>simulation/route_engine.py</td><td><code>_sector</code></td></tr>
+<tr><td>Polygons, restricted areas</td><td>simulation/dtc_console.py</td><td><code>points_in_polygon</code>, <code>segments_cross_polygon</code>, <code>polygon_area</code>, <code>plan_route</code></td></tr>
+<tr><td>Boids terms</td><td>local_behavior/boids.py</td><td><code>separation</code>, <code>alignment</code>, <code>cohesion</code>, <code>corridor_following</code></td></tr>
+<tr><td>Car-following, CPA, tube</td><td>simulation/route_engine.py</td><td><code>_simulate</code>, <code>_layer_transition_clear</code></td></tr>
+<tr><td>Junction merges, platoons</td><td>simulation/route_formation.py</td><td><code>MergeTracker.factor</code>, <code>platoon_stats</code></td></tr>
+<tr><td>Conflict detection</td><td>conflict_resolution/detection.py</td><td><code>detect_conflicts</code></td></tr>
+<tr><td>Half-space constraints, projections</td><td>conflict_resolution/constraints.py</td><td><code>build_pair_constraints</code>, <code>project_pair</code>, <code>project_ball</code></td></tr>
+<tr><td>Consensus ADMM</td><td>conflict_resolution/solver.py</td><td><code>ADMMSolver.solve</code></td></tr>
+<tr><td>ADMM in the engine</td><td>conflict_resolution/adapter.py</td><td><code>resolve_conflict_event</code>, <code>resolve_all_conflicts</code></td></tr>
+<tr><td>Averaging consensus</td><td>resilience/consensus.py</td><td><code>plain_average</code>, <code>run_consensus</code>, <code>run_wmsr_consensus</code></td></tr>
+<tr><td>W-MSR</td><td>resilience/wmsr.py</td><td><code>wmsr_scalar</code>, <code>wmsr_vector</code></td></tr>
+<tr><td>Attack injection</td><td>resilience/attack.py</td><td><code>inject_attack</code>, <code>apply_attack</code></td></tr>
+<tr><td>Trusted-range defence</td><td>resilience/defense.py</td><td><code>defend_neighbor_reports</code></td></tr>
+<tr><td>Priority-aware allocation</td><td>simulation/overseer.py</td><td><code>GlobalOverseer.update</code></td></tr>
+<tr><td>Link outage</td><td>simulation/overseer_link.py</td><td><code>OverseerLink.is_up</code>, <code>request</code></td></tr>
+<tr><td>Layer agreement, prices</td><td>simulation/layer_agreement.py</td><td><code>LayerAgreement.round</code>, <code>dtc_seed_prices</code>, <code>follow_penalty</code>, <code>climb_cost</code>, <code>departure_layer</code></td></tr>
+<tr><td>STL robustness</td><td>verification/stl_monitor.py</td><td><code>instantaneous_robustness</code>, <code>robustness_series</code>, <code>stl_monitor</code>, <code>liveness_robustness</code></td></tr>
+<tr><td>Layer-aware ρ, recovery</td><td>verification/metrics.py</td><td><code>robustness_series</code>, <code>recovery_times</code>, <code>compute_run_metrics</code></td></tr>
+<tr><td>Air density</td><td>simulation/drone_health.py</td><td><code>air_density</code></td></tr>
+<tr><td>Flight power</td><td>simulation/drone_health.py</td><td><code>HealthModel.power</code>, <code>min_power_speed</code>, <code>climb_power_w</code></td></tr>
+<tr><td>1-RC battery, heat</td><td>simulation/drone_health.py</td><td><code>HealthModel._discharge</code>, <code>_r</code>, <code>_ocv_cell</code>, <code>_pack_ocv</code></td></tr>
+<tr><td>Usable energy</td><td>simulation/drone_health.py</td><td><code>_usable_wh</code>, <code>e_rem_wh</code>, <code>e_rem_bms_wh</code></td></tr>
+<tr><td>EKF</td><td>simulation/drone_health.py</td><td><code>HealthModel._ekf</code>, <code>_gauss</code></td></tr>
+<tr><td>BMS levels</td><td>simulation/drone_health.py</td><td><code>HealthModel._level</code>, <code>bms</code></td></tr>
+<tr><td>Feasibility</td><td>simulation/drone_health.py</td><td><code>energy_needed_wh</code>, <code>feasible</code>, <code>sag_ok</code>, <code>lift_ok</code></td></tr>
+<tr><td>Pad arbitration, health weights</td><td>simulation/route_engine.py</td><td><code>_endurance_s</code>, <code>_reserve_pads</code>, <code>_health_tick</code></td></tr>
+</table></div>
+<p class="small">Further reading: S. Boyd et al., "Distributed optimization and statistical learning via ADMM" (2011); H. LeBlanc et al., "Resilient asymptotic consensus in robust networks" (2013); A. Donzé and O. Maler, "Robust satisfaction of temporal logic over real-valued signals" (2010); G. Plett, <i>Battery Management Systems, Vol. I</i> (2015); C. Reynolds, "Flocks, herds and schools" (1987); J. G. Leishman, <i>Principles of Helicopter Aerodynamics</i> (2006).</p>
+</section>
+</main>
+</div>
+
+<script>
+(function () {
+  // ---------- ADMM: line-by-line port of conflict_resolution/solver.py for 2D points ----------
+  function admm(pos, tgt, w, o) {
+    const n = pos.length, r = o.vmax * o.dt, rho = o.rho;
+    const sub = (a, b) => [a[0] - b[0], a[1] - b[1]], add = (a, b) => [a[0] + b[0], a[1] + b[1]];
+    const sc = (a, c) => [a[0] * c, a[1] * c], dot = (a, b) => a[0] * b[0] + a[1] * b[1], nrm = a => Math.hypot(a[0], a[1]);
+    const pairs = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const d = sub(pos[i], pos[j]), L = nrm(d);
+      if (L > o.dsafe + 2 * r) continue;
+      pairs.push({ i, j, nn: L < 1e-9 ? [1, 0] : sc(d, 1 / L) });
+    }
+    let zp = pairs.map(c => [pos[c.i].slice(), pos[c.j].slice()]);
+    let up = pairs.map(() => [[0, 0], [0, 0]]);
+    let zb = pos.map(p => p.slice()), ub = pos.map(() => [0, 0]);
+    const K = new Array(n).fill(1); pairs.forEach(c => { K[c.i]++; K[c.j]++; });
+    let x = tgt.map(t => t.slice()); const hist = [];
+    for (let it = 1; it <= o.maxIt; it++) {
+      const acc = zb.map((z, i) => sub(z, ub[i]));
+      pairs.forEach((c, e) => { acc[c.i] = add(acc[c.i], sub(zp[e][0], up[e][0])); acc[c.j] = add(acc[c.j], sub(zp[e][1], up[e][1])); });
+      x = x.map((_, i) => sc(add(sc(tgt[i], w[i]), sc(acc[i], rho)), 1 / (w[i] + rho * K[i])));
+      let r2 = 0, s2 = 0, x2 = 0, z2 = 0;
+      pairs.forEach((c, e) => {
+        let a = add(x[c.i], up[e][0]), b = add(x[c.j], up[e][1]);
+        const viol = o.dsafe - dot(c.nn, sub(a, b));
+        if (viol > 0) { a = add(a, sc(c.nn, 0.5 * viol)); b = sub(b, sc(c.nn, 0.5 * viol)); }
+        const da = sub(a, zp[e][0]), db = sub(b, zp[e][1]); s2 += dot(da, da) + dot(db, db); zp[e] = [a, b];
+      });
+      const zbn = x.map((xi, i) => { const p = add(xi, ub[i]), d = sub(p, pos[i]), L = nrm(d); return (L <= r || L === 0) ? p : add(pos[i], sc(d, r / L)); });
+      zbn.forEach((z, i) => { const d = sub(z, zb[i]); s2 += dot(d, d); }); zb = zbn;
+      pairs.forEach((c, e) => { const ra = sub(x[c.i], zp[e][0]), rb = sub(x[c.j], zp[e][1]); up[e] = [add(up[e][0], ra), add(up[e][1], rb)]; r2 += dot(ra, ra) + dot(rb, rb); x2 += dot(x[c.i], x[c.i]) + dot(x[c.j], x[c.j]); z2 += dot(zp[e][0], zp[e][0]) + dot(zp[e][1], zp[e][1]); });
+      x.forEach((xi, i) => { const d = sub(xi, zb[i]); ub[i] = add(ub[i], d); r2 += dot(d, d); x2 += dot(xi, xi); z2 += dot(zb[i], zb[i]); });
+      const rn = Math.sqrt(r2), sn = rho * Math.sqrt(s2), m = Math.max(1, K.reduce((a, b) => a + b, 0));
+      let u2 = 0; up.forEach(u => { u2 += dot(u[0], u[0]) + dot(u[1], u[1]); }); ub.forEach(u => { u2 += dot(u, u); });
+      const ep = Math.sqrt(m) * o.eabs + o.erel * Math.max(Math.sqrt(x2), Math.sqrt(z2));
+      const ed = Math.sqrt(m) * o.eabs + o.erel * rho * Math.sqrt(u2);
+      hist.push({ x: x.map(v => v.slice()), r: rn, s: sn });
+      if (rn <= ep && sn <= ed) return { hist, converged: true };
+    }
+    return { hist, converged: false };
+  }
+  const O = { dsafe: 8.08, vmax: 15, dt: 0.1, rho: 1, maxIt: 50, eabs: 1e-3, erel: 1e-4 };
+  const gapEl = document.getElementById('admm-gap'), wEl = document.getElementById('admm-w'), itEl = document.getElementById('admm-it');
+  const svg = document.getElementById('admm-svg'), txt = document.getElementById('admm-text');
+  let run = null;
+  function solve() {
+    const g = parseFloat(gapEl.value);
+    document.getElementById('admm-gap-out').textContent = g.toFixed(1);
+    const w = wEl.value.split(',').map(Number);
+    run = admm([[0, 0], [g, 0]], [[1.2, 0], [g - 1.2, 0]], w, O);
+    itEl.max = String(run.hist.length); itEl.value = String(run.hist.length);
+    draw();
+  }
+  function draw() {
+    const k = Math.min(parseInt(itEl.value, 10), run.hist.length);
+    document.getElementById('admm-it-out').textContent = String(k);
+    const g = parseFloat(gapEl.value), h = run.hist[k - 1], x1 = h.x[0][0], x2 = h.x[1][0];
+    const X = v => 40 + (v + 1.5) * (600 / (g + 3));
+    const t1 = 1.2, t2 = g - 1.2;
+    const css = getComputedStyle(document.documentElement);
+    svg.innerHTML =
+      `<line x1="${X(-1.5)}" y1="80" x2="${X(g + 1.5)}" y2="80" class="s-grid"/>` +
+      `<rect x="${X(-1.5)}" y="70" width="${X(1.5) - X(-1.5)}" height="20" class="f-soft"/>` +
+      `<rect x="${X(g - 1.5)}" y="70" width="${X(g + 1.5) - X(g - 1.5)}" height="20" class="f-soft"/>` +
+      `<line x1="${X(0)}" y1="62" x2="${X(0)}" y2="98" class="s-mut"/><line x1="${X(g)}" y1="62" x2="${X(g)}" y2="98" class="s-mut"/>` +
+      `<text class="t-s" x="${X(0) - 18}" y="116">start 0</text><text class="t-s" x="${X(g) - 22}" y="116">start ${g.toFixed(1)}</text>` +
+      `<circle cx="${X(t1)}" cy="80" r="5" class="s-acc f-paper"/><circle cx="${X(t2)}" cy="80" r="5" class="s-warm f-paper"/>` +
+      `<text class="t-s" x="${X(t1) - 14}" y="54">target</text><text class="t-s" x="${X(t2) - 14}" y="54">target</text>` +
+      `<circle cx="${X(x1)}" cy="80" r="8" class="f-acc"/><circle cx="${X(x2)}" cy="80" r="8" class="f-warm"/>` +
+      `<line x1="${X(x1)}" y1="132" x2="${X(x2)}" y2="132" class="s-ln"/>` +
+      `<text class="t" x="${(X(x1) + X(x2)) / 2 - 40}" y="128">gap ${(x2 - x1).toFixed(3)} m</text>` +
+      `<text class="t-s" x="${X(-1.5)}" y="24">shaded: each drone's 1.5 m speed ball · hollow: intended position · filled: ADMM iterate</text>`;
+    const w = wEl.value.split(',').map(Number);
+    txt.textContent = `iteration ${k}/${run.hist.length}${run.converged ? ' (converged)' : ' (not converged: fallback)'} · x₁ = ${x1.toFixed(3)} m, x₂ = ${x2.toFixed(3)} m · drone 1 gave up ${(t1 - x1).toFixed(3)} m, drone 2 gave up ${(x2 - t2).toFixed(3)} m · primal r = ${h.r.toFixed(4)}, dual s = ${h.s.toFixed(4)} · weights ${w[0]} : ${w[1]}`;
+  }
+  gapEl.addEventListener('input', solve); wEl.addEventListener('change', solve); itEl.addEventListener('input', draw);
+  solve();
+
+  // ---------- W-MSR: port of resilience/wmsr.py › wmsr_scalar ----------
+  function wmsr(own, vals, f) {
+    if (vals.length <= 2 * f) {
+      const a = [own, ...vals].sort((p, q) => p - q), m = a.length;
+      return { value: m % 2 ? a[(m - 1) / 2] : (a[m / 2 - 1] + a[m / 2]) / 2, median: true, cut: new Set() };
+    }
+    const idx = vals.map((v, i) => ({ v, i }));
+    const larger = idx.filter(o => o.v > own).sort((a, b) => a.v - b.v);
+    const smaller = idx.filter(o => o.v < own).sort((a, b) => a.v - b.v);
+    const cut = new Set([...larger.slice(Math.max(0, larger.length - f)).map(o => o.i), ...smaller.slice(0, Math.min(f, smaller.length)).map(o => o.i)]);
+    const kept = [own, ...idx.filter(o => !cut.has(o.i)).map(o => o.v)];
+    return { value: kept.reduce((a, b) => a + b, 0) / kept.length, median: false, cut };
+  }
+  const ownEl = document.getElementById('w-own'), repEl = document.getElementById('w-rep'), fEl = document.getElementById('w-f');
+  function upd() {
+    const own = parseFloat(ownEl.value), f = parseInt(fEl.value, 10);
+    const vals = repEl.value.split(',').map(s => parseFloat(s.trim())).filter(v => Number.isFinite(v));
+    const chips = document.getElementById('w-chips'), out = document.getElementById('w-out');
+    if (!Number.isFinite(own)) { out.textContent = 'Enter a number for your own value.'; chips.innerHTML = ''; return; }
+    const res = wmsr(own, vals, f);
+    chips.innerHTML = `<span class="chip own">own ${own}</span>` + vals.map((v, i) => `<span class="chip ${res.cut.has(i) ? 'cut' : 'keep'}">${v}</span>`).join('');
+    const plain = [own, ...vals].reduce((a, b) => a + b, 0) / (vals.length + 1);
+    out.textContent = (res.median ? `Only ${vals.length} report(s) for f = ${f}: the code falls back to the median = ` : `W-MSR (f = ${f}) = `) + res.value.toFixed(3) + ` · plain average = ${plain.toFixed(3)}`;
+  }
+  [ownEl, repEl, fEl].forEach(e => e.addEventListener('input', upd)); fEl.addEventListener('change', upd);
+  upd();
+})();
+</script>
+
+</body></html>

@@ -14,7 +14,7 @@ from simulation.scenario_presets import build_preset_request, expand_macros, lis
 def test_every_preset_loads_builds_and_validates():
     from web_sandbox.server import prepare_live_run
     presets = list_presets()
-    assert [p["order"] for p in presets] == list(range(1, 11))
+    assert [p["order"] for p in presets] == list(range(1, 12))
     for p in presets:
         assert p["description"] and p["timeline"], p["id"]
         for v in range(max(1, len(p["variants"]))):

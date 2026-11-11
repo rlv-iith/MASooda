@@ -1,0 +1,616 @@
+{
+ "id": "summer_ops",
+ "order": 11,
+ "title": "Summer afternoon at 350 drones: every case",
+ "description": "A sunny 44 °C May afternoon on campus with a 3 m/s westerly. 350 drones fly repeated sorties for 10 minutes (battery swaps at the Mess A, Mess B and Sampoorna depots), and every case the demo handles happens at least once. A drone parked on a sun-baked pad during a ground stop heats up and is refused at pre-flight. Every BMS code shows up at WARNING, CRITICAL and FAULT: low charge, cell failure, unknown capacity loss, cell sag, pack overheating, motor overheating, over-current, take-off mass and low-energy pre-flight refusals and a GNSS sensor fault. Alongside: a non-cooperative intruder, two blood runs, a medevac upgrade, GPS spoofing and quarantine, every operator console command, a VIP restricted area lifted early, a DTC outage with a queued command, and a storm cell with a second ground stop and a low-charge recall.",
+ "kpi_focus": [
+  "BMS alerts by code and level",
+  "pre-flight refusals (heat, mass)",
+  "diversions, forced landings, no energy depletion",
+  "battery swaps and sorties",
+  "emergency compliance and delay",
+  "near misses / min separation"
+ ],
+ "request": {
+  "map": "iith",
+  "seed": 42,
+  "fleet": 350,
+  "duration_s": 600,
+  "departure_window_s": 300,
+  "mix": {
+   "EMERGENCY": 3,
+   "EVTOL": 22,
+   "DELIVERY": 75
+  },
+  "architecture": "hierarchical",
+  "outage": {
+   "enabled": true,
+   "start_s": 300,
+   "end_s": 345
+  },
+  "config": {
+   "drone_health": {
+    "ambient_c": 44.0,
+    "wind_mps": [
+     3.0,
+     0.0
+    ]
+   },
+   "operations": {
+    "sorties": true
+   }
+  }
+ },
+ "drones": [
+  {
+   "name": "intruder",
+   "type": "DELIVERY",
+   "origin": "V13",
+   "destination": "V9",
+   "depart_s": 20,
+   "cooperative": false
+  },
+  {
+   "name": "blood1",
+   "type": "EMERGENCY",
+   "origin": "V12",
+   "destination": "V1",
+   "depart_s": 30
+  },
+  {
+   "name": "sunbaked",
+   "type": "DELIVERY",
+   "origin": "V3",
+   "destination": "V10",
+   "depart_s": 40,
+   "fault": {
+    "type": "overheating",
+    "t_s": 40
+   }
+  },
+  {
+   "name": "blood2",
+   "type": "EMERGENCY",
+   "origin": "V7",
+   "destination": "V1",
+   "depart_s": 45
+  },
+  {
+   "name": "spoof1",
+   "type": "DELIVERY",
+   "origin": "V6",
+   "destination": "V12",
+   "depart_s": 50,
+   "malicious": true,
+   "spoof_offset_m": [
+    -30,
+    0
+   ],
+   "spoof_start_s": 80
+  },
+  {
+   "name": "spoof2",
+   "type": "DELIVERY",
+   "origin": "V5",
+   "destination": "V10",
+   "depart_s": 55,
+   "malicious": true,
+   "spoof_offset_m": [
+    0,
+    -30
+   ],
+   "spoof_start_s": 80
+  },
+  {
+   "name": "courier",
+   "type": "DELIVERY",
+   "origin": "V10",
+   "destination": "V2",
+   "depart_s": 60,
+   "soc_init_pct": 70
+  },
+  {
+   "name": "courier2",
+   "type": "DELIVERY",
+   "origin": "V8",
+   "destination": "V13",
+   "depart_s": 70
+  },
+  {
+   "name": "courier3",
+   "type": "EVTOL",
+   "origin": "V11",
+   "destination": "V3",
+   "depart_s": 80
+  },
+  {
+   "name": "lowbatt",
+   "type": "DELIVERY",
+   "origin": "V12",
+   "destination": "V2",
+   "depart_s": 90,
+   "soc_init_pct": 32
+  },
+  {
+   "name": "lowbatt2",
+   "type": "DELIVERY",
+   "origin": "V9",
+   "destination": "V3",
+   "depart_s": 100,
+   "soc_init_pct": 40
+  },
+  {
+   "name": "capacity",
+   "type": "DELIVERY",
+   "origin": "V6",
+   "destination": "V9",
+   "depart_s": 110,
+   "soc_init_pct": 31,
+   "fault": {
+    "type": "capacity_loss",
+    "t_s": 140
+   }
+  },
+  {
+   "name": "cellfail",
+   "type": "DELIVERY",
+   "origin": "V12",
+   "destination": "V2",
+   "depart_s": 140,
+   "soc_init_pct": 80,
+   "fault": {
+    "type": "cell_failure",
+    "t_s": 190
+   }
+  },
+  {
+   "name": "sag",
+   "type": "DELIVERY",
+   "origin": "V10",
+   "destination": "V2",
+   "depart_s": 150,
+   "soc_init_pct": 45,
+   "fault": {
+    "type": "cell_failure",
+    "t_s": 200
+   }
+  },
+  {
+   "name": "overheat",
+   "type": "DELIVERY",
+   "origin": "V9",
+   "destination": "V2",
+   "depart_s": 170,
+   "fault": {
+    "type": "overheating",
+    "t_s": 175
+   }
+  },
+  {
+   "name": "motor",
+   "type": "DELIVERY",
+   "origin": "V9",
+   "destination": "V2",
+   "depart_s": 200,
+   "payload_kg": 4.0,
+   "fault": {
+    "type": "motor_degradation",
+    "t_s": 200
+   }
+  },
+  {
+   "name": "overload",
+   "type": "DELIVERY",
+   "origin": "V10",
+   "destination": "V1",
+   "depart_s": 210,
+   "payload_kg": 12.0
+  },
+  {
+   "name": "drained",
+   "type": "DELIVERY",
+   "origin": "V12",
+   "destination": "V2",
+   "depart_s": 215,
+   "soc_init_pct": 16
+  },
+  {
+   "name": "gnss",
+   "type": "EVTOL",
+   "origin": "V2",
+   "destination": "V12",
+   "depart_s": 230,
+   "fault": {
+    "type": "gnss_degradation",
+    "t_s": 290
+   }
+  },
+  {
+   "name": "medevac",
+   "type": "EVTOL",
+   "origin": "V2",
+   "destination": "V1",
+   "depart_s": 380
+  }
+ ],
+ "script": [
+  {
+   "t": 1,
+   "type": "lost_link_policy",
+   "params": {
+    "policy": "hold"
+   },
+   "reason": "fleet default: routine traffic loiters if the DTC link drops"
+  },
+  {
+   "t": 1,
+   "type": "lost_link_policy",
+   "targets": [
+    190,
+    3,
+    17,
+    257,
+    61,
+    183,
+    52,
+    287,
+    151,
+    331,
+    292,
+    "@blood1",
+    "@blood2",
+    "@medevac",
+    "@lowbatt",
+    "@lowbatt2",
+    "@capacity",
+    "@cellfail",
+    "@sag",
+    "@overheat",
+    "@motor",
+    "@gnss",
+    "@courier",
+    "@courier2",
+    "@courier3"
+   ],
+   "params": {
+    "policy": "continue"
+   },
+   "reason": "emergencies and drones with a battery plan keep flying if the link drops"
+  },
+  {
+   "t": 30,
+   "type": "priority",
+   "targets": [
+    "@blood1"
+   ],
+   "params": {
+    "level": 0
+   },
+   "reason": "medical request: blood SNCC → Hospital"
+  },
+  {
+   "t": 35,
+   "type": "ground_stop",
+   "params": {
+    "sector": 3
+   },
+   "reason": "midday heat: departures from the west campus pads stopped"
+  },
+  {
+   "t": 45,
+   "type": "priority",
+   "targets": [
+    "@blood2"
+   ],
+   "params": {
+    "level": 0
+   },
+   "reason": "second blood request, same Hospital pad"
+  },
+  {
+   "t": 60,
+   "type": "speed_limit",
+   "params": {
+    "sector": 4,
+    "v": 6,
+    "expires_s": 45
+   },
+   "reason": "non-cooperative intruder reported over the centre"
+  },
+  {
+   "t": 90,
+   "type": "change_layer",
+   "targets": [
+    "@courier"
+   ],
+   "params": {
+    "layer": 3
+   },
+   "reason": "operator: move courier to layer 3"
+  },
+  {
+   "t": 100,
+   "type": "hold",
+   "targets": [
+    "@courier"
+   ],
+   "reason": "operator: hold courier for traffic"
+  },
+  {
+   "t": 110,
+   "type": "resume",
+   "targets": [
+    "@courier"
+   ],
+   "reason": "operator: release courier"
+  },
+  {
+   "t": 120,
+   "type": "ground_stop_release",
+   "params": {
+    "sector": 3
+   },
+   "reason": "west campus departures resume"
+  },
+  {
+   "t": 125,
+   "type": "reroute",
+   "targets": [
+    "@courier"
+   ],
+   "params": {
+    "dest": "V8"
+   },
+   "reason": "operator: courier re-tasked to Mess B"
+  },
+  {
+   "t": 135,
+   "type": "ground_now",
+   "targets": [
+    "@sunbaked"
+   ],
+   "reason": "operator: power down the overheated drone on its pad"
+  },
+  {
+   "t": 140,
+   "type": "quarantine",
+   "targets": [
+    "@spoof1",
+    "@spoof2"
+   ],
+   "reason": "trusted-range checks flag both drones"
+  },
+  {
+   "t": 150,
+   "type": "rtb",
+   "targets": [
+    "@courier2"
+   ],
+   "reason": "operator: courier2 back to its origin"
+  },
+  {
+   "t": 160,
+   "type": "divert_charge",
+   "targets": [
+    "@lowbatt2"
+   ],
+   "params": {
+    "pad": "V10",
+    "mode": "swap"
+   },
+   "reason": "operator: battery swap at Mess A before continuing"
+  },
+  {
+   "t": 165,
+   "type": "ground_now",
+   "targets": [
+    "@courier3"
+   ],
+   "reason": "operator: land eVTOL courier3 now"
+  },
+  {
+   "t": 170,
+   "type": "tfr",
+   "params": {
+    "polygon": [
+     [
+      -130,
+      -230
+     ],
+     [
+      230,
+      -230
+     ],
+     [
+      230,
+      40
+     ],
+     [
+      -130,
+      40
+     ]
+    ],
+    "start_s": 180,
+    "end_s": 320,
+    "name": "VIP"
+   },
+   "reason": "VIP visit at the Academic Area (announced 10 s ahead)"
+  },
+  {
+   "t": 245,
+   "type": "fleet_ground_bms_critical",
+   "reason": "operator: ground every drone at BMS CRITICAL"
+  },
+  {
+   "t": 260,
+   "type": "tfr_cancel",
+   "params": {
+    "name": "VIP"
+   },
+   "reason": "VIP visit ended early"
+  },
+  {
+   "t": 330,
+   "type": "speed_limit",
+   "params": {
+    "sector": 2,
+    "v": 8,
+    "expires_s": 60
+   },
+   "reason": "sent during the outage: queued, delivered when the link returns"
+  },
+  {
+   "t": 385,
+   "type": "priority",
+   "targets": [
+    "@medevac"
+   ],
+   "params": {
+    "level": 0
+   },
+   "reason": "eVTOL upgraded to medevac → Hospital"
+  },
+  {
+   "t": 440,
+   "type": "ground_stop",
+   "params": {
+    "sector": 5,
+    "release_s": 500
+   },
+   "reason": "storm over Mess B"
+  },
+  {
+   "t": 480,
+   "type": "fleet_recall_below_soc",
+   "params": {
+    "threshold_pct": 25
+   },
+   "reason": "end-of-shift recall of low-charge drones"
+  }
+ ],
+ "macros": [
+  {
+   "type": "moving_cell",
+   "name": "Storm",
+   "from": [
+    -150,
+    560
+   ],
+   "to": [
+    350,
+    -600
+   ],
+   "radius_m": 100,
+   "steps": 12,
+   "start_s": 420,
+   "end_s": 560,
+   "reason": "afternoon thunderstorm"
+  }
+ ],
+ "timeline": [
+  [
+   0,
+   "350 drones on repeated sorties at 44 °C, 3 m/s westerly; depots swap batteries"
+  ],
+  [
+   20,
+   "@intruder (no Remote ID) Sampoorna → New Hostels: seen only by onboard sensing"
+  ],
+  [
+   30,
+   "@blood1 EMERGENCY SNCC → Hospital, priority 0, reserved emergency layer"
+  ],
+  [
+   35,
+   "Ground stop on the west campus (S3); @sunbaked is parked on the hot Guest House pad"
+  ],
+  [
+   45,
+   "@blood2 EMERGENCY Academic Area → Hospital: same pad, pad arbitration"
+  ],
+  [
+   54,
+   "@sunbaked pack heats in the sun: OVER_TEMP WARNING, then CRITICAL"
+  ],
+  [
+   80,
+   "@spoof1, @spoof2 broadcast positions 30 m off: trusted-range + W-MSR correct them"
+  ],
+  [
+   90,
+   "Console on @courier: change layer, hold, resume, reroute to Mess B"
+  ],
+  [
+   120,
+   "Ground stop released: @sunbaked refused at pre-flight (BMS OVER_TEMP); powered down at 135 s"
+  ],
+  [
+   140,
+   "Operator quarantines both spoofers"
+  ],
+  [
+   140,
+   "@capacity (31 %) loses 30 % capacity, BMS learns it from voltage → low-reserve diversion"
+  ],
+  [
+   150,
+   "Operator: @courier2 return to base; @lowbatt (28 %) UNDER_VOLTAGE WARNING → CRITICAL"
+  ],
+  [
+   160,
+   "Operator: @lowbatt2 battery swap at Mess A, then on to its mission"
+  ],
+  [
+   165,
+   "Operator: ground eVTOL @courier3 now"
+  ],
+  [
+   170,
+   "VIP restricted area announced (active 180 s)"
+  ],
+  [
+   175,
+   "@overheat pack overheating in flight: speed limit, CRITICAL hold, then FAULT"
+  ],
+  [
+   190,
+   "@cellfail cell failure → CELL_IMBALANCE CRITICAL, right of way, pad reserved, diverts"
+  ],
+  [
+   200,
+   "@sag cell failure at 45 % → cell sags below 3.0 V → UNDER_VOLTAGE FAULT, lands in place"
+  ],
+  [
+   200,
+   "@motor 4 kg payload + worn motor → OVER_CURRENT, motor 110 °C CRITICAL, diverts"
+  ],
+  [
+   210,
+   "@overload 12 kg payload refused at pre-flight (over maximum take-off mass); @drained (16 %) refused for too little energy at 215 s"
+  ],
+  [
+   245,
+   "Operator grounds every BMS CRITICAL drone"
+  ],
+  [
+   260,
+   "@gnss GNSS degradation → SENSOR_FAULT; VIP area lifted early (tfr_cancel)"
+  ],
+  [
+   300,
+   "DTC link down (to 345 s): routine traffic loiters, emergencies continue; command at 330 s queued"
+  ],
+  [
+   385,
+   "eVTOL @medevac upgraded to priority 0 → Hospital"
+  ],
+  [
+   420,
+   "Storm cell crosses the campus centre north → south; ground stop at Mess B 440–500 s"
+  ],
+  [
+   480,
+   "Recall every drone below 25 % SoC"
+  ]
+ ]
+}

@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MASooda — Final Project Report</title>
+<style>
+  @page { size: A4; margin: 40pt 40pt 40pt 40pt; }
+  :root {
+    --blue: #7287fd; --rule: #1e66f5; --teal: #209fb5; --green: #40a02b;
+    --ink: #000000; --tbl-ink: #4c4f69; --tbl-head: #6c6f85; --border: #ccd0da;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body {
+    font-family: "SF Mono", "SFMono-Regular", Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace;
+    font-size: 8px; line-height: 1.55; color: var(--ink);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  @media screen { body { max-width: 900px; margin: 40px auto; padding: 0 24px; font-size: 11px; } table td { font-size: 11px !important; } th { font-size: 9.5px !important; } .title{font-size:22px!important} h1{font-size:17px!important} h2,h3,.sub{font-size:14px!important} }
+  h1, h2, h3 { color: var(--blue); margin: 0; break-after: avoid; }
+  .title { font-size: 16px; font-weight: 700; color: var(--blue); margin: 0 0 14px; }
+  h1 { font-size: 12.8px; font-weight: 600; margin: 0 0 10px; }
+  h2 { font-size: 11px; font-weight: 600; margin: 0 0 10px; }
+  h3 { font-size: 9.6px; font-weight: 600; margin: 12px 0 7px; }
+  .sub { font-size: 11px; font-weight: 600; color: var(--blue); margin: 0 0 18px; line-height: 1.5; }
+  hr { border: 0; border-top: 1.33px solid var(--rule); margin: 18px 0; }
+  p { margin: 0 0 9px; }
+  ul { margin: 0 0 9px; padding-left: 12px; }
+  ol { margin: 0 0 9px; padding-left: 17px; }
+  li { margin: 0 0 2px; }
+  .t { color: var(--teal); font-weight: 600; }
+  .tl { color: var(--teal); }
+  .q, .em { color: var(--green); font-style: italic; }
+  code { font-family: inherit; color: var(--tbl-ink); }
+  table { border-collapse: collapse; width: 100%; margin: 4px 0 12px; color: var(--tbl-ink); }
+  tr { break-inside: avoid; }
+  th, td { border: 0.75px solid var(--border); padding: 3px 5px; text-align: left; vertical-align: top; }
+  th { font-size: 6.9px; font-weight: 400; color: var(--tbl-head); }
+  td { font-size: 8px; line-height: 1.45; }
+  td.n { color: var(--teal); font-weight: 600; white-space: nowrap; }
+  td.k { color: var(--teal); }
+  .small td { font-size: 7.3px; }
+  .lbl { color: var(--teal); font-weight: 600; margin-bottom: 3px; }
+  .mono-log { color: var(--tbl-ink); font-size: 7.3px; border-left: 2px solid var(--border); padding: 2px 0 2px 8px; margin: 0 0 10px; }
+</style>
+</head>
+<body>
+
+<div class="title">MASooda</div>
+<h1>Final Project Report</h1>
+<div class="sub">Multi-Agent System for Hierarchical, Priority-Aware, and Resilient Urban Air Traffic Management — as built, as demonstrated, and as measured</div>
+
+<hr>
+
+<h2>1. Scenario (as built)</h2>
+<p>A fleet of up to <span class="t">500 heterogeneous autonomous drones</span> — emergency/medical drones (priority 0), passenger eVTOLs (priority 1) and parcel-delivery drones (priority 2) — shares low-altitude airspace over the <span class="t">IIT Hyderabad campus (Kandi)</span> and <span class="t">Hyderabad city roads</span>. Each drone is a self-interested agent that hears only neighbours within <span class="t">40 m</span> over vehicle-to-vehicle (V2V) links and senses non-cooperative drones within 30 m. The system runs live at <span class="tl">masooda.onrender.com</span>.</p>
+<p>The proposal imagined two or three straight corridors. The final airspace follows the <span class="t">real road network</span>, because that is where drone corridors would actually be laid:</p>
+<ul>
+  <li><span class="t">IITH campus map:</span> 28 roads traced from the campus map (~0.95 m/px) form a graph of 105 junctions with 13 vertiports — V1 Hospital, three depots (Mess A, Mess B, Sampoorna) and nine hubs (Main Gate, Guest House, Convention Centre, LHC, Admin Block, Academic Area, New Hostels, Old Hostels, SNCC) — enclosed by a geofence.</li>
+  <li><span class="t">Hyderabad map:</span> OpenStreetMap major roads (motorway to tertiary) snapped into a routable graph of 1,533 junctions with 8 vertiports chosen by farthest-point sampling (hub, hospital, depot roles).</li>
+  <li><span class="t">Corridor tubes:</span> each road is a 20 m tube with one keep-left lane per direction; a drone that drifts more than 10 m off the centreline is projected back onto the tube wall, and the map edge acts as a geofence.</li>
+  <li><span class="t">2.5D layered airspace:</span> seven altitude layers L0–L6 stacked 15 m apart from 30 m to 120 m above ground (inside India's 400 ft green-zone ceiling). Following the semicircular rule, eastbound traffic uses even layers (L0, L2, L4), westbound odd layers (L1, L3, L5), and <span class="t">L6 is reserved for medical emergencies</span>.</li>
+  <li><span class="t">Sectors:</span> the airspace is split into six sectors (3 × 2 grid); every (sector, layer) cell has a nominal capacity of 15 drones.</li>
+</ul>
+<p>The system must stay correct when agents behave <span class="t">adversarially</span> (GPS-spoofed position broadcasts, a drone with no Remote ID), when the <span class="t">controller link drops</span>, and when the physical world intervenes: <span class="t">battery faults</span> (capacity loss, cell failure, overheating, motor and GNSS degradation), <span class="t">heat</span> (thinner air at 35–44 °C raises hover power), <span class="t">wind</span>, moving <span class="t">storm cells</span> and pop-up <span class="t">restricted areas</span>.</p>
+
+<hr>
+
+<h2>2. Objective — and What Was Achieved</h2>
+<p>All five design objectives of the proposal are implemented and run together, every tick (Δt = 0.1 s), in one simulation loop:</p>
+<ol>
+  <li><span class="t">Local governance:</span> each drone follows its route by pure pursuit (look-ahead 40 m), keeps a car-following gap v ≤ (g − d₀)/h with d₀ = 12 m and h = 1 s, applies boids separation and alignment, and avoids neighbours by closest point of approach. Conflicting groups (same layer, within 20 m) negotiate their next positions with <span class="t">consensus ADMM</span>; a crowded drone can also make a tactical altitude shift.</li>
+  <li><span class="t">Global governance:</span> the <span class="t">Drone Traffic Controller (DTC)</span> runs every 2 s per sector: it counts (sector, layer) load, keeps emergencies on L6, moves drones out of over-capacity cells through a <span class="t">safety gate</span> (a layer change is deferred if the target layer is occupied nearby), seeds layer congestion prices and executes operator commands. If the link fails, drones follow their lost-link policy (continue, hold, return to base or land) and operator commands wait in a queue for up to 30 s.</li>
+  <li><span class="t">Priority arbitration:</span> emergency &gt; eVTOL &gt; delivery is respected globally (reserved layer, priority-aware allocation) and locally (ADMM weights 10 / 3 / 1, and the lower-priority drone yields in a tactical shift). A drone whose battery management system (BMS) reports CRITICAL or FAULT is treated as priority 0 for right of way to land, and its landing pad is reserved.</li>
+  <li><span class="t">Adversarial resilience:</span> every received position report passes a <span class="t">trusted-range check</span> (a report that disagrees with the sensed range by more than 3 m is moved along its bearing to that range) and <span class="t">W-MSR</span> fusion with f = 1; the operator can also quarantine a drone so its reports are ignored network-wide.</li>
+  <li><span class="t">Formal safety verification:</span> the STL specification φ = <b>G</b>(d<sub>ij</sub>(t) ≥ d<sub>min</sub>), d<sub>min</sub> = 8 m, is monitored live through its robustness ρ(t) = min<sub>i≠j</sub> d<sub>ij</sub>(t) − d<sub>min</sub>, using a <span class="t">layer-aware 3D distance</span> (horizontal offset plus layer gap × layer height), independent of which tier acted. A reachability spec <b>F</b>(reach destination) is also implemented.</li>
+</ol>
+<p class="lbl">Underlying research question:</p>
+<p class="q">Can a two-tier (decentralized-local / centralized-global) multi-agent architecture achieve scalable, priority-aware, and formally verifiable safe traffic management in dense UAM airspace, while remaining robust to adversarial or faulty agents — outperforming a purely centralized or purely decentralized alternative under the same conditions?</p>
+<p class="lbl">What our evaluation found (100 drones on the campus map, 20 paired seeds):</p>
+<p class="em">Hierarchical and decentralized control both delivered 95.7% of flights with zero near misses and a 12.5 m minimum separation; the centralized controller, acting on reports refreshed at its update rate, had 9.8 near misses and 1.1 collisions per run and delivered 88.0%. The hierarchy is as safe as decentralized control and clearly safer than central control. In nominal traffic its DTC did not add measurable safety on top of the local tier — its value shows in the scenarios it alone can handle: emergencies, ground stops, restricted areas, battery faults and operator commands.</p>
+
+<hr>
+
+<div style="break-inside: avoid;"><h2>3. Outcomes Delivered</h2>
+<table>
+  <tr><th style="width:4%">#</th><th style="width:28%">Outcome (from the proposal)</th><th>How it is demonstrated now</th></tr>
+  <tr><td class="n">1</td><td>A working simulation of N heterogeneous drone agents self-organizing into corridors under local rules, coordinated by a lightweight global overseer</td><td>Live map of the IITH campus or Hyderabad with drones coloured by type on road corridors, sectors and seven layers; a 2.5D side view per drone; DTC directives, layer changes and pad holds in the governance log. Fleets of up to 500 drones stream to the browser.</td></tr>
+  <tr><td class="n">2</td><td>Demonstrated priority arbitration across drone classes</td><td>Preset 1 (medical emergency): two blood-delivery drones fly SNCC and Main Gate → Hospital on reserved layer L6 through a 120-drone lunch rush. Headless result: emergency compliance 100%, mean emergency delay 4.5 s, 0 near misses. The Safety panel shows compliance, delay against free flow and the yields imposed on other traffic.</td></tr>
+  <tr><td class="n">3</td><td>Demonstrated resilience to adversarial agents</td><td>Preset 4 (GPS spoofing): two compromised drones broadcast positions 30 m off from 50 s; the map draws each spoofed report with an arrow to its W-MSR estimate; the operator quarantines both at 110 s. In the 20-seed evaluation the defence accepted 0 spoofed reports against 193 per run undefended.</td></tr>
+  <tr><td class="n">4</td><td>Comparative evaluation: hierarchical vs. purely centralized vs. purely decentralized</td><td>Four architectures selectable in Setup and runnable from identical initial conditions (the IC hash is shown): hierarchical, centralized (DTC computes every velocity), decentralized (no DTC, ADMM + defence) and decentralized-undefended. Results in Section 5.</td></tr>
+  <tr><td class="n">5</td><td>Formal safety guarantee</td><td>Live STL robustness plot ρ(t) in the Safety panel, plus near-miss episodes, violation ticks and crashes (&lt; 2 m); separation alerts drawn on the map.</td></tr>
+  <tr><td class="n">6</td><td>Quantified graceful degradation</td><td>Preset 5 (DTC outage 80–150 s) runs three lost-link policies side by side from the same seed. Headless result: continue 91 delivered · hold 76 delivered (+77% energy, emergency delay 51 s) · return-to-base 36 delivered. A speed limit sent at 125 s is queued and delivered when the link returns.</td></tr>
+</table></div>
+
+<hr>
+
+<h2>4. How One Simulation Tick Works</h2>
+<p>Every module the team built runs inside the same loop (<code>simulation/route_engine.py</code>), in this order:</p>
+<ol>
+  <li><span class="t">Departures:</span> queued drones leave their pad when the pad airspace is clear and the corridor junction has a merge gap; otherwise they are held on the ground (logged, e.g. "ground hold at V10: pad airspace occupied").</li>
+  <li><span class="t">Neighbour search:</span> V2V graph within 40 m (spatial grid index, so 500 drones stay fast); non-cooperative drones are visible only to onboard sensing within 30 m.</li>
+  <li><span class="t">Attack and defence:</span> spoofers falsify their broadcasts; receivers apply the trusted-range check and W-MSR before using any report.</li>
+  <li><span class="t">Local behaviour:</span> route following, car-following, boids, closest-point-of-approach avoidance, junction merging and platoon tracking.</li>
+  <li><span class="t">ADMM:</span> conflict groups on the same layer within 20 m solve for their next positions; groups that do not converge in 50 iterations keep their intended velocities and count as fallbacks.</li>
+  <li><span class="t">Dynamics and boundaries:</span> velocity and acceleration limits (15 m/s), tube and geofence projection, crash detection (&lt; 2 m).</li>
+  <li><span class="t">Battery and health (every 0.5–1 s):</span> power, pack and cell model, BMS estimate, feasibility checks, onboard responses.</li>
+  <li><span class="t">DTC (every 2 s) and layer agreement (every 1 s):</span> sector × layer allocation, emergency layer, pad arbitration, congestion prices, operator commands.</li>
+  <li><span class="t">Verification:</span> layer-aware STL robustness, near-miss episodes, KPIs; a compact frame streams to the browser.</li>
+</ol>
+
+<hr>
+
+<h2>Mapping to Our Coursework (as implemented)</h2>
+<table>
+  <tr><th style="width:26%">Requirement</th><th style="width:33%">Course Modules</th><th>Where it lives in the code</th></tr>
+  <tr><td>Local rules / neighborhood behavior</td><td>Graph Theory Basics, Consensus &amp; Topology Conditions</td><td><code>simulation/comm_graph.py</code> (radius / kNN graph), <code>local_behavior/boids.py</code>; the Network panel reports degree, transitivity, components and algebraic connectivity λ₂ live</td></tr>
+  <tr><td>Centralized overseer + local tier interplay</td><td>Consensus Optimization, Distributed Learning &amp; Tracking</td><td><code>conflict_resolution/</code> (consensus ADMM), <code>simulation/overseer.py</code>, <code>simulation/layer_agreement.py</code> (consensus-based dual ascent on layer prices)</td></tr>
+  <tr><td>Corridor merging</td><td>Formation Control, Vehicle Platooning Problem</td><td><code>local_behavior/</code>, <code>simulation/route_formation.py</code> (junction merges, platoons, headway)</td></tr>
+  <tr><td>Priority arbitration</td><td>Epistemic Logic, Behavioural Planning with EL</td><td><code>simulation/overseer.py</code> (priority-aware policy), <code>simulation/route_priority.py</code> (compliance, delay, yields)</td></tr>
+  <tr><td>Adversary handling</td><td>Malicious Attacks &amp; Resilient Consensus</td><td><code>resilience/attack.py</code>, <code>defense.py</code>, <code>wmsr.py</code>, <code>consensus.py</code>; W-MSR also trims layer prices</td></tr>
+  <tr><td>Formal safety guarantees</td><td>STL Basics, STL Robustness, Mission Planning with STL</td><td><code>verification/stl_monitor.py</code>, <code>live_monitor.py</code>, <code>metrics.py</code></td></tr>
+  <tr><td>Complex arbitration + safety together</td><td>Complex Mission Planning with STL &amp; EL</td><td>Energy-feasibility test, pad arbitration and energy-margin ADMM weights in <code>simulation/drone_health.py</code></td></tr>
+</table>
+
+<hr>
+
+<h1>Final Team Structure &amp; Delivery</h1>
+<h2>Team Structure</h2>
+<p>Each person owned a <span class="t">vertical slice</span> of one syllabus pillar. The last column lists what each person delivered, taken from <span class="t">their own git commits</span> (106 commits, 15 Sep – 10 Nov 2026). P2's slice grew from the ADMM resolver into the simulator, demo and battery work that every other module now runs inside.</p>
+<table>
+  <tr><th style="width:4%">#</th><th style="width:13%">Role</th><th style="width:17%">Primary Syllabus Topic(s)</th><th style="width:9%">Member</th><th>What was delivered (from git)</th></tr>
+  <tr><td class="n">P1</td><td>Simulation Engine Lead</td><td>Graph Theory Basics + system integration</td><td>Dhadheechi + Abdur</td><td><b>Dhadheechi:</b> Week 1 engine — agent dynamics with velocity / acceleration clamps, the shared <code>AgentState</code> schema, mock agents, uv project setup, top-down renderer and GIF animation. <b>Abdur:</b> the integrated simulation loop (<code>engine.py</code>), radius and kNN communication graph, environment and scenario, CSV logger, per-tick telemetry, the Week 4 MVP run and the Week 5 centralized architecture.</td></tr>
+  <tr><td class="n">P2</td><td>Strategy &amp; Conflict-Resolution Lead</td><td>Consensus Optimization, ADMM</td><td>Lalith</td><td><b>ADMM:</b> consensus-ADMM conflict resolver — solver, constraints, convergence, adapter, conflict detection, N-agent groups (Weeks 1–4 files reached git through Sampad's integration commits), config keys, best-iterate tracking, E1 scaling experiment with a non-invasive profiler, and the Week 6 fixes that keep connected conflict groups whole and fall back cleanly on non-convergence. <b>2.5D airspace:</b> proposed the multi-layer airspace and built the first 7-layer ADMM demo (1 Nov), plus <code>final_demo.py</code> with SQLite run storage. <b>Road-corridor simulator:</b> <code>route_engine.py</code> (2,169 lines), <code>road_network.py</code>, spatial grid, corridor formation, priority and centralized modules for road maps; IITH campus map traced by hand; Hyderabad OSM map. <b>Live demo:</b> <code>web_sandbox/</code> (streaming server, compact frames, browser UI, run export) deployed on Render; DTC operator console; 10 scenario presets; custom-drone builder. <b>Drone health:</b> power, battery, BMS estimator, faults, pad arbitration, energy-margin ADMM weights; layer agreement. <b>Docs and paper:</b> full project audit, integration plan, research-gap review, IEEE-style paper draft.</td></tr>
+  <tr><td class="n">P3</td><td>Local Behavior &amp; Formation Lead</td><td>Formation Control, Vehicle Platooning</td><td>Bhuvan</td><td>Boids formulation (PDF and an HTML prototype); real boids separation, alignment and cohesion on P1's graph; corridor following, target-corridor selection and merge-gap control; local-behaviour cache reset and the ADMM merge check; Week 5 formation metrics (merge success, throughput, corridor utilization) with a sweep script.</td></tr>
+  <tr><td class="n">P4</td><td>Global Overseer &amp; Priority Lead</td><td>Consensus &amp; Topology, Epistemic Logic</td><td>Tanmay</td><td>Overseer contract and data model (Week 1); overseer skeleton with least-loaded and round-robin policies and tests (Week 2); priority-aware corridor allocation (Week 3); <code>OverseerLink</code> with outage windows and cached directives for graceful degradation (Week 4).</td></tr>
+  <tr><td class="n">P5</td><td>Adversarial Resilience Lead</td><td>Malicious Attacks &amp; Resilient Consensus</td><td>Sampad</td><td>Threat model (PDF); attack injection (constant and ramp offsets); plain-averaging consensus baseline; W-MSR (scalar and vector) and the report defence; W-MSR vs. baseline comparison; the decentralized-undefended architecture with experiments E4, E3 and E6; priority metrics; integration of 2.5D altitude layers into the grid engine; weekly merges of every role's branch.</td></tr>
+  <tr><td class="n">P6</td><td>Formal Verification &amp; Demo Lead</td><td>STL Basics, STL Robustness</td><td>Abdur + Dhadheechi</td><td><b>Abdur:</b> live STL monitor wired into the simulation, near-collision check, standardized run metrics (22-column schema, recovery time, degradation score); Week 6 experiment harness, dashboard, plots and <code>run_all</code> scripts. The Week 1 STL monitor and toy trajectories were committed by Sampad.</td></tr>
+</table>
+
+<h2 style="margin-top:14px;">Week-by-Week Roadmap (as executed)</h2>
+<table class="small">
+  <tr><th style="width:6%">Week</th><th>P1 (Sim)</th><th>P2 (Strategy/ADMM)</th><th>P3 (Formation)</th><th>P4 (Overseer/Priority)</th><th>P5 (Resilience)</th><th>P6 (STL/Demo)</th></tr>
+  <tr><td class="n">1</td><td>Dynamics, schema, renderer (Dhadheechi)</td><td>Two-agent ADMM QP solver + tests</td><td>Boids formulation, prototype</td><td>Overseer contract</td><td>Threat model, attack stub</td><td>STL specs, toy trajectories</td></tr>
+  <tr><td class="n">2</td><td>Comm graph, engine loop (Abdur)</td><td>ADMM adapter, config, iteration sweep</td><td>Real boids on the graph</td><td>Overseer skeleton + tests</td><td>Plain consensus baseline</td><td>Robustness formulas</td></tr>
+  <tr><td class="n">3</td><td>Live sim integration</td><td>N-agent ADMM, conflict detection</td><td>Corridor selection, merge gaps</td><td>Priority-aware allocation</td><td>W-MSR vs. baseline</td><td>Live monitor on sim runs</td></tr>
+  <tr><td class="n">4</td><td>MVP run</td><td>Profiling; 7-layer 2.5D ADMM demo; <code>final_demo.py</code>; SQLite outputs</td><td>Cache reset, ADMM merge check</td><td>Overseer link resilience</td><td>Falsified broadcasts</td><td>STL events, near-collision</td></tr>
+  <tr><td class="n">4.5</td><td colspan="6">2.5D altitude layers: idea and first 7-layer ADMM demo by Lalith (1 Nov); integrated into the grid engine with layer-aware ADMM and overseer by Sampad (4 Nov)</td></tr>
+  <tr><td class="n">5</td><td>Centralized baseline</td><td>E1 ADMM scaling + profiler</td><td>E2 formation metrics</td><td>E3 / E6 (committed by Sampad)</td><td>E4, undefended baseline</td><td>Standard metrics</td></tr>
+  <tr><td class="n">6</td><td>Telemetry, harness</td><td>Audit of the repo; ADMM fixes (whole groups, clean fallback)</td><td>E2 plots</td><td>E3 / E6 plots</td><td>E4 plots</td><td>Dashboard, plots, <code>run_all</code></td></tr>
+  <tr><td class="n">7</td><td>Dynamics reused on road corridors</td><td>Road-corridor engine, IITH + Hyderabad maps, live demo phases 0–5, Render deployment</td><td>Boids + car-following on road tubes</td><td>Overseer per sector via <code>OverseerLink</code></td><td>Range check + W-MSR on V2V reports</td><td>Layer-aware STL ρ(t) in the demo</td></tr>
+  <tr><td class="n">8</td><td colspan="6">Drone health and BMS, pad arbitration, energy-margin ADMM weights, layer agreement, multi-visitor server, light theme and section navigation, 460-run paper evaluation (P2)</td></tr>
+</table>
+
+<hr>
+
+<h2>1) Individual Contributions — What Each Person Did</h2>
+<p>Each statement is backed by that person's commits (git identities: <code>rlv-iith</code> and <code>R Lalith Vishnu</code> = Lalith; <code>MohammedAbdurRehman11015</code> = Abdur; <code>Sampadram</code> = Sampad).</p>
+<ul>
+  <li><span class="t">P1 — Dhadheechi:</span> "I built the Week 1 simulation engine: agent dynamics, the shared schema every module uses, mock data, the project setup and the top-down renderer."</li>
+  <li><span class="t">P1 + P6 — Abdur:</span> "I built the integrated simulation loop, the communication graph, telemetry and the centralized baseline, wired the STL monitor into live runs, defined the standard run metrics, and committed the Week 6 experiment harness, dashboard and plots."</li>
+  <li><span class="t">P2 — Lalith:</span> "I designed and implemented the consensus-ADMM conflict resolver and measured how it scales. I proposed the 2.5D layered airspace, traced the IITH campus into a corridor graph, and built the road-corridor simulator that runs every team module. On it I built the live demo with its DTC console and scenario presets, the battery and BMS model with pad arbitration, and the layer agreement, and I wrote the project audit and the paper draft."</li>
+  <li><span class="t">P3 — Bhuvan:</span> "I implemented boids alignment, cohesion and separation, corridor selection and merge-gap control, the ADMM merge check and the E2 formation metrics."</li>
+  <li><span class="t">P4 — Tanmay:</span> "I built the overseer contract and skeleton, the priority-aware corridor allocation, and the overseer link model that lets the swarm keep flying on cached directives."</li>
+  <li><span class="t">P5 — Sampad:</span> "I designed the threat model and implemented attack injection, the consensus baseline, W-MSR and the report defence, and the undefended baseline with experiments E4, E3 and E6. I integrated the 2.5D layers into the grid engine and merged every role's weekly branch."</li>
+</ul>
+
+<hr>
+
+<h2>2) What We Promised vs. What We Delivered</h2>
+<p class="lbl">Committed publicly (our "promise") — all delivered:</p>
+<ul>
+  <li>2D (or 2.5D dual-panel) simulation → <span class="em">2D map + 2.5D side view, seven altitude layers</span></li>
+  <li>50–80 agents, 2–3 corridors → <span class="em">up to 500 drones on full road networks (105-junction campus, 1,533-junction city)</span></li>
+  <li>One local rule set + one global overseer with priority arbitration → <span class="em">boids, car-following and CPA avoidance; a sector-based DTC with a reserved emergency layer</span></li>
+  <li>One resilient consensus defense against one attack type → <span class="em">trusted-range check + W-MSR against position spoofing, plus operator quarantine</span></li>
+  <li>One STL spec monitored live + one comparison chart → <span class="em">live layer-aware ρ(t); four architectures from identical initial conditions</span></li>
+</ul>
+<p class="lbl">Headroom and stretch items:</p>
+<ul>
+  <li>Second STL spec (reachability) → <span class="em">implemented</span> · corridor congestion pricing → <span class="em">implemented (layer agreement with consensus prices)</span> · richer priority-conflict interface → <span class="em">implemented (DTC console)</span></li>
+  <li>500+ agents → <span class="em">reached: 500 drones at 3.4× real time on a 2-vCPU server</span> · multiple attack types → <span class="em">partly: spoofing and a non-cooperative intruder</span></li>
+  <li>True 3D rendering, full epistemic-logic belief modelling, learned (RL) policies → not done, as the proposal allowed</li>
+</ul>
+<p class="lbl">Grown beyond the proposal during weeks 6–8:</p>
+<ul>
+  <li>Drones carry a physical <span class="t">battery and BMS</span>, and the traffic manager uses the BMS state (priority to land, pad arbitration, energy-weighted ADMM).</li>
+  <li>Weather (temperature, air density, wind), moving storm cells, temporary flight restrictions and ground-delay programs.</li>
+  <li>A deployed web demo with an <span class="t">operator console</span>, ten scripted scenarios and run export / replay; an IEEE-style paper draft with 460 paired-seed runs.</li>
+</ul>
+
+<hr>
+
+<h2>3) The Demo — What the Room Actually Sees</h2>
+<p>The final demo is <span class="t">MASooda Live Airspace</span>: <code>python -m web_sandbox.server</code> (port 8765), deployed at <span class="tl">masooda.onrender.com</span>. The browser starts a run (<code>POST /api/runs</code>) and frames stream back while the simulator computes them. Every button below was exercised on the live site for this report.</p>
+
+<h3>Top bar and playback</h3>
+<ul>
+  <li><span class="t">Status strip:</span> System ONLINE · Run LIVE · Sim time · Airborne / Queued / Landed / Forced / Crashed counters · DTC link UP/DOWN.</li>
+  <li><span class="t">Playback:</span> pause (space), 1× / 2× / 4× / 8×, replay from start, a time scrubber under the map, <span class="t">⤓ Run</span> (downloads the run as JSON: manifest, config, command log, KPIs, events, frames — built in the browser) and <span class="t">⤒ Load</span> (replays a saved run).</li>
+</ul>
+
+<h3>Right: the live airspace map</h3>
+<ul>
+  <li>Map switch <span class="t">IITH campus (Kandi) / Hyderabad roads (OSM)</span> — switching launches a new run on that network; layer filter <span class="t">All, L0–L6</span>; toggles for all routes, V2V links, sectors and the base map; zoom, fit and follow-selected-drone.</li>
+  <li>Legend: emergency / eVTOL / delivery, corridor tube, selected route, vertiport, separation alert, crash, <span class="t">spoofed report → W-MSR estimate</span>, junction merge (amber = gap blocked), BMS warning, BMS critical / fault, forced landing. Vertiports show their queue ("2 queued").</li>
+</ul>
+
+<h3>Left: nine panel sections</h3>
+<table class="small">
+  <tr><th style="width:11%">Section</th><th>What it shows and what each control does</th></tr>
+  <tr><td class="k">Overview</td><td>One tile per section: run progress bar, safety (collisions, near misses, min separation, violation ticks), DTC (link, directive age, layer changes · gated, operator commands), fleet health (NORMAL / WARNING / CRITICAL / FAULT, lowest SoC, max pack temperature, diversions · forced, energy per delivery), traffic &amp; priority (arrivals, emergency compliance and delay, junction merges, altitude shifts), ADMM, network, selected drone and custom drones. Clicking a tile opens its section.</td></tr>
+  <tr><td class="k">Setup</td><td>Scenario preset (10, each with its own timeline and "watch" list) · architecture (hierarchical, centralized, decentralized, decentralized-undefended) · six quick variants (Normal ops, Emergency surge, DTC outage, Spoofing attack, Undefended attack, Decentralized) · fleet size (max 500), duration, departure window, seed · weather presets Winter 15 °C / Pre-monsoon 35 °C / Heat wave 42 °C with temperature, wind speed and direction and the resulting air density (1.074 kg/m³ at 35 °C → hover power +3.4%) · type mix (default 10% EMG, 30% eVTOL, 60% DEL) · module switches: P4 DTC, P2 ADMM, P3 junction merging + platoons, P5 W-MSR defence, P5 spoofing attack, P4 DTC link outage · model parameters from <code>configs/base_config.yaml</code> (cruise 12 m/s, d<sub>min</sub> 8 m, max 15 m/s, tube 20 m, capacity 15, V2V 40 m, ADMM radius 20 m, DTC period 2 s, Δt 0.1 s) · ▶ Launch.</td></tr>
+  <tr><td class="k">Custom</td><td>Scenario builder: type and priority, origin and destination (13 vertiports or picked on the map), departure time, cruise speed, preferred layer (auto by semicircular rule, or L0–L6 with L6 for emergencies only), cooperative (broadcasts Remote ID) or malicious spoofer with an offset (dx, dy), battery Wh, initial SoC, state of health, payload, and a scheduled fault (capacity loss, cell failure, overheating, motor degradation, GNSS degradation) at a set time. <span class="t">Add to scenario</span>, <span class="t">Add drone now</span> (injects into the running simulation), import, and export as JSON or CSV.</td></tr>
+  <tr><td class="k">DTC</td><td>Operator console. Select drones by click, Shift+click, Ctrl+drag box, right-click menu, or filters (type, sector, layer, airborne / queued) and drone-number ranges ("3, 7-12, 20"); keyboard H hold, R resume, G ground, B return, Q quarantine, [ ] layer. Commands: hold, resume, ground now, return to base, quarantine, make EMERGENCY / normal priority, change layer, reroute (with via-point), speed limit for drones or a sector, battery swap / charge at a pad, divert, lost-link policy per drone or fleet default; draw a restricted area with a time window; sector ground stop with release time; ground all BMS CRITICAL; recall below x% SoC. Every command asks for confirmation, then the command history shows received / delivered / acknowledged per drone. Below: the live sector × layer load table (6 × 7 cells, capacity 15, L6 marked as the emergency layer).</td></tr>
+  <tr><td class="k">Drone</td><td>Pick any drone. <span class="t">Overview</span> tab: mission and priority, route, layer and altitude, speed and heading, remaining distance and ETA, nearest same-layer drone, V2V degree, DTC link and directive age, ADMM negotiations, shifts and alerts, neighbour-report status. <span class="t">Health</span> tab: SoC and BMS status, voltage · current · power (e.g. 22.3 V · 54.8 A · 1,219 W), energy left · time · range (259 Wh · 12.8 min · 5.2 km), state of health · capacity, pack and motor temperature against their limits, weakest cell and imbalance (3.698 V · 25 mV), DTC link RSSI and loss, GNSS fix and HDOP, motor health, faults; per-cell voltage bars and an SoC / temperature trace. Per-drone event log.</td></tr>
+  <tr><td class="k">Health</td><td>Fleet BMS counts, the lowest-charge airborne drones (click to select), active alerts (e.g. "stuck at 4.4 m/s for 4 s on L0 — asks the DTC for a layer"), and the <span class="t">battery matrix</span> of every drone: sort by id, lowest SoC or worst BMS; filter airborne / ≥ 30% / below 30% / below 15% or critical; each tile carries a 2-minute SoC sparkline.</td></tr>
+  <tr><td class="k">Safety</td><td>Fourteen KPI tiles: crashes (&lt; 2 m), near-miss episodes, 3D layer-aware minimum separation, violation ticks, ADMM resolutions (p95 iterations, ms, fallbacks), emergency compliance, junction merges (attempts, gap-yield ticks, platoons, headway), altitude shifts, DTC directives (layer changes, gated), corridor boundary holds, spoofed reports filtered, arrivals, energy per delivery, battery responses (diversions, forced, depleted, grounded pre-flight). The live STL robustness plot ρ(t). The governance log of every DTC, operator and BMS decision. For presets with variants, a <span class="t">variant comparison</span> table of 14 KPIs side by side.</td></tr>
+  <tr><td class="k">Network</td><td>The DTC hub plus the V2V graph: nodes and edges, average degree, density, transitivity, maximum degree centrality, components and isolated nodes, giant component share, algebraic connectivity λ₂; DTC link, directive age, directives issued, layer changes; a radar of coverage measures.</td></tr>
+  <tr><td class="k">ADMM</td><td>P2 convergence timer: conflict groups, converged vs. fallback, iterations mean · p95 · max (of 50), solve time mean · p95, the current frame's conflict, and a chart of iterations and solve time over the run.</td></tr>
+</table>
+
+<h3>The ten scenario presets</h3>
+<table class="small">
+  <tr><th style="width:3%">#</th><th style="width:20%">Scenario</th><th>What happens</th><th style="width:26%">Headless result (seed 42)</th></tr>
+  <tr><td class="n">1</td><td>IITH medical emergency</td><td>Lunch-hour wave of 120 drones; @blood1 (SNCC) and @blood2 (Main Gate) fly to the Hospital on the reserved emergency layer with DTC right of way and ADMM against delivery traffic (240 s)</td><td>Compliance 100%, emergency delay 4.5 s, 0 near misses</td></tr>
+  <tr><td class="n">2</td><td>Peak-hour vertiport congestion</td><td>200 drones in a 60 s window; ground stops on S3 (to 90 s) and S4 (to 120 s); 8 m/s speed limit in S1 (300 s)</td><td>223 ground holds, 161 / 200 delivered, 0 near misses</td></tr>
+  <tr><td class="n">3</td><td>Pop-up restricted area (VIP)</td><td>TFR over Academic Area + LHC announced at 60 s, active 70–180 s; drones reroute or land; V5 / V7 departures held</td><td>17 restricted-area events, 0 near misses</td></tr>
+  <tr><td class="n">4</td><td>GPS spoofing near the restricted zone</td><td>Two drones broadcast positions 30 m off from 50 s; range check + W-MSR correct them; operator quarantines both at 110 s</td><td>5 reports corrected, both quarantined, 1 near miss during the attack</td></tr>
+  <tr><td class="n">5</td><td>DTC outage: lost-link procedures</td><td>Link down 80–150 s; variants continue / hold / rtb compared side by side; a command at 125 s is queued</td><td>Delivered 91 / 76 / 36; hold costs +77% energy</td></tr>
+  <tr><td class="n">6</td><td>Weather cell</td><td>250 m storm drifts east at ~10 m/s from the Main Gate with an 8 m/s westerly wind (300 s)</td><td>120 restricted-area events, 3 caught inside landed, 0 near misses</td></tr>
+  <tr><td class="n">7</td><td>Non-cooperative intruder</td><td>No Remote ID: invisible to DTC and ADMM; others sense it within 30 m; 6 m/s limit in S1</td><td>Detected by onboard sensing, 0 crashes</td></tr>
+  <tr><td class="n">8</td><td>Battery failure mid-route</td><td>@cargo1 loses a cell at 70 s; @cargo2 (31% SoC) loses 30% capacity at 80 s; operator grounds all CRITICAL at 85 s</td><td>@cargo1 right of way → diverted and landed; @cargo2 low-reserve diversion; 0 depleted</td></tr>
+  <tr><td class="n">9</td><td>Heat wave 44 °C vs. 30 °C</td><td>Same 150-drone afternoon twice; two overheating faults at 60 s</td><td>Energy / delivery +4%; max motor 69.8 vs. 56.2 °C</td></tr>
+  <tr><td class="n">10</td><td>Long-duration operations</td><td>60 min, repeated sorties; depot battery swaps below 35% (2 per pad); 60 s outage at 20 min; recall below 25% at 40 min</td><td>1,469 deliveries, 137 swaps, queue ≤ 5, 0 forced, 0 depleted</td></tr>
+</table>
+
+<p class="lbl">Observed live on the site (preset 8, battery failure), governance log in order:</p>
+<div class="mono-log">
+BMS NORMAL → CRITICAL (CELL_IMBALANCE) · SoC 77% · pack 36 °C · motor 50 °C<br>
+D-100 BMS CRITICAL (CELL_IMBALANCE): DIVERTING to V4 (328 m, needs 22 of 362 Wh)<br>
+DTC: D-100 BMS CRITICAL → right of way to land (priority 0, stays on L0, pad V4 reserved)<br>
+D-101 low reserve (57 Wh left, 66 Wh needed to reach V9): DIVERTING to V4 (265 m, needs 20 of 57 Wh)<br>
+D-24 ground hold at V4: pad reserved for D-100 (BMS CRITICAL) landing<br>
+DTC c1 fleet ground bms critical → D-100: 1/1 acknowledged — landing at V4
+</div>
+<p>In a normal-operations run of 60 drones on the campus, about 60 s in, the Safety panel showed 130 ADMM groups all converged (p95 11 iterations, ≈4 ms), 0 near misses, 16.1 m minimum 3D separation, 100% emergency compliance and 58 junction merges at 100%. An operator hold sent to 12 selected drones came back "12/12 acknowledged" (airborne drones held position; queued drones had their departure held), and the resume was acknowledged the same way.</p>
+
+<p class="lbl">The demo script (proposal beats → presets):</p>
+<ol>
+  <li><span class="t">Normal operation (60 s):</span> any preset's opening minute — drones leave the pads, spread over the layers; Overview tiles healthy.</li>
+  <li><span class="t">Malicious drone + controller link drop (90 s):</span> presets 4 and 5 — spoofed reports corrected on the map, quarantine; drones keep flying on their lost-link policy and the queued command arrives when the link returns.</li>
+  <li><span class="t">Emergency drone (60 s):</span> preset 1 — blood delivery takes L6 and right of way; compliance and delay in the Safety panel.</li>
+  <li><span class="t">Comparison (30 s):</span> the architecture switch and the variant table — hierarchical vs. centralized vs. decentralized(-undefended).</li>
+  <li><span class="t">Battery failure (60 s):</span> preset 8 — the log above, live on the map.</li>
+</ol>
+
+<hr>
+
+<h2>4) Engineering Audit and Corrections</h2>
+<p>Before the final simulator was built, the repository was audited line by line against the workflow (<code>docs/COMPREHENSIVE_PROJECT_AUDIT.md</code>). It logged <span class="t">21 discrepancies (D01–D21)</span>, five rated critical, nine high. The main ones and how the final system resolved them:</p>
+<table class="small">
+  <tr><th style="width:6%">ID</th><th style="width:40%">Finding</th><th>Resolution in the final system</th></tr>
+  <tr><td class="n">D01, D12</td><td>STL and metrics measured horizontal (XY) distance while ADMM ignored other layers; z held a layer index, not metres</td><td>One layer-aware 3D distance (layer gap × layer height) drives ADMM, the STL monitor and the KPIs</td></tr>
+  <tr><td class="n">D05</td><td>Conflict groups were split into chunks of 5, dropping conflict edges at chunk borders</td><td>Connected conflict components are solved whole (P2 Week 6 fix, tested)</td></tr>
+  <tr><td class="n">D06</td><td>ADMM only ran inside the merge zone x = 700–800 m</td><td>ADMM runs anywhere on the map (<code>merge_zone_only</code> off in route mode)</td></tr>
+  <tr><td class="n">D07</td><td>A non-converged ADMM iterate could be used as a resolution</td><td>Non-converged groups keep their intended velocities and are counted as fallbacks</td></tr>
+  <tr><td class="n">D09, D10</td><td>No terminal behaviour; "arrival" meant crossing x = 1,400 m in any lane</td><td>Drones fly to a real destination pad, land and are counted once; arrivals, deliveries and forced landings are separate</td></tr>
+  <tr><td class="n">D11</td><td>Corridors overflowed capacity with no throttling</td><td>Departures wait for a merge gap and a clear pad; sector × layer capacity with DTC moves and congestion prices</td></tr>
+  <tr><td class="n">D18</td><td>Saved results showed 0.41 m minimum distance — ADMM is mitigation, not a guarantee</td><td>Reported as mitigation; an independent STL monitor and crash detection measure the outcome</td></tr>
+</table>
+
+<hr>
+
+<h2>5) Results</h2>
+<p>The evaluation ran twice. <span class="t">Week 6</span> ran experiments E1–E6 on the earlier three-corridor grid engine (141 runs, seeds 42–44, marked provisional). The <span class="t">final evaluation</span> ran 460 paired-seed runs on the road-corridor engine. The final evaluation is the stronger evidence: the grid engine measured separation horizontally across layers (audit D01), which inflates its violation counts.</p>
+<h3 style="margin-top:4px;">Week 6 experiments (grid engine)</h3>
+<table class="small">
+  <tr><th style="width:5%">Exp.</th><th style="width:6%">Owner</th><th style="width:19%">Question</th><th>Result</th></tr>
+  <tr><td class="n">E1</td><td>P2</td><td>ADMM scaling with N</td><td>100% converged at every N (limit 50); ≈10 iterations and ≈1 ms per solve; ADMM time per tick 0.77 ms (N = 30) → 1.79 ms (N = 75); a limit of 20 already converges 99.7%, a limit of 5 only 7%</td></tr>
+  <tr><td class="n">E2</td><td>P3</td><td>Merge success, throughput</td><td>Throughput 0.16 → 0.42 agents/s from N = 30 to 75; merge success near 0; corridors peak at 1.8× capacity at N = 75</td></tr>
+  <tr><td class="n">E3</td><td>P4</td><td>Priority compliance</td><td>Compliance 1.0 at N = 30, near 0 from N = 45 (assigned corridor over 15 agents); the emergency agent saves 10–36 s over a normal agent; delay imposed on others within ±2 s</td></tr>
+  <tr><td class="n">E4</td><td>P5</td><td>Resilience under attack</td><td>No measurable attack effect in any architecture (95% CI includes 0); undefended violations rise 0 → 76 ticks under attack</td></tr>
+  <tr><td class="n">E5</td><td>P6</td><td>STL robustness</td><td>Violating fraction: hierarchical 0.46–0.99, centralized 0.03–0.10, decentralized 0 (inflated by horizontal separation)</td></tr>
+  <tr><td class="n">E6</td><td>P4</td><td>Graceful degradation</td><td>Link down 90–120 s: directive age rose to 31.9 s; violations and throughput unchanged (score 1.0)</td></tr>
+</table>
+<h3>Final evaluation (road-corridor engine, 100 drones, 20 paired seeds)</h3>
+<table class="small">
+  <tr><th style="width:24%">Measure</th><th>Result</th></tr>
+  <tr><td class="k">Architectures (nominal)</td><td>Hierarchical &amp; decentralized: 95.7% arrived, 0 near misses, 12.5 m min separation. Centralized: 88.0% arrived, 9.8 near misses, 1.1 collisions, 1.7 m min separation</td></tr>
+  <tr><td class="k">Spoofing attack</td><td>0 spoofed reports accepted (defended) vs. 193 per run (undefended); separation unchanged in both</td></tr>
+  <tr><td class="k">DTC outage 80–150 s</td><td>35 directives lost; no change in outcomes</td></tr>
+  <tr><td class="k">Scaling 50 → 200 drones</td><td>Mean ADMM iterations ≈ 8.7, every group converged, p95 solve ≈ 0.45 ms; real-time factor 22.2× → 5.7× on one core; arrivals 95.8% → 90.9%</td></tr>
+  <tr><td class="k">BMS state of charge</td><td>Estimator RMSE 0.21–0.33%; maximum error below 1.3% in all fault conditions</td></tr>
+  <tr><td class="k">Energy bound</td><td>Never over-estimated usable energy in nominal flight; after a sudden 30% capacity loss, over-estimated in 9% of samples for about 2 minutes</td></tr>
+  <tr><td class="k">Low-charge fleet</td><td>The feasibility check held 6.4 more drones on the ground and avoided 3.5 in-flight diversions per run; deliveries unchanged (−0.2)</td></tr>
+  <tr><td class="k">Pad arbitration, weights</td><td>No measurable gain in safety, deliveries or emergency delay in these scenarios; one forced landing (seed 13) traced to where arrivals hold short</td></tr>
+</table>
+<h3>Live-demo performance (2-vCPU Xeon, IITH map, seed 42)</h3>
+<table class="small">
+  <tr><th>Fleet × duration</th><th>Ticks / s</th><th>× real time</th><th>Peak airborne</th><th>Frame size</th></tr>
+  <tr><td>60 × 180 s</td><td>189.5</td><td>19.0</td><td>46</td><td>1.97 KB</td></tr>
+  <tr><td>150 × 180 s</td><td>87.9</td><td>8.8</td><td>81</td><td>3.91 KB</td></tr>
+  <tr><td>250 × 300 s</td><td>63.4</td><td>6.3</td><td>114</td><td>5.90 KB</td></tr>
+  <tr><td>500 × 300 s</td><td>34.4</td><td>3.4</td><td>177</td><td>11.08 KB</td></tr>
+</table>
+<p>At 500 drones the campus is limited by vertiport capacity (464 ground holds), not by compute.</p>
+
+<hr>
+
+<h2>6) Testing, Reproducibility &amp; Limitations</h2>
+<ul>
+  <li><span class="t">Tests:</span> 421 test functions in 80 files — unit tests per module (ADMM solver, boids, overseer, attack, W-MSR, STL), route-engine tests that assert every airborne drone stays inside its tube and the geofence on every tick, grid-on vs. grid-off identity, energy balance to 10<sup>−9</sup>, estimator calibration, pad arbitration, DTC commands, presets, KPI definitions and streaming.</li>
+  <li><span class="t">Reproducibility:</span> one config file (<code>configs/base_config.yaml</code>) for every parameter; a seed fixes a run exactly; an initial-conditions hash proves architectures start identically; <code>scripts/run_all.py</code> regenerates Week 6; 53 runs repeated on a second platform gave identical discrete outcomes.</li>
+  <li><span class="t">Limitations:</span> the battery, power and thermal models are not calibrated on flight data; health telemetry is trusted (a drone falsely reporting CRITICAL would get right of way); ADMM is a mitigation layer, not a formal guarantee; the threshold thermal response is too slow at 44 °C; wind changes power but does not push drones; V2V message loss is not modelled; Week 6 results are provisional.</li>
+  <li><span class="t">Next steps:</span> calibrate against public delivery-drone flight data; predictive thermal and energy STL specs such as <b>G</b>(T<sub>p</sub> ≤ T<sub>max</sub>); protect health reports the way W-MSR protects positions; scenarios with scarce landing capacity.</li>
+</ul>
+
+<hr>
+
+<h2>7) Repository Statistics (git)</h2>
+<p>106 commits across all branches (15 Sep – 10 Nov 2026). Lines are from <code>git blame</code> on 193 tracked code files (Python, JS, HTML, CSS outside <code>docs/</code> and <code>outputs/</code>), branch <code>bms/publishable</code> at <code>22c5400</code>.</p>
+<table>
+  <tr><th style="width:14%">Member</th><th style="width:9%">Commits</th><th style="width:22%">Lines of code in the tree</th><th>Main areas</th></tr>
+  <tr><td class="k">Lalith</td><td>57</td><td>12,400</td><td><code>simulation/route_*</code>, <code>road_network.py</code>, <code>drone_health.py</code>, <code>layer_agreement.py</code>, <code>dtc_console.py</code>, <code>web_sandbox/</code>, ADMM profiler and fixes</td></tr>
+  <tr><td class="k">Abdur</td><td>11</td><td>12,023 (7,564 from the Week 6 commit)</td><td><code>simulation/engine.py</code>, <code>centralized.py</code>, <code>telemetry.py</code>, <code>verification/</code>, <code>visualization/</code>, <code>experiments/</code></td></tr>
+  <tr><td class="k">Sampad</td><td>28</td><td>4,986 (≈1,660 in P2 files)</td><td><code>resilience/</code>, integration merges, P2 Week 1–4 files, 2.5D layer integration</td></tr>
+  <tr><td class="k">Bhuvan</td><td>4</td><td>2,374</td><td><code>local_behavior/</code>, P3 scripts and tests</td></tr>
+  <tr><td class="k">Dhadheechi</td><td>1</td><td>1,102</td><td><code>dynamics.py</code>, <code>schema.py</code>, <code>renderer.py</code>, <code>mock_data.py</code></td></tr>
+  <tr><td class="k">Tanmay</td><td>5</td><td>1,050</td><td><code>overseer.py</code>, <code>overseer_link.py</code>, P4 tests</td></tr>
+</table>
+<p>The final demo imports every role's module — P1 dynamics and comm graph, P2 ADMM, P3 boids, P4 overseer and link, P5 attack, defence and W-MSR, P6 STL metrics — so <span class="t">every role's work runs in the final demo</span>.</p>
+
+</body>
+</html>
