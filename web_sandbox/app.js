@@ -331,6 +331,10 @@ function drawDrones(s) {
       ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(X - r - 11, Y - 3, Math.max(1, 7 * hs / 100), 4); ctx.fillRect(X - r - 3, Y - 2, 1.5, 2);
     }
     if (mal.has(f.id)) { ctx.strokeStyle = '#9333ea'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 5 + 2 * Math.sin(performance.now() / 180), 0, 7); ctx.stroke(); }
+    if (f.custom && !dim) { // scripted case-study drone: amber dashed halo + star label
+      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.setLineDash([4, 2]); ctx.beginPath(); ctx.arc(X, Y, r + 11, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      if (k !== selected) { const t = `\u2605 D-${f.id}`; ctx.font = '700 11px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.strokeText(t, X + r + 12, Y + 4); ctx.fillStyle = '#b45309'; ctx.fillText(t, X + r + 12, Y + 4); }
+    }
     if (k === selected) { ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X, Y, r + 8, 0, 7); ctx.stroke();
       ctx.font = '700 11.5px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.strokeText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); ctx.fillStyle = '#0f172a'; ctx.fillText(`D-${f.id} ${TYPE_SHORT[f.type]}`, X + r + 10, Y + 4); }
   }
