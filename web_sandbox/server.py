@@ -248,6 +248,18 @@ def prepare_live_run(body: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("weather: wind must be [east, north] m/s")
         if float(np.hypot(*wind)) > 15.0:
             raise ValueError("weather: wind speed must be at most 15 m/s")
+        prof = dh.get("weather_profile")
+        if prof:   # weather over time ([] = constant weather), e.g. the "Summer day" preset
+            if not (isinstance(prof, list) and 2 <= len(prof) <= 50 and all(
+                    isinstance(p, list) and len(p) == 4 and all(isinstance(v, (int, float)) for v in p) for p in prof)):
+                raise ValueError("weather: weather_profile must be 2–50 points of [time_s, ambient_c, wind_east, wind_north]")
+            ts = [float(p[0]) for p in prof]
+            if ts[0] < 0 or any(b <= a for a, b in zip(ts, ts[1:])):
+                raise ValueError("weather: weather_profile times must start at 0 or later and increase")
+            for p in prof:
+                _float(p[1], "weather: profile temperature (°C)", -20.0, 55.0)
+                if float(np.hypot(p[2], p[3])) > 15.0:
+                    raise ValueError("weather: profile wind speed must be at most 15 m/s")
 
     map_id, network = _network(body.get("map"))
     flights = plan_flights(network, fleet, mix, seed, window) if fleet else []

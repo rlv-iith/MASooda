@@ -46,8 +46,14 @@ class HealthModel:
         self.resp = h["responses"]
         self.faults_cfg = h["faults"]
         self.t_amb = float(h["ambient_c"])
-        self.rho = air_density(self.t_amb, float(h["site_elevation_m"]))
+        self.elev = float(h["site_elevation_m"])
+        self.rho = air_density(self.t_amb, self.elev)
         self.wind = np.asarray(h.get("wind_mps", [0.0, 0.0]), dtype=float)
+        # optional weather over time: [[t_s, ambient_c, wind_east, wind_north], ...], linear between
+        # points, held at the ends (e.g. the sandbox "Summer day" profile)
+        prof = h.get("weather_profile") or []
+        self._wx = np.asarray(prof, dtype=float).reshape(-1, 4) if len(prof) else None
+        self._weather(0.0)
         self.v_climb = float(h["v_climb_mps"])
         self.soc_min = float(h["soc_min_pct"]) / 100.0
         self.alpha_r = float(h["alpha_r_per_k"])
@@ -165,6 +171,15 @@ class HealthModel:
         cold = np.maximum(0.0, 25.0 - a["tp"][k])
         return a["rpack"][k] * a["rmul"][k] * (1.0 + 0.5 * (1.0 - a["soh"][k])) * (1.0 + self.alpha_r * cold)
 
+    def _weather(self, t: float) -> None:
+        """Update ambient temperature, air density and wind from ``weather_profile`` at time ``t``."""
+        if self._wx is None:
+            return
+        w = self._wx
+        self.t_amb = float(np.interp(t, w[:, 0], w[:, 1]))
+        self.rho = air_density(self.t_amb, self.elev)
+        self.wind = np.array([np.interp(t, w[:, 0], w[:, 2]), np.interp(t, w[:, 0], w[:, 3])])
+
     # ------------------------------------------------------------------ physics
     def power(self, k: np.ndarray, airspeed: np.ndarray, climbing: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
         """(electrical power W, mechanical power W) at the given airspeeds."""
@@ -184,6 +199,7 @@ class HealthModel:
         """Advance airborne drones (``vel_air`` ground velocity, (n, 2)), drones powered on a pad
         (avionics only) and idle drones (cooling only)."""
         a = self.a
+        self._weather(t)
         self._faults(t)
         if len(k_air):
             air = np.linalg.norm(np.asarray(vel_air, float).reshape(-1, 2) - self.wind, axis=1)

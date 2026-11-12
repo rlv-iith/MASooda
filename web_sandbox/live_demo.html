@@ -143,13 +143,14 @@
         <p class="warn" id="fleetWarn" hidden></p>
         <div class="weather">
           <div class="sub-h">Weather <span class="muted">(battery, motor and air-density model)</span></div>
-          <div class="seg" id="wxPresets"><button data-t="15" data-w="2">Winter 15 °C</button><button data-t="35" data-w="0" class="on">Pre-monsoon 35 °C</button><button data-t="42" data-w="4">Heat wave 42 °C</button></div>
+          <div class="seg" id="wxPresets"><button data-t="15" data-w="2">Winter 15 °C</button><button data-t="35" data-w="0" class="on">Pre-monsoon 35 °C</button><button data-t="42" data-w="4">Heat wave 42 °C</button><button data-profile="summer" data-t="45" data-w="4" title="45 → 50 → 20 °C and wind 4 → 0 → 5 → 2 m/s over 300 s">☀ Summer day</button></div>
           <div class="grid2 cd">
             <label>Temperature (°C)<input id="wxTemp" type="number" min="-20" max="55" step="1" value="35"></label>
             <label>Wind speed (m/s)<input id="wxWind" type="number" min="0" max="15" step="0.5" value="0"></label>
             <label>Wind from (°, 0 = north)<input id="wxDir" type="number" min="0" max="359" step="5" value="270"></label>
             <label>Air density<output id="wxRho">—</output></label>
           </div>
+          <p class="hint" id="wxProfileNote" hidden></p>
           <p class="hint">Wind changes airspeed and so power draw; it does not push the drones in this simulation.</p>
         </div>
         <div class="mix"><span>Mix %</span>

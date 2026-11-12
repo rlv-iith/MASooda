@@ -685,6 +685,7 @@ function buildRequest() {
   }
   const wx = readWeather();
   if (wx) set(config, 'drone_health.ambient_c', wx.t), set(config, 'drone_health.wind_mps', wx.wind);
+  if (wx?.profile) set(config, 'drone_health.weather_profile', profilePoints(wx.profile, wx.dir, duration));
   return {map: mapId, fleet, duration_s: duration, seed, departure_window_s: Math.min(win, duration), mix, config,
     architecture: $('#arch').value, junction_merge: $('#swMerge').checked, drones: customDrones,
     use_overseer: $('#swOverseer').checked, use_admm: $('#swAdmm').checked, defended: $('#swDefense').checked,
@@ -1143,6 +1144,16 @@ $('#dTabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) ret
   $('#tabOv').hidden = dTab !== 'ov'; $('#tabHl').hidden = dTab !== 'hl'; resize(); };
 
 // ------------------------------------------------------------------ weather controls
+// Weather over time: points [t_s, °C, wind m/s] over 300 s (temperature 45 → 50 → 20 °C at 0/150/300 s,
+// wind 4 → 0 → 5 → 2 m/s at 0/100/200/300 s, merged). Squeezed to the run duration when shorter.
+const WX_PROFILES = {summer: {label: 'Summer day', span: 300,
+  pts: [[0, 45, 4], [100, 48.33, 0], [150, 50, 2.5], [200, 40, 5], [300, 20, 2]]}};
+let wxProfile = null;
+function profilePoints(key, dir, duration) {
+  const p = WX_PROFILES[key], k = Math.min(1, duration / p.span), to = (dir + 180) * Math.PI / 180;
+  return p.pts.map(([t, c, w]) => [Math.round(t * k * 100) / 100, c,
+    Math.round(w * Math.sin(to) * 100) / 100, Math.round(w * Math.cos(to) * 100) / 100]);
+}
 function readWeather() {
   if (!baseConfig?.drone_health) return null;
   const t = +$('#wxTemp').value, ws = +$('#wxWind').value, dir = +$('#wxDir').value;
@@ -1150,6 +1161,7 @@ function readWeather() {
   if (!(ws >= 0 && ws <= 15)) throw Error('Wind speed must be 0–15 m/s.');
   const to = (dir + 180) * Math.PI / 180;   // wind FROM dir blows TOWARD dir + 180
   const wind = [Math.round(ws * Math.sin(to) * 100) / 100, Math.round(ws * Math.cos(to) * 100) / 100];
+  if (wxProfile) return {t, wind, dir, profile: wxProfile};
   const base = baseConfig.drone_health;
   if (t === base.ambient_c && ws === 0 && !Math.hypot(...base.wind_mps)) return null;
   return {t, wind};
@@ -1159,10 +1171,15 @@ function updateWeather() {
   const h = baseConfig?.drone_health?.site_elevation_m ?? 542, t = +$('#wxTemp').value;
   const rho = airDensity(t, h), ref = airDensity(15, h);
   $('#wxRho').textContent = Number.isFinite(rho) ? `${rho.toFixed(3)} kg/m³ · hover power ${((Math.sqrt(ref / rho) - 1) * 100).toFixed(1)}% vs 15 °C` : '—';
-  document.querySelectorAll('#wxPresets button').forEach((b) => b.classList.toggle('on', +b.dataset.t === t && +b.dataset.w === +$('#wxWind').value));
+  document.querySelectorAll('#wxPresets button').forEach((b) => b.classList.toggle('on', wxProfile
+    ? b.dataset.profile === wxProfile : !b.dataset.profile && +b.dataset.t === t && +b.dataset.w === +$('#wxWind').value));
+  const note = $('#wxProfileNote'); note.hidden = !wxProfile;
+  if (wxProfile) note.textContent = `${WX_PROFILES[wxProfile].label}: 45 → 50 → 20 °C and wind 4 → 0 → 5 → 2 m/s over 300 s (squeezed to the run if shorter). Wind keeps the "from" direction.`;
 }
-$('#wxPresets').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; $('#wxTemp').value = b.dataset.t; $('#wxWind').value = b.dataset.w; updateWeather(); };
-for (const id of ['#wxTemp', '#wxWind', '#wxDir']) $(id).addEventListener('input', updateWeather);
+$('#wxPresets').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; wxProfile = b.dataset.profile || null;
+  $('#wxTemp').value = b.dataset.t; $('#wxWind').value = b.dataset.w; updateWeather(); };
+for (const id of ['#wxTemp', '#wxWind']) $(id).addEventListener('input', () => { wxProfile = null; updateWeather(); });
+$('#wxDir').addEventListener('input', updateWeather);
 
 // ------------------------------------------------------------------ battery matrix (per-drone SoC graphs, Task-Manager style)
 const battC = $('#battGrid'), bctx = battC.getContext('2d');

@@ -302,6 +302,7 @@ drone_health:
   ambient_c: 35.0              # Hyderabad pre-monsoon; heat-wave preset 42
   site_elevation_m: 542.0      # Hyderabad
   wind_mps: [0.0, 0.0]
+  weather_profile: []         # optional weather over time: [[t_s, ambient_c, wind_east, wind_north], ...]; [] = constant (sandbox "Summer day")
   v_climb_mps: 3.0
   soc_min_pct: 5.0             # usable energy is counted down to this SoC
   random_fleet_soc_pct: [35.0, 100.0]   # seeded initial SoC of random-fleet drones

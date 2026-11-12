@@ -326,3 +326,24 @@ def test_weather_controls_change_power_and_are_validated():
     for bad in ({"ambient_c": 70}, {"wind_mps": [20.0, 0.0]}, {"wind_mps": "calm"}):
         with pytest.raises(ValueError, match="weather|wind_mps"):
             prepare_live_run({"map": "iith", "fleet": 1, "config": {"drone_health": bad}})
+
+
+def test_weather_profile_changes_ambient_and_wind_over_time():
+    from web_sandbox.server import prepare_live_run
+    prof = [[0, 45, 4.0, 0.0], [100, 48.33, 0.0, 0.0], [150, 50, 2.5, 0.0], [200, 40, 5.0, 0.0], [300, 20, 2.0, 0.0]]
+    p = prepare_live_run({"map": "iith", "fleet": 1, "duration_s": 10,
+                          "config": {"drone_health": {"ambient_c": 45.0, "wind_mps": [4.0, 0.0], "weather_profile": prof}}})
+    hm = HealthModel(p["config"], 1, (0.0, 0.0))
+    hm.add(1, "DELIVERY", None, custom=True)
+    assert hm.t_amb == 45.0 and list(hm.wind) == [4.0, 0.0]
+    e = np.zeros(0, dtype=int)
+    hm.step(150.0, 0.1, e, np.zeros((0, 2)), e, np.array([0]))
+    assert hm.t_amb == pytest.approx(50.0) and list(hm.wind) == pytest.approx([2.5, 0.0])
+    rho_hot = hm.rho
+    hm.step(400.0, 0.1, e, np.zeros((0, 2)), e, np.array([0]))      # held at the last point
+    assert hm.t_amb == pytest.approx(20.0) and list(hm.wind) == pytest.approx([2.0, 0.0]) and hm.rho > rho_hot
+    for bad in ([[0, 45, 0, 0]], [[0, 45, 0, 0], [0, 50, 0, 0]], [[0, 45, 0, 0], [10, 70, 0, 0]],
+                [[0, 45, 0, 0], [10, 40, 20.0, 0]], "hot"):
+        with pytest.raises(ValueError, match="weather"):
+            prepare_live_run({"map": "iith", "fleet": 1,
+                              "config": {"drone_health": {"weather_profile": bad}}})
